@@ -1,12 +1,21 @@
 set(TARGET_NAME scenic)
 
 set(${TARGET_NAME}_HEADERS
+    Camera.h
     Shapes.h
 )
 
 set(${TARGET_NAME}_SOURCES
+    Camera.cpp
     Shapes.cpp
 )
+
+set(${TARGET_NAME}_INFRA
+	CMakeFinds.cmake.in
+)
+
+
+source_group(/ FILES ${${TARGET_NAME}_INFRA})
 
 #source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
 #             FILES ${${TARGET_NAME}_HEADERS} ${${TARGET_NAME}_SOURCES}
@@ -15,6 +24,7 @@ set(${TARGET_NAME}_SOURCES
 add_library(${TARGET_NAME}
     ${${TARGET_NAME}_SOURCES}
     ${${TARGET_NAME}_HEADERS}
+	${${TARGET_NAME}_INFRA}
 )
 
 add_library(ad::${TARGET_NAME} ALIAS ${TARGET_NAME})
@@ -34,6 +44,7 @@ cmc_find_dependencies(FILE CMakeFinds.cmake.in)
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
+        ad::graphics
         ad::math
 )
 

@@ -14,12 +14,12 @@ int main(int argc, const char * argv[])
 
         ad::graphics::Timer timer{glfwGetTime(), 0.};
 
-        ad::Scene scene;
+        ad::Scene scene{ *application.getAppInterface() };
 
         while(application.nextFrame())
         {
             application.getAppInterface()->clear();
-            scene.step(timer);
+            scene.step(timer, application.getAppInterface()->getWindowSize());
             scene.render(application.getAppInterface()->getFramebufferSize());
             timer.mark(glfwGetTime());
         }

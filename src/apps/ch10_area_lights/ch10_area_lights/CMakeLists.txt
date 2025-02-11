@@ -1,11 +1,14 @@
 set(TARGET_NAME ch10_area_lights)
 
 set(${TARGET_NAME}_HEADERS
+    CameraSystem.h
     Scene.h
     shaders.h
 )
 
 set(${TARGET_NAME}_SOURCES
+    CameraSystem.cpp
+    Scene.cpp
     main.cpp
 )
 
