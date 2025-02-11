@@ -5,8 +5,13 @@
 
 #include <scenic/Shapes.h>
 
+#include <graphics/CameraUtilities.h>
 #include <graphics/Timer.h>
+
+#include <renderer/BufferIndexedBinding.h>
+#include <renderer/BufferLoad.h>
 #include <renderer/Drawing.h>
+#include <renderer/UniformBuffer.h>
 #include <renderer/VertexSpecification.h>
 
 #include <math/Color.h>
@@ -39,10 +44,11 @@ struct Scene
     Scene();
 
     void step(const graphics::Timer & aTimer);
-    void render();
+    void render(math::Size<2, int> aRenderResolution);
 
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
+    graphics::UniformBufferObject mViewProjectionBlock;
     graphics::Program mProgram;
 };
 
@@ -79,12 +85,30 @@ inline void Scene::step(const graphics::Timer & /*aTimer*/)
 {}
 
 
-inline void Scene::render()
+inline void Scene::render(math::Size<2, int> aRenderResolution)
 {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
     glBindVertexArray(mVertexSpecification.mVertexArray);
     glUseProgram(mProgram);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    // TODO use defines here for binding points
+    graphics::bind(mViewProjectionBlock, graphics::BindingIndex{0});
+    std::array<math::Matrix<4, 4, float>, 1> viewing{
+        graphics::makeProjection(graphics::OrthographicParameters{
+            .mAspectRatio = math::getRatio<GLfloat>(aRenderResolution),
+            .mViewHeight = 4.f,
+            .mNearZ = 10.f,
+            .mFarZ = -10.f}
+        )
+    };
+    graphics::load(mViewProjectionBlock,
+                   std::span{viewing},
+                   graphics::BufferHint::StreamDraw);
+
+    glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
+
     glDrawElementsInstanced(
         GL_TRIANGLES,
         static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),

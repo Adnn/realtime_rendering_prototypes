@@ -20,7 +20,7 @@ int main(int argc, const char * argv[])
         {
             application.getAppInterface()->clear();
             scene.step(timer);
-            scene.render(/*application.getAppInterface()->getWindowSize()*/);
+            scene.render(application.getAppInterface()->getFramebufferSize());
             timer.mark(glfwGetTime());
         }
     }

@@ -7,26 +7,30 @@
 namespace ad {
 
 const GLchar* gVertexShader = R"#(
-    #version 400
+    #version 460
 
     layout(location=0) in vec3 in_Position;
     layout(location=1) in vec3 in_Color;
+
+    layout(std140, binding=0) uniform ViewProjectionBlock
+    {
+        //mat4 worldToCamera;
+        //mat4 cameraToWorld;
+        //mat4 projection;
+        mat4 viewingProjection;
+    };
 
     out vec3 ex_Color;
 
     void main(void)
     {
-        mat4 modelTransform = mat4(1.0);
-        modelTransform[0][0] = 0.5;
-        modelTransform[1][1] = 0.5;
-        modelTransform[2][2] = 0.5;
         ex_Color = in_Color;
-        gl_Position = modelTransform * vec4(in_Position, 1.0);
+        gl_Position = viewingProjection * vec4(in_Position, 1.0);
     }
 )#";
 
 const GLchar* gFragmentShader = R"#(
-    #version 400
+    #version 460
 
     in vec3 ex_Color;
 
