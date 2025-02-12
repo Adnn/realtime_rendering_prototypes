@@ -22,6 +22,7 @@ Scene::Scene(graphics::AppInterface & aAppInterface) :
     mProgram{graphics::makeLinkedProgram({
               {GL_VERTEX_SHADER,   gVertexShader},
               {GL_FRAGMENT_SHADER, gFragmentShader},
+              {GL_TESS_EVALUATION_SHADER, gTessellationEvaluationShader},
     })}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
@@ -74,8 +75,15 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
 
+    // The input patch (directly fed to the TES) are the 3 vertices of a triangle.
+    glPatchParameteri(GL_PATCH_VERTICES, 3);
+    const GLfloat outer[] = { 2, 2, 2 };
+    const GLfloat inner[] = { 2 };
+    glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, outer);
+    glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, inner);
+
     glDrawElementsInstanced(
-        GL_TRIANGLES,
+        GL_PATCHES,
         static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),
         graphics::MappedGL_v<std::remove_cvref_t<
             decltype(*scenic::icosahedron::gIndices)>>,
