@@ -4,6 +4,7 @@ set(${TARGET_NAME}_HEADERS
     CameraSystem.h
     Scene.h
     shaders.h
+    Ui.h
 )
 
 set(${TARGET_NAME}_SOURCES
@@ -25,6 +26,9 @@ add_executable(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
+        # TODO: replace with the graphics/imguiui when moved back
+        ad::ui
+
         ad::graphics
         ad::math
         ad::renderer

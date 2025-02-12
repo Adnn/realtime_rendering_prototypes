@@ -1,9 +1,11 @@
 #include "Scene.h"
+#include "Ui.h"
 
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/AppInterface.h>
 #include <graphics/Timer.h>
 
+#include <ui/ImguiUi.h>
 
 
 int main(int argc, const char * argv[])
@@ -12,9 +14,15 @@ int main(int argc, const char * argv[])
     {
         ad::graphics::ApplicationGlfw application("ch10_area_lights", 800, 600);
 
+        ad::imguiui::ImguiUi imgui{application};
+        ad::Ui ui;
+
         ad::graphics::Timer timer{glfwGetTime(), 0.};
 
-        ad::Scene scene{ *application.getAppInterface() };
+        ad::Scene scene{
+            *application.getAppInterface(),
+            imgui
+        };
 
         while(application.nextFrame())
         {
@@ -22,6 +30,10 @@ int main(int argc, const char * argv[])
             scene.step(timer, application.getAppInterface()->getWindowSize());
             scene.render(application.getAppInterface()->getFramebufferSize());
             timer.mark(glfwGetTime());
+
+            ad::imguiui::newFrame();
+            ui.present("Root");
+            ad::imguiui::renderFrame();
         }
     }
     catch(const std::exception & e)

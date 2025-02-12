@@ -9,11 +9,13 @@
 #include <renderer/BufferIndexedBinding.h>
 #include <renderer/BufferLoad.h>
 
+#include <ui/ImguiUi.h>
+
 
 namespace ad {
 
 
-Scene::Scene(graphics::AppInterface & aAppInterface) :
+Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
     mVertexSpecification{},
     mIndexBuffer{
         graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
@@ -45,9 +47,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface) :
         aAppInterface,
         mOrbitalCamera.mOrbitalControl,
         graphics::EscKeyBehaviour::Close,
-        // TODO: this is the default value, but apparently it does not deduce it
-        // try to make the matching type default template type argument.
-        &graphics::NullInhibiter::gInstance);
+        // TODO: this is a dirty capture of a parameter given by reference
+        &aImgui);
 }
 
 

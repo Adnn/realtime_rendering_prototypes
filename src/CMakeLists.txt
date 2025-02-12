@@ -1,6 +1,7 @@
 include(cmc-cpp)
 
 add_subdirectory(libs/scenic/scenic)
+add_subdirectory(libs/ui/ui)
 
 add_subdirectory(apps/ch10_area_lights/ch10_area_lights)
 

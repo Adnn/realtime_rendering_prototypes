@@ -1,13 +1,11 @@
-set(TARGET_NAME scenic)
+set(TARGET_NAME ui)
 
 set(${TARGET_NAME}_HEADERS
-    Camera.h
-    Shapes.h
+    ImguiUi.h
 )
 
 set(${TARGET_NAME}_SOURCES
-    Camera.cpp
-    Shapes.cpp
+    ImguiUi.cpp
 )
 
 set(${TARGET_NAME}_INFRA
@@ -15,19 +13,35 @@ set(${TARGET_NAME}_INFRA
 )
 
 
+set(${TARGET_NAME}_IMGUI_BACKENDS
+    ${PROJECT_BINARY_DIR}/conan_imports/imgui_bindings/imgui_impl_glfw.cpp
+    ${PROJECT_BINARY_DIR}/conan_imports/imgui_bindings/imgui_impl_opengl3.cpp
+    ${PROJECT_BINARY_DIR}/conan_imports/imgui_bindings/imgui_impl_glfw.h
+    ${PROJECT_BINARY_DIR}/conan_imports/imgui_bindings/imgui_impl_opengl3.h
+    ${PROJECT_BINARY_DIR}/conan_imports/imgui_bindings/imgui_impl_opengl3_loader.h
+)
+
+
 source_group(/ FILES ${${TARGET_NAME}_INFRA})
 
-#source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
-#             FILES ${${TARGET_NAME}_HEADERS} ${${TARGET_NAME}_SOURCES}
-#)
+source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
+             FILES ${${TARGET_NAME}_HEADERS} ${${TARGET_NAME}_SOURCES}
+)
 
 add_library(${TARGET_NAME}
     ${${TARGET_NAME}_SOURCES}
     ${${TARGET_NAME}_HEADERS}
-	${${TARGET_NAME}_INFRA}
+    ${${TARGET_NAME}_INFRA}
+    ${${TARGET_NAME}_IMGUI_BACKENDS}
 )
 
 add_library(ad::${TARGET_NAME} ALIAS ${TARGET_NAME})
+
+target_include_directories(${TARGET_NAME}
+    PRIVATE
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/conan_imports>
+)
+
 
 cmc_target_current_include_directory(${TARGET_NAME})
 
@@ -43,9 +57,10 @@ cmc_cpp_sanitizer(${TARGET_NAME} ${BUILD_CONF_Sanitizer})
 cmc_find_dependencies(FILE CMakeFinds.cmake.in)
 
 target_link_libraries(${TARGET_NAME}
-    PUBLIC
+    PRIVATE
         ad::graphics
-        ad::math
+    PUBLIC
+        imgui::imgui
 )
 
 
@@ -53,7 +68,8 @@ target_link_libraries(${TARGET_NAME}
 ## Install
 ##
 
-install(TARGETS ${TARGET_NAME} EXPORT ${TARGET_NAME}Targets)
+install(TARGETS ${TARGET_NAME}
+        EXPORT ${TARGET_NAME}Targets)
 
 include(cmc-install)
 # Install the header files
@@ -63,4 +79,3 @@ cmc_install_with_folders(DESTINATION include/${TARGET_NAME}/${TARGET_NAME}
 cmc_install_packageconfig(${TARGET_NAME} ${TARGET_NAME}Targets ${PROJECT_NAME}
                           FIND_FILE CMakeFinds.cmake.in
                           NAMESPACE ad::)
-

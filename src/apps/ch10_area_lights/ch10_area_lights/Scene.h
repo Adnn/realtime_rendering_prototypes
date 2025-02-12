@@ -23,6 +23,11 @@ namespace graphics {
 } // namespace graphics
 
 
+namespace imguiui {
+    class ImguiUi;
+} // namespace imguiui
+
+
 constexpr graphics::AttributeDescriptionList gVertexDescription{
     {0, 3, /*offset*/0, graphics::MappedGL<GLfloat>::enumerator},
 };
@@ -43,7 +48,7 @@ static std::array<Instance, 1> gInstances{};
 
 struct Scene
 {
-    Scene(graphics::AppInterface & aAppInterface);
+    Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
 
     void step(
         const graphics::Timer & aTimer,
