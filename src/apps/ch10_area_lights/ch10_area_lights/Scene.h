@@ -48,6 +48,22 @@ static std::array<Instance, 1> gInstances{};
 
 struct Scene
 {
+    struct TessellationControl
+    {
+        TessellationControl()
+        {
+            glGetIntegerv(GL_MAX_PATCH_VERTICES, &mMaxPatchVertices);
+            glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &mMaxTessGenLevel);
+        }
+
+        GLuint mPatchVertices = 3;
+        math::Vec<4, GLfloat> mOuterLevel{ 2.f, 2.f, 2.f, 1.f };
+        math::Vec<2, GLfloat> mInnerLevel{ 2.f, 1.f };
+
+        GLint mMaxPatchVertices;
+        GLint mMaxTessGenLevel;
+    };
+
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
 
     void step(
@@ -56,12 +72,16 @@ struct Scene
 
     void render(math::Size<2, int> aRenderResolution);
 
+    void presentUi(bool * aOpen = nullptr);
+
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
     graphics::Program mProgram;
 
     OrbitalCamera mOrbitalCamera;
+
+    TessellationControl mTessControl;
 };
 
 

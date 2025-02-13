@@ -32,7 +32,7 @@ int main(int argc, const char * argv[])
             timer.mark(glfwGetTime());
 
             ad::imguiui::newFrame();
-            ui.present("Root");
+            ui.present("Root", scene);
             ad::imguiui::renderFrame();
         }
     }

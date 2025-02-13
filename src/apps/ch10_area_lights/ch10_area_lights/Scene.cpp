@@ -6,6 +6,9 @@
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/CameraUtilities.h>
 
+#include <reflect/DearImguiWitness.h>
+#include <reflect/ReflectHelpers.h>
+
 #include <renderer/BufferIndexedBinding.h>
 #include <renderer/BufferLoad.h>
 
@@ -13,6 +16,25 @@
 
 
 namespace ad {
+
+
+template <class T_witness>
+void describe(T_witness aWitness, Scene::TessellationControl & aValue)
+{
+    GIVE_EX(make_Clamped(aValue.mPatchVertices, {.mMin = 1u, .mMax = (GLuint)aValue.mMaxPatchVertices}), 
+            PatchVertices);
+    GIVE(OuterLevel);
+    GIVE(InnerLevel);
+
+    static const math::Vec<4, GLfloat> maxTess{
+        (GLfloat)aValue.mMaxTessGenLevel,
+        (GLfloat)aValue.mMaxTessGenLevel,
+        (GLfloat)aValue.mMaxTessGenLevel,
+        (GLfloat)aValue.mMaxTessGenLevel,
+    };
+    aValue.mOuterLevel = math::min(aValue.mOuterLevel, maxTess);
+    aValue.mInnerLevel = math::min(aValue.mInnerLevel, maxTess.xy());
+}
 
 
 Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
@@ -77,11 +99,9 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
 
     // The input patch (directly fed to the TES) are the 3 vertices of a triangle.
-    glPatchParameteri(GL_PATCH_VERTICES, 3);
-    const GLfloat outer[] = { 2, 2, 2 };
-    const GLfloat inner[] = { 2 };
-    glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, outer);
-    glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, inner);
+    glPatchParameteri(GL_PATCH_VERTICES, mTessControl.mPatchVertices);
+    glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, mTessControl.mOuterLevel.data());
+    glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, mTessControl.mInnerLevel.data());
 
     glDrawElementsInstanced(
         GL_PATCHES,
@@ -90,6 +110,15 @@ void Scene::render(math::Size<2, int> aRenderResolution)
             decltype(*scenic::icosahedron::gIndices)>>,
         0,
         static_cast<GLsizei>(std::size(gInstances)));
+}
+
+
+void Scene::presentUi(bool * aOpen)
+{
+    ImGui::Begin("Scene", aOpen);
+    DearImguiWitness witness;
+    describe(witness, mTessControl);
+    ImGui::End();
 }
 
 

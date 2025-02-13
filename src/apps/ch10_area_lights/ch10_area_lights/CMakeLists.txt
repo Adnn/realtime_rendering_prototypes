@@ -27,6 +27,7 @@ add_executable(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         # TODO: replace with the graphics/imguiui when moved back
+        ad::reflect
         ad::ui
 
         ad::graphics

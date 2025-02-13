@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 
+#include "Scene.h"
 
 namespace ad {
 
@@ -9,7 +10,7 @@ namespace ad {
 class Ui
 {
 public:
-    void present(const char * aName)
+    void present(const char * aName, Scene & aScene)
     {
         ImGui::Begin(aName);
 
@@ -19,11 +20,19 @@ public:
             ImGui::ShowDemoWindow(&mShowDemo);
         }
 
+        ImGui::Checkbox("Show Scene", &mShowScene);
+        if (mShowScene)
+        {
+            aScene.presentUi(&mShowScene);
+        }
+
+
         ImGui::End();
     }
 
 private:
     bool mShowDemo = false;
+    bool mShowScene = false;
 };
 
 
