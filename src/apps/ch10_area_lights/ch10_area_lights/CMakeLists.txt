@@ -2,6 +2,7 @@ set(TARGET_NAME ch10_area_lights)
 
 set(${TARGET_NAME}_HEADERS
     CameraSystem.h
+    Engine.h
     Scene.h
     shaders.h
     Ui.h
@@ -26,9 +27,9 @@ add_executable(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        # TODO: replace with the graphics/imguiui when moved back
+        ad::engine
         ad::reflect
-        ad::ui
+        ad::ui # TODO: replace with the graphics/imguiui when moved back
 
         ad::graphics
         ad::math

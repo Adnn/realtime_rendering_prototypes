@@ -43,11 +43,14 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
                                   std::span{scenic::icosahedron::gIndices},
                                   graphics::BufferHint::StaticDraw)},
-    mProgram{graphics::makeLinkedProgram({
-              {GL_VERTEX_SHADER,   gVertexShader},
-              {GL_FRAGMENT_SHADER, gFragmentShader},
-              {GL_TESS_EVALUATION_SHADER, gTessellationEvaluationShader},
-    })}
+    mIntrospectProgram{
+        {
+            {GL_VERTEX_SHADER,   graphics::ShaderSource::Preprocess(gVertexShader, "vertexshader_inline")},
+            {GL_FRAGMENT_SHADER, graphics::ShaderSource::Preprocess(gFragmentShader, "fragmentshader_inline")},
+            {GL_TESS_EVALUATION_SHADER, graphics::ShaderSource::Preprocess(gTessellationEvaluationShader, "tes_inline")},
+        },
+        "harcoded_program"
+    }
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -87,7 +90,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     glBindVertexArray(mVertexSpecification.mVertexArray);
-    glUseProgram(mProgram);
+    glUseProgram(mIntrospectProgram);
 
     mOrbitalCamera.setRatio(math::getRatio<GLfloat>(aRenderResolution));
     // TODO use defines here for binding points

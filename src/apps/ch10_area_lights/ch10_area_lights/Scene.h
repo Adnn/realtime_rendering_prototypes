@@ -2,6 +2,9 @@
 
 
 #include "CameraSystem.h"
+#include "Engine.h"
+
+#include <engine/IntrospectProgram.h>
 
 #include <graphics/Timer.h>
 
@@ -77,8 +80,9 @@ struct Scene
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
-    graphics::Program mProgram;
+    renderer::IntrospectProgram mIntrospectProgram;
 
+    Engine mEngine;
     OrbitalCamera mOrbitalCamera;
 
     TessellationControl mTessControl;

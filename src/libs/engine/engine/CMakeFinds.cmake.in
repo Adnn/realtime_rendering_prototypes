@@ -1,0 +1,5 @@
+@find_package@(graphics @REQUIRED@ COMPONENTS ad::renderer)
+@find_package@(handy @REQUIRED@ COMPONENTS ad::platform ad::resource)
+@find_package@(math @REQUIRED@ COMPONENTS ad::math)
+
+@find_package@(spdlog CONFIG @REQUIRED@)
