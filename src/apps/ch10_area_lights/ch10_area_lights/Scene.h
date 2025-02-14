@@ -77,12 +77,13 @@ struct Scene
 
     void presentUi(bool * aOpen = nullptr);
 
+    Engine mEngine;
+
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
     renderer::IntrospectProgram mIntrospectProgram;
 
-    Engine mEngine;
     OrbitalCamera mOrbitalCamera;
 
     TessellationControl mTessControl;

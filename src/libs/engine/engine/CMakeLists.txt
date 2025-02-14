@@ -27,16 +27,23 @@ set(${TARGET_NAME}_INFRA
     CMakeFinds.cmake.in
 )
 
+file(GLOB_RECURSE ${TARGET_NAME}_RESOURCES "resources/*")
+
+
 source_group(/ FILES ${${TARGET_NAME}_INFRA})
 
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
-             FILES ${${TARGET_NAME}_HEADERS} ${${TARGET_NAME}_SOURCES}
+             FILES
+                ${${TARGET_NAME}_HEADERS}
+                ${${TARGET_NAME}_SOURCES}
+                ${${TARGET_NAME}_RESOURCES}
 )
 
 add_library(${TARGET_NAME}
     ${${TARGET_NAME}_SOURCES}
     ${${TARGET_NAME}_HEADERS}
     ${${TARGET_NAME}_INFRA}
+    ${${TARGET_NAME}_RESOURCES}
 )
 
 add_library(ad::${TARGET_NAME} ALIAS ${TARGET_NAME})

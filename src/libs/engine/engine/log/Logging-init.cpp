@@ -16,7 +16,6 @@ namespace ad::renderer {
 LoggerInitialization::LoggerInitialization()
 {
     spdlog::stdout_color_mt(gMainLogger);
-    spdlog::stdout_color_mt(gPipelineDiag);
 }
 
 

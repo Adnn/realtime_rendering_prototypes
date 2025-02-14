@@ -7,11 +7,15 @@
 
 #include <ui/ImguiUi.h>
 
+#include <spdlog/spdlog.h>
+
 
 int main(int argc, const char * argv[])
 {
     try
     {
+        spdlog::set_level(spdlog::level::debug);
+
         ad::graphics::ApplicationGlfw application("ch10_area_lights", 800, 600);
 
         ad::imguiui::ImguiUi imgui{application};

@@ -1,7 +1,5 @@
 #include "Scene.h"
 
-#include "shaders.h"
-
 #include <graphics/AppInterface.h>
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/CameraUtilities.h>
@@ -38,19 +36,15 @@ void describe(T_witness aWitness, Scene::TessellationControl & aValue)
 
 
 Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
+    mEngine{
+        .mLoader = renderer::makeResourceFinder()
+    },
     mVertexSpecification{},
     mIndexBuffer{
         graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
                                   std::span{scenic::icosahedron::gIndices},
                                   graphics::BufferHint::StaticDraw)},
-    mIntrospectProgram{
-        {
-            {GL_VERTEX_SHADER,   graphics::ShaderSource::Preprocess(gVertexShader, "vertexshader_inline")},
-            {GL_FRAGMENT_SHADER, graphics::ShaderSource::Preprocess(gFragmentShader, "fragmentshader_inline")},
-            {GL_TESS_EVALUATION_SHADER, graphics::ShaderSource::Preprocess(gTessellationEvaluationShader, "tes_inline")},
-        },
-        "harcoded_program"
-    }
+    mIntrospectProgram{mEngine.mLoader.loadProgram(renderer::ReferencePath{"programs/TessellateSphere.prog"})}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 

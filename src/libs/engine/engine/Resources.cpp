@@ -1,8 +1,13 @@
 #include "Resources.h"
 
+#include "log/Logging.h"
+
 #include <arte/detail/Json.h>
 
 #include <platform/Path.h>
+
+#include <fmt/ranges.h>
+#include <fmt/std.h>
 
 #include <fstream>
 
@@ -11,7 +16,8 @@ namespace ad::renderer {
 
 resource::ResourceFinder makeResourceFinder()
 {
-    filesystem::path assetConfig = platform::getExecutableFileDirectory() / "assets.json";
+    const std::filesystem::path prefixFile{ "assets.json" };
+    filesystem::path assetConfig = platform::getExecutableFileDirectory() / prefixFile;
     if(exists(assetConfig))
     {
         Json config = Json::parse(std::ifstream{assetConfig});
@@ -32,11 +38,18 @@ resource::ResourceFinder makeResourceFinder()
         {
             prefixPathes.push_back(std::filesystem::canonical(prefix));
         }
+
+        ADLOG(debug)("Initialize resource finder from '{}':\n\t{}",
+            prefixFile.string(), fmt::join(prefixPathes, "\n\t"));
+
         return resource::ResourceFinder(prefixPathes.begin(),
                                         prefixPathes.end());
     }
     else
     {
+        ADLOG(debug)("No prefix file '{}', initialize resource finder to executable path: {}",
+            prefixFile.string(), platform::getExecutableFileDirectory());
+
         return resource::ResourceFinder{platform::getExecutableFileDirectory()};
     }
 }

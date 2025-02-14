@@ -66,6 +66,14 @@ IntrospectProgram Loader::loadProgram(const ReferencePath & aProgFile,
         {
             stageEnumerator = GL_GEOMETRY_SHADER;
         }
+        else if(shaderStage == "tcs")
+        {
+            stageEnumerator = GL_TESS_CONTROL_SHADER;
+        }
+        else if(shaderStage == "tes")
+        {
+            stageEnumerator = GL_TESS_EVALUATION_SHADER;
+        }
         else
         {
             ADLOG(critical)("Unable to map shader stage key '{}' to a program stage.", shaderStage);
