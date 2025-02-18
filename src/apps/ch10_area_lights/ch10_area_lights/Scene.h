@@ -5,6 +5,7 @@
 #include "Engine.h"
 
 #include <engine/IntrospectProgram.h>
+#include <engine/Lights.h>
 
 #include <graphics/Timer.h>
 
@@ -60,8 +61,8 @@ struct Scene
         }
 
         GLuint mPatchVertices = 3;
-        math::Vec<4, GLfloat> mOuterLevel{ 2.f, 2.f, 2.f, 1.f };
-        math::Vec<2, GLfloat> mInnerLevel{ 2.f, 1.f };
+        math::Vec<4, GLfloat> mOuterLevel{ 10.f, 10.f, 10.f, 1.f };
+        math::Vec<2, GLfloat> mInnerLevel{ 10.f, 1.f };
 
         GLint mMaxPatchVertices;
         GLint mMaxTessGenLevel;
@@ -96,6 +97,27 @@ struct Scene
     graphics::UniformBufferObject mLightsBlockBuffer;
     renderer::IntrospectProgram mIntrospectProgram;
 
+    renderer::LightsDataCommon mLights{
+        .mDirectionalCount = 1,
+        .mPointCount = 1,
+        .mAmbientColor = math::hdr::gWhite<float> *0.1,
+        .mDirectionalLights = {
+            renderer::DirectionalLight_glsl{
+                .mDirection = math::UnitVec<3, float>{ {0.5f, 0.f, -0.5f} },
+                .mColors = renderer::LightColors_glsl{} *0.2,
+            },
+         },
+        .mPointLights = {
+            renderer::PointLight_glsl{
+                .mPosition = {0.f, 2.f, 0.f},
+                .mRadius{
+                    .mMin = 1.f,
+                    .mMax = 5.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 0.5,
+            },
+         },
+    };
     OrbitalCamera mOrbitalCamera;
 
     TessellationControl mTessControl;

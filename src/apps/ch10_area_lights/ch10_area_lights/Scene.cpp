@@ -2,8 +2,6 @@
 
 #include "log/Logging.h"
 
-#include <engine/Lights.h>
-
 #include <graphics/AppInterface.h>
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/CameraUtilities.h>
@@ -22,6 +20,7 @@
 
 namespace ad {
 
+const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
 
 template <class T_witness>
 void describe(T_witness aWitness, Scene::TessellationControl & aValue)
@@ -48,7 +47,7 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
                                   std::span{scenic::icosahedron::gIndices},
                                   graphics::BufferHint::StaticDraw)},
-    mIntrospectProgram{mEngine.loadProgram(renderer::ReferencePath{"programs/TessellateSphere.prog"})}
+    mIntrospectProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -86,6 +85,25 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
 }
 
 
+renderer::LightsDataCommon transformLightsData(
+    renderer::LightsDataCommon aLightsData, // by value, as we need a copy
+    const math::AffineMatrix<4, float>& aTransform)
+{
+    for (auto& light : aLightsData.mDirectionalLights)
+    {
+        // might be unecessary to re-normalize, unless the transform scales
+        light.mDirection = math::UnitVec<3, GLfloat>{
+            light.mDirection * aTransform.getLinear() };
+    }
+    for (auto& light : aLightsData.mPointLights)
+    {
+        light.mPosition = math::homogeneous::homogenize(
+            math::homogeneous::makePosition(light.mPosition) * aTransform).xyz();
+    }
+
+    return aLightsData;
+}
+
 
 void Scene::render(math::Size<2, int> aRenderResolution)
 {
@@ -100,37 +118,9 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Lights
     ///
-    static const math::UnitVec<3, float> gLightDir_world{ { 0.5f, 0.f, -0.5f } };
-    math::UnitVec<3, float> lightDir_cam{ gLightDir_world * mOrbitalCamera.mCamera.getParentToCamera().getLinear() };
-    
-    static const math::Position<4, float> gLightPoint_world =
-        math::homogeneous::makePosition<4, float>(0.0f, 2.f, 0.0f);
-    math::Position<4, float> lightPoint_cam{
-        gLightPoint_world * mOrbitalCamera.mCamera.getParentToCamera() };
-
-    renderer::LightsDataCommon lights{
-        .mDirectionalCount = 1,
-        .mPointCount = 1,
-        .mAmbientColor = math::hdr::gWhite<float> *0.1,
-        .mDirectionalLights = {
-            renderer::DirectionalLight_glsl{
-                .mDirection = lightDir_cam,
-                .mColors = renderer::LightColors_glsl{} *0.2,
-            },
-         },
-        .mPointLights = {
-            renderer::PointLight_glsl{
-                .mPosition = math::homogeneous::homogenize(lightPoint_cam).xyz(),
-                .mRadius{
-                    .mMin = 1.f,
-                    .mMax = 5.f,
-                },
-                .mColors = renderer::LightColors_glsl{} * 0.5,
-            },
-         },
-    };
-    graphics::loadSingle(mLightsBlockBuffer, lights, graphics::BufferHint::StreamDraw);
-
+    auto lights_cam = 
+        transformLightsData(mLights, mOrbitalCamera.mCamera.getParentToCamera());
+    graphics::loadSingle(mLightsBlockBuffer, lights_cam, graphics::BufferHint::StreamDraw);
 
     //
     // Camera
@@ -166,7 +156,7 @@ void Scene::presentUi(bool * aOpen)
         try
         {
             mIntrospectProgram =
-                mEngine.loadProgram(renderer::ReferencePath{ "programs/TessellateSphere.prog" });
+                mEngine.loadProgram(renderer::ReferencePath{gProgramPath});
         }
         catch (const std::exception& aException)
         {
@@ -182,7 +172,16 @@ void Scene::presentUi(bool * aOpen)
         [](auto aModeIt){return graphics::to_string(*aModeIt);});
 
     DearImguiWitness witness;
+
+    ImGui::Spacing();
     describe(witness, mTessControl);
+
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Lights"))
+    {
+        describe(witness, mLights);
+    }
+
     ImGui::End();
 }
 

@@ -134,6 +134,19 @@ struct LightsDataCommon
 };
 
 
+template <class T_witness>
+void describe(T_witness & aW, LightsDataCommon & aLights)
+{
+    give(aW, aLights.mAmbientColor, "ambient color");
+
+    give(aW, Clamped<GLuint>{aLights.mDirectionalCount, 0, gMaxLights}, "directional count");
+    give(aW, aLights.spanDirectionalLights(), "directional lights");
+
+    give(aW, Clamped<GLuint>{aLights.mPointCount, 0, gMaxLights}, "point count");
+    give(aW, aLights.spanPointLights(), "point lights");
+}
+
+
 // TODO: restore shadows
 #if 1
 
@@ -210,7 +223,20 @@ struct LightsDataUi : public LightsDataCommon, LightsDataToggleShadow
     { return std::span{mDirectionalLightProjectShadow.data(), mDirectionalCount}; }
 };
 
+template <class T_visitor>
+void r(T_visitor & aV, LightsDataUi & aLights)
+{
+    give(aV, aLights.mAmbientColor, "ambient color");
 
+    give(aV, Clamped<GLuint>{aLights.mDirectionalCount, 0, gMaxLights}, "directional count");
+    give(aV,
+         std::make_tuple(aLights.spanDirectionalLights(), 
+                         aLights.spanDirectionalLightProjectShadow()),
+         "directional lights");
+
+    give(aV, Clamped<GLuint>{aLights.mPointCount, 0, gMaxLights}, "point count");
+    give(aV, aLights.spanPointLights(), "point lights");
+}
 template <class T_visitor>
 void r(T_visitor & aV, LightsDataUi & aLights)
 {
