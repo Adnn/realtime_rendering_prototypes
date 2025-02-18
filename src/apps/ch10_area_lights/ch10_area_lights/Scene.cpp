@@ -1,5 +1,7 @@
 #include "Scene.h"
 
+#include "log/Logging.h"
+
 #include <graphics/AppInterface.h>
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/CameraUtilities.h>
@@ -11,6 +13,8 @@
 #include <renderer/BufferLoad.h>
 
 #include <ui/ImguiUi.h>
+#include <ui/Widgets.h>
+#include <ui/Widgets-impl.h>
 
 
 namespace ad {
@@ -81,7 +85,10 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
 
 void Scene::render(math::Size<2, int> aRenderResolution)
 {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
 
     glBindVertexArray(mVertexSpecification.mVertexArray);
     glUseProgram(mIntrospectProgram);
@@ -113,6 +120,27 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 void Scene::presentUi(bool * aOpen)
 {
     ImGui::Begin("Scene", aOpen);
+
+    if (ImGui::Button("Recompile shaders"))
+    {
+        try
+        {
+            mIntrospectProgram =
+                mEngine.mLoader.loadProgram(renderer::ReferencePath{ "programs/TessellateSphere.prog" });
+        }
+        catch (const std::exception& aException)
+        {
+            ADLOG(error)("Exception thrown while compiling technique:\n{}",
+                         aException.what());
+        }
+    }
+
+    imguiui::addCombo("Polygon mode",
+        mPipelineControl.mPolygonMode,
+        PipelineControl::gPolygonModes.begin(),
+        PipelineControl::gPolygonModes.end(),
+        [](auto aModeIt){return graphics::to_string(*aModeIt);});
+
     DearImguiWitness witness;
     describe(witness, mTessControl);
     ImGui::End();

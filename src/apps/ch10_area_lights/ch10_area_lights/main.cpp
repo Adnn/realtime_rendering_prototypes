@@ -10,6 +10,21 @@
 #include <spdlog/spdlog.h>
 
 
+// TODOS:
+// * Normalize icosahedron to unit sphere
+// * Handle the auto registration of loggers
+// * Load / reload from prog files, from asset folders
+//   * Keep an history of compiled programs
+// * Offer checkbox to auto-reload on file change vs. explicit button
+// * Include for factorized glsl (e.g. view block)
+// * Decide on a naming convention for shader input/output
+//   * In particular for in-out between stages, and for vertex attributes
+// * Use StringIds for Semantic
+// * Synchronize some compile constants between cpp and glsl (binding)
+// * Offer color buffer (all texture type?) comparison
+//   * Show / write image diff
+//   * Offer side-by-side & toggle between images
+
 int main(int argc, const char * argv[])
 {
     try

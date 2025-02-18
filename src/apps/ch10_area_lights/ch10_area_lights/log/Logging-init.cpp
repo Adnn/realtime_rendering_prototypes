@@ -10,7 +10,7 @@
 //
 #if defined(_MSC_VER) && !defined(__llvm__)
 
-namespace ad::renderer {
+namespace ad {
 
 
 LoggerInitialization::LoggerInitialization()
@@ -25,7 +25,7 @@ const LoggerInitialization LoggerInitialization::gInitialized;
 } // namespace ad::renderer
 
 
-void ad_renderer_loggerinitialization()
+void ad_rtr_ch10_loggerinitialization()
 {
     // The hack to keep the symbol `LoggerInitialization::gInitialized`
     // works even though we are not accessing it.
@@ -48,6 +48,6 @@ initializeLogger()
 }
 
 
-} // namespace ad::renderer
+} // namespace ad
 
 #endif

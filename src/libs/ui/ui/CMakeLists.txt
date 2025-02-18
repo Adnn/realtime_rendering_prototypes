@@ -2,6 +2,9 @@ set(TARGET_NAME ui)
 
 set(${TARGET_NAME}_HEADERS
     ImguiUi.h
+
+    Widgets.h
+    Widgets-impl.h
 )
 
 set(${TARGET_NAME}_SOURCES

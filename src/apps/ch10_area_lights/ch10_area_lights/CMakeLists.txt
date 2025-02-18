@@ -5,24 +5,38 @@ set(${TARGET_NAME}_HEADERS
     Engine.h
     Scene.h
     Ui.h
+
+    log/Logging.h
+    log/Logging-channels.h
+    log/Logging-init.h
 )
 
 set(${TARGET_NAME}_SOURCES
     CameraSystem.cpp
     Scene.cpp
     main.cpp
+
+    log/Logging-init.cpp
 )
 
-find_package(graphics REQUIRED COMPONENTS ad::graphics ad::renderer)
-find_package(math REQUIRED COMPONENTS ad::math)
-find_package(Rtr_prototypes REQUIRED COMPONENTS scenic)
-#find_package(glfw3 3.3 REQUIRED)
-#find_package(glad REQUIRED)
+source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
+             FILES
+                ${${TARGET_NAME}_HEADERS}
+                ${${TARGET_NAME}_SOURCES}
+)
+
 
 add_executable(${TARGET_NAME}
     ${${TARGET_NAME}_SOURCES}
     ${${TARGET_NAME}_HEADERS}
 )
+
+
+find_package(graphics REQUIRED COMPONENTS ad::graphics ad::renderer)
+find_package(math REQUIRED COMPONENTS ad::math)
+find_package(Rtr_prototypes REQUIRED COMPONENTS scenic)
+
+find_package(spdlog REQUIRED)
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
@@ -34,6 +48,8 @@ target_link_libraries(${TARGET_NAME}
         ad::math
         ad::renderer
         ad::scenic
+
+        spdlog::spdlog
 )
 
 

@@ -67,6 +67,17 @@ struct Scene
         GLint mMaxTessGenLevel;
     };
 
+    struct PipelineControl
+    {
+       inline static constexpr std::array<GLenum, 3> gPolygonModes{
+            GL_POINT,
+            GL_LINE,
+            GL_FILL,
+        }; 
+
+       decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+    };
+
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
 
     void step(
@@ -87,6 +98,7 @@ struct Scene
     OrbitalCamera mOrbitalCamera;
 
     TessellationControl mTessControl;
+    PipelineControl mPipelineControl;
 };
 
 

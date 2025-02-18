@@ -16,8 +16,9 @@ layout(std140, binding=0) uniform ViewProjectionBlock
 };
 
 // Output interpolated for fragment shader
-out vec3 ex_Position;
 out vec3 ex_Color;
+out vec3 ex_Normal;
+out vec3 ex_Position;
 
 void main() 
 {
@@ -30,11 +31,18 @@ void main()
 	vec3 pos = vPosition[0] * u + vPosition[1] * v + vPosition[2] * w;
 
 	// Project onto the unit sphere
-	ex_Position = normalize(pos);
+	vec3 position_local = normalize(pos);
+	//vec3 position_local = pos;
 
 	// Interpolate color
 	ex_Color = vColor[0] * u + vColor[1] * v + vColor[2] * w;
 
+	// Compute normal
+	// Note: the on a unit sphere, the local position is the local normal
+	ex_Normal = vec3(worldToCamera * vec4(position_local, 0.));
+
 	// Transform the tessellated vertex position to clip space
-	gl_Position = viewingProjection * vec4(ex_Position, 1.0);
+	vec4 position_view = worldToCamera * vec4(position_local, 1.0);
+	ex_Position = position_view.xyz;
+	gl_Position = projection * position_view;
 }
