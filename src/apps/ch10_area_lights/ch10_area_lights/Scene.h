@@ -93,6 +93,7 @@ struct Scene
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
+    graphics::UniformBufferObject mLightsBlockBuffer;
     renderer::IntrospectProgram mIntrospectProgram;
 
     OrbitalCamera mOrbitalCamera;

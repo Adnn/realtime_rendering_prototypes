@@ -2,6 +2,8 @@
 
 #include "log/Logging.h"
 
+#include <engine/Lights.h>
+
 #include <graphics/AppInterface.h>
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/CameraUtilities.h>
@@ -41,15 +43,12 @@ void describe(T_witness aWitness, Scene::TessellationControl & aValue)
 
 
 Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
-    mEngine{
-        .mLoader = renderer::makeResourceFinder()
-    },
     mVertexSpecification{},
     mIndexBuffer{
         graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
                                   std::span{scenic::icosahedron::gIndices},
                                   graphics::BufferHint::StaticDraw)},
-    mIntrospectProgram{mEngine.mLoader.loadProgram(renderer::ReferencePath{"programs/TessellateSphere.prog"})}
+    mIntrospectProgram{mEngine.loadProgram(renderer::ReferencePath{"programs/TessellateSphere.prog"})}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -73,6 +72,10 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         graphics::EscKeyBehaviour::Close,
         // TODO: this is a dirty capture of a parameter given by reference
         &aImgui);
+
+    // TODO use defines here for binding points
+    graphics::bind(mViewProjectionBuffer, graphics::BindingIndex{0});
+    graphics::bind(mLightsBlockBuffer, graphics::BindingIndex{4});
 }
 
 
@@ -94,14 +97,31 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glBindVertexArray(mVertexSpecification.mVertexArray);
     glUseProgram(mIntrospectProgram);
 
-    static const math::UnitVec<3, float> gLightDir_world{ { 0.5f, 0.f, 0.5f } };
-    math::UnitVec<3, float> lightDir_view{ gLightDir_world * mOrbitalCamera.mCamera.getParentToCamera().getLinear() };
+    //
+    // Lights
+    ///
+    static const math::UnitVec<3, float> gLightDir_world{ { 0.5f, 0.f, -0.5f } };
+    math::UnitVec<3, float> lightDir_cam{ gLightDir_world * mOrbitalCamera.mCamera.getParentToCamera().getLinear() };
     
-    graphics::setUniform(mIntrospectProgram, "u_lightDir_view", lightDir_view);
+    //graphics::setUniform(mIntrospectProgram, "u_lightDir_view", lightDir_cam);
+    renderer::LightsDataCommon lights{
+        .mDirectionalCount = 1,
+        .mPointCount = 0,
+        .mAmbientColor = math::hdr::gWhite<float> *0.1,
+        .mDirectionalLights = {
+            renderer::DirectionalLight_glsl{
+                .mDirection = lightDir_cam,
+                .mColors = renderer::LightColors_glsl{} * 0.5,
+            },
+         },
+    };
+    graphics::loadSingle(mLightsBlockBuffer, lights, graphics::BufferHint::StreamDraw);
 
+
+    //
+    // Camera
+    //
     mOrbitalCamera.setRatio(math::getRatio<GLfloat>(aRenderResolution));
-    // TODO use defines here for binding points
-    graphics::bind(mViewProjectionBuffer, graphics::BindingIndex{0});
     graphics::loadSingle(mViewProjectionBuffer,
                          mOrbitalCamera.getViewProjectionBlock(),
                          graphics::BufferHint::StreamDraw);
@@ -132,7 +152,7 @@ void Scene::presentUi(bool * aOpen)
         try
         {
             mIntrospectProgram =
-                mEngine.mLoader.loadProgram(renderer::ReferencePath{ "programs/TessellateSphere.prog" });
+                mEngine.loadProgram(renderer::ReferencePath{ "programs/TessellateSphere.prog" });
         }
         catch (const std::exception& aException)
         {

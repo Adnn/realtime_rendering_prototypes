@@ -63,6 +63,8 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         ad::graphics
     PUBLIC
+        ad::reflect
+
         imgui::imgui
 )
 

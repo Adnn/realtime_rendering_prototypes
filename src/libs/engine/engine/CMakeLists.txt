@@ -3,9 +3,12 @@ set(TARGET_NAME engine)
 
 set(${TARGET_NAME}_HEADERS
     IntrospectProgram.h
+    Lights.h
     Resources.h
     Semantic.h
     SemanticValues.h
+    ShaderConstants.h
+    ShaderProgramManager.h
 
     files/Loader.h
 
@@ -17,6 +20,8 @@ set(${TARGET_NAME}_HEADERS
 set(${TARGET_NAME}_SOURCES
     IntrospectProgram.cpp
     Resources.cpp
+    ShaderConstants.cpp
+    ShaderProgramManager.cpp
 
     files/Loader.cpp
 
@@ -65,6 +70,7 @@ cmc_find_dependencies(FILE CMakeFinds.cmake.in)
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         ad::math
+        ad::reflect
         ad::renderer
         ad::platform
         ad::resource
