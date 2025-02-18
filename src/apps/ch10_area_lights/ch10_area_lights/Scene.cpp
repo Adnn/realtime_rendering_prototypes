@@ -11,6 +11,7 @@
 
 #include <renderer/BufferIndexedBinding.h>
 #include <renderer/BufferLoad.h>
+#include <renderer/Uniforms.h>
 
 #include <ui/ImguiUi.h>
 #include <ui/Widgets.h>
@@ -92,6 +93,11 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
     glBindVertexArray(mVertexSpecification.mVertexArray);
     glUseProgram(mIntrospectProgram);
+
+    static const math::UnitVec<3, float> gLightDir_world{ { 0.5f, 0.f, 0.5f } };
+    math::UnitVec<3, float> lightDir_view{ gLightDir_world * mOrbitalCamera.mCamera.getParentToCamera().getLinear() };
+    
+    graphics::setUniform(mIntrospectProgram, "u_lightDir_view", lightDir_view);
 
     mOrbitalCamera.setRatio(math::getRatio<GLfloat>(aRenderResolution));
     // TODO use defines here for binding points
