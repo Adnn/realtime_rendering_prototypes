@@ -15,7 +15,7 @@ void OrbitalCamera::setRatio(float aAspectRatio)
     mCamera.setupOrthographicProjection({
         .mAspectRatio = aAspectRatio,
         .mViewHeight = mViewHeightInWorld,
-        .mNearZ = 10.f,
+        .mNearZ = -0.1f,
         .mFarZ = -10.f }
     );
 }

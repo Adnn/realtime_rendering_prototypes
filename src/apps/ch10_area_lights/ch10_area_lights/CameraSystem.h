@@ -16,7 +16,7 @@ struct OrbitalCamera
 
     float mViewHeightInWorld = 4.f;
     scenic::Camera mCamera;
-    scenic::OrbitalControl mOrbitalControl{ scenic::Orbital{} };
+    scenic::OrbitalControl mOrbitalControl{ scenic::Orbital{2.f} };
 };
 
 } // namespace ad
