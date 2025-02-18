@@ -103,14 +103,28 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     static const math::UnitVec<3, float> gLightDir_world{ { 0.5f, 0.f, -0.5f } };
     math::UnitVec<3, float> lightDir_cam{ gLightDir_world * mOrbitalCamera.mCamera.getParentToCamera().getLinear() };
     
-    //graphics::setUniform(mIntrospectProgram, "u_lightDir_view", lightDir_cam);
+    static const math::Position<4, float> gLightPoint_world =
+        math::homogeneous::makePosition<4, float>(0.0f, 2.f, 0.0f);
+    math::Position<4, float> lightPoint_cam{
+        gLightPoint_world * mOrbitalCamera.mCamera.getParentToCamera() };
+
     renderer::LightsDataCommon lights{
         .mDirectionalCount = 1,
-        .mPointCount = 0,
+        .mPointCount = 1,
         .mAmbientColor = math::hdr::gWhite<float> *0.1,
         .mDirectionalLights = {
             renderer::DirectionalLight_glsl{
                 .mDirection = lightDir_cam,
+                .mColors = renderer::LightColors_glsl{} *0.2,
+            },
+         },
+        .mPointLights = {
+            renderer::PointLight_glsl{
+                .mPosition = math::homogeneous::homogenize(lightPoint_cam).xyz(),
+                .mRadius{
+                    .mMin = 1.f,
+                    .mMax = 5.f,
+                },
                 .mColors = renderer::LightColors_glsl{} * 0.5,
             },
          },

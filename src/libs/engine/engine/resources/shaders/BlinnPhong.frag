@@ -3,6 +3,7 @@
 #include "Gamma.glsl"
 #include "Helpers.glsl"
 #include "LightsBlock.glsl"
+#include "LightUtilities.glsl"
 
 
 struct LightContributions
@@ -89,6 +90,31 @@ void main(void)
         specularAccum += lighting.specular;
     }
 
+    //
+    // Point
+    //
+	for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
+    {
+        PointLight point = ub_PointLights[pointIdx];
+
+        // see rtr 4th p110 (5.10)
+        vec3 lightRay_cam = point.position.xyz - ex_Position;
+        float r = sqrt(dot(lightRay_cam, lightRay_cam));
+        vec3 lightDir_cam = lightRay_cam / r;
+
+        LightContributions lighting = 
+            applyBlinnPhongLight(
+                view_cam, lightDir_cam, shadingNormal_cam,
+                point.colors, material.specularExponent);
+
+        float falloff = attenuatePoint(point, r);
+        diffuseAccum  += lighting.diffuse  * falloff;
+        specularAccum += lighting.specular * falloff;
+    }
+
+    //
+    // Sum contributions
+    //
     vec3 ambient =  ub_AmbientColor.rgb * material.ambientColor.rgb;
     vec3 diffuse  = diffuseAccum        * material.diffuseColor.rgb;
     vec3 specular = specularAccum       * material.specularColor.rgb;
