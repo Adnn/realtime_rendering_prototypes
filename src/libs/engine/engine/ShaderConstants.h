@@ -14,7 +14,7 @@ namespace ad::renderer {
 //constexpr unsigned int gMaxJoints   = 512;
 
 
-extern const std::vector<graphics::MacroDefine> gClientConstantDefines;
+const std::vector<graphics::MacroDefine> & defineShaderConstants();
 
 
 } // namespace ad::renderer

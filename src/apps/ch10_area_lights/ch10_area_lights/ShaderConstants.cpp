@@ -11,7 +11,7 @@ namespace ad {
 
         std::vector<graphics::MacroDefine> defineConstants()
         {
-            std::vector<graphics::MacroDefine> result = renderer::gClientConstantDefines;
+            std::vector<graphics::MacroDefine> result = renderer::defineShaderConstants();
             result.emplace_back(
                 "CLIENT_MAX_MATERIALS " + std::to_string(gMaxMaterials)
             );
