@@ -3,7 +3,9 @@ set(TARGET_NAME ch10_area_lights)
 set(${TARGET_NAME}_HEADERS
     CameraSystem.h
     Engine.h
+    Material.h
     Scene.h
+    ShaderConstants.h
     Ui.h
 
     log/Logging.h
@@ -13,8 +15,9 @@ set(${TARGET_NAME}_HEADERS
 
 set(${TARGET_NAME}_SOURCES
     CameraSystem.cpp
-    Scene.cpp
     main.cpp
+    Scene.cpp
+    ShaderConstants.cpp
 
     log/Logging-init.cpp
 )

@@ -1,7 +1,8 @@
 #pragma once
 
+#include "ShaderConstants.h"
+
 #include <engine/Resources.h>
-#include <engine/ShaderConstants.h>
 
 #include <engine/files/Loader.h>
 
@@ -13,7 +14,8 @@ class Engine
 public:
     inline renderer::IntrospectProgram loadProgram(const renderer::ReferencePath& aProgFile)
     {
-        return mLoader.loadProgram(aProgFile, renderer::gClientConstantDefines);
+        // Important: uses this application version of glClientConstantDefines
+        return mLoader.loadProgram(aProgFile, gClientConstantDefines);
     }
 
 private:

@@ -74,6 +74,7 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
 
     // TODO use defines here for binding points
     graphics::bind(mViewProjectionBuffer, graphics::BindingIndex{0});
+    graphics::bind(mMaterialsBlockBuffer, graphics::BindingIndex{2});
     graphics::bind(mLightsBlockBuffer, graphics::BindingIndex{4});
 }
 
@@ -116,8 +117,13 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glUseProgram(mIntrospectProgram);
 
     //
+    // Materials
+    // 
+    graphics::loadSingle(mMaterialsBlockBuffer, mMaterials, graphics::BufferHint::StreamDraw);
+
+    //
     // Lights
-    ///
+    //
     auto lights_cam = 
         transformLightsData(mLights, mOrbitalCamera.mCamera.getParentToCamera());
     graphics::loadSingle(mLightsBlockBuffer, lights_cam, graphics::BufferHint::StreamDraw);
@@ -175,6 +181,12 @@ void Scene::presentUi(bool * aOpen)
 
     ImGui::Spacing();
     describe(witness, mTessControl);
+
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Materials"))
+    {
+        describe(witness, mMaterials);
+    }
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Lights"))

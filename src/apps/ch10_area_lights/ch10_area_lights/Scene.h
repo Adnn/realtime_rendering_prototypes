@@ -3,6 +3,7 @@
 
 #include "CameraSystem.h"
 #include "Engine.h"
+#include "Material.h"
 
 #include <engine/IntrospectProgram.h>
 #include <engine/Lights.h>
@@ -94,9 +95,16 @@ struct Scene
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
+    graphics::UniformBufferObject mMaterialsBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
     renderer::IntrospectProgram mIntrospectProgram;
 
+    MaterialsBlock_glsl mMaterials{
+        .mCount = 1,
+        .mMaterials = {
+            PhongMaterial_glsl{ .mSpecularExponent = 20.f, },
+        },
+    };
     renderer::LightsDataCommon mLights{
         .mDirectionalCount = 1,
         .mPointCount = 1,

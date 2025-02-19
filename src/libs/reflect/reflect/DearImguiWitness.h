@@ -154,4 +154,11 @@ inline void give(DearImguiWitness & aV, math::hdr::Rgb<float> & aRgb, const char
 }
 
 
+inline void give(DearImguiWitness & aV, math::hdr::Rgba<float> & aRgba, const char * aName)
+{
+    ImGui::ColorEdit4(aName, aRgba.data());
+}
+
+
+
 } // namespace ad

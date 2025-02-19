@@ -11,6 +11,7 @@
 
 
 // TODOS:
+// * Implement spotlight
 // * Normalize icosahedron to unit sphere
 // * Handle the auto registration of loggers
 // * Load / reload from prog files, from asset folders

@@ -11,5 +11,6 @@
 // Note: we could use the defines provided by the client directly in the shader code
 // but I would rather have the definition visible in some GLSL code to be grep friendly.
 #define MAX_LIGHTS CLIENT_MAX_LIGHTS
+#define MAX_MATERIALS CLIENT_MAX_MATERIALS
 
 #endif // include guard

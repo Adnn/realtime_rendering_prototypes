@@ -4,6 +4,10 @@
 #include <concepts>
 
 
+#define DESCRIBE(type) \
+template <class T_witness> \
+void describe(T_witness & aWitness, type & aValue)
+
 #define GIVE(member) give(aWitness, aValue.m ## member, #member)
 #define GIVE_EX(value, name) give(aWitness, value, #name)
 

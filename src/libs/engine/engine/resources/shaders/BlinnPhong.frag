@@ -4,6 +4,7 @@
 #include "Helpers.glsl"
 #include "LightsBlock.glsl"
 #include "LightUtilities.glsl"
+#include "MaterialsBlock.glsl"
 
 
 struct LightContributions
@@ -38,15 +39,6 @@ LightContributions applyBlinnPhongLight(
 }
 
 
-struct Material
-{
-	float specularExponent;
-    vec4 ambientColor;
-    vec4 diffuseColor;
-    vec4 specularColor;
-};
-
-
 in vec3 ex_Color;
 in vec3 ex_Normal;
 in vec3 ex_Position;
@@ -56,12 +48,7 @@ out vec4 out_Color;
 
 void main(void)
 {
-    // TODO: Handle surface materials
-    Material material;
-    material.specularExponent = 20;
-    material.ambientColor = vec4(1.);
-    material.diffuseColor = vec4(1.);
-    material.specularColor = vec4(1.);
+    Material material = ub_Materials[0];
 
     // TODO: multiply by albedo texture
     vec4 albedo = vec4(ex_Color, 1.);

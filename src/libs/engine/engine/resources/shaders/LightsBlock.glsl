@@ -26,7 +26,6 @@ struct PointLight
 };
 
 
-// Mapping to cpp LightsData
 layout(std140, binding = 4) uniform LightsBlock
 {
     // LightsDataUser
