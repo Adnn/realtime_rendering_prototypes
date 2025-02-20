@@ -244,6 +244,8 @@ IntrospectProgram::IntrospectProgram(graphics::Program aProgram,
     mName{std::move(aName)},
     mSources{std::move(aSources)}
 {
+    glObjectLabel(GL_PROGRAM, mProgram, -1, mName.c_str());
+
     auto makeResource = [](const auto &aAttribute) -> Resource
     {
         return Resource{

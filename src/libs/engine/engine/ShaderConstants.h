@@ -10,7 +10,7 @@
 namespace ad::renderer {
 
 
-//constexpr unsigned int gMaxEntities = 512;
+constexpr unsigned int gMaxEntities = 512;
 //constexpr unsigned int gMaxJoints   = 512;
 
 

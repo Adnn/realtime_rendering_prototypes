@@ -5,6 +5,7 @@
 #include "Engine.h"
 #include "Material.h"
 
+#include <engine/Entities.h>
 #include <engine/IntrospectProgram.h>
 #include <engine/Lights.h>
 
@@ -40,15 +41,19 @@ constexpr graphics::AttributeDescriptionList gVertexDescription{
 
 struct Instance
 {
-    math::hdr::Rgb_f mColor = math::hdr::gGreen<float>;
+    GLuint mEntityIdx;
 };
 
 constexpr graphics::AttributeDescriptionList gInstanceDescription{
-    {1, 3, offsetof(Instance, mColor), graphics::MappedGL<GLfloat>::enumerator},
+    {   graphics::ShaderParameter{1, graphics::ShaderParameter::Access::Integer},
+        1, offsetof(Instance, mEntityIdx), graphics::MappedGL<GLuint>::enumerator },
 };
 
 
-static std::array<Instance, 1> gInstances{};
+static std::array<Instance, 2> gInstances{
+    0,
+    1,
+};
 
 
 struct Scene
@@ -94,11 +99,23 @@ struct Scene
 
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
+    graphics::UniformBufferObject mEntitiesBlockBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
     graphics::UniformBufferObject mMaterialsBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
     renderer::IntrospectProgram mIntrospectProgram;
 
+    renderer::EntitiesBlock_glsl mEntities{
+        .mEntities = {
+            renderer::EntityData_glsl{
+                .mLocalToWorld = math::AffineMatrix<4, GLfloat>::Identity(),
+                .mColorFactor = math::hdr::gGreen<float>,
+            },
+            renderer::EntityData_glsl{
+                .mLocalToWorld = math::trans3d::translate<GLfloat>({2.5f, 0.f, 0.f}),
+            },
+        },
+    };
     MaterialsBlock_glsl mMaterials{
         .mCount = 1,
         .mMaterials = {

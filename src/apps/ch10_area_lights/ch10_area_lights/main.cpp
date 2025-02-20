@@ -34,6 +34,10 @@ int main(int argc, const char * argv[])
 
         ad::graphics::ApplicationGlfw application("ch10_area_lights", 800, 600);
 
+        // Ensures the messages are sent synchronously with the event triggering them
+        // This makes debug stepping much more feasible.
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+
         ad::imguiui::ImguiUi imgui{application};
         ad::Ui ui;
 

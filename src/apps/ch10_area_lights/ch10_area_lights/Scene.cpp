@@ -20,6 +20,68 @@
 
 namespace ad {
 
+void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
+                  const graphics::UniformBufferObject & aBuffer,
+                  graphics::BufferHint aUsageHint)
+{
+    graphics::load(aBuffer, std::span{ aData.mEntities }, aUsageHint);
+}
+
+
+// TODO: This is brittle, take some time to understand this part of query API
+// I have to understand the relation between attrib location, vertex attribute index
+void validateVertexAttributes(const renderer::IntrospectProgram & aProgram) 
+{
+    GLint numAttributes;
+    glGetProgramiv(aProgram, GL_ACTIVE_ATTRIBUTES, &numAttributes);
+
+    for (GLint i = 0; i < numAttributes; i++)
+    {
+        char name[128];
+        GLint size;
+        GLenum type;
+        glGetActiveAttrib(aProgram, i, sizeof(name), nullptr, &size, &type, name);
+        // TODO: ensure the name was not longer than provided buffer
+
+        // Get the location of this attribute in the shader
+        GLint location = glGetAttribLocation(aProgram, name);
+        if (location == -1) {
+            continue; // Might be an optimized-out attribute
+        }
+
+        GLint attribType;
+        GLint attribInteger;
+        // Give the type of value in the GL_ARRAY_BUFFER, not wether it was bound with
+        // glVertexAttribPointer or glVertexAttribIPointer
+        glGetVertexAttribiv(location, GL_VERTEX_ATTRIB_ARRAY_TYPE, &attribType); 
+        glGetVertexAttribiv(location, GL_VERTEX_ATTRIB_ARRAY_INTEGER, &attribInteger);  // Key check
+        bool vaoUsesIntegerMode = (attribInteger == GL_TRUE);  // Set by glVertexAttribIPointer
+
+        //ADLOG(trace)("Active attribute #{} '{}', location {}, shader type {}, vao type {}, is integer: {}.", 
+        //    i, name, location, graphics::to_string(type), graphics::to_string(attribType), vaoUsesIntegerMode);
+        
+        bool mismatch = false;
+        if ((type == GL_INT || type == GL_INT_VEC2 || type == GL_INT_VEC3 || type == GL_INT_VEC4
+             || type == GL_UNSIGNED_INT || type == GL_UNSIGNED_INT_VEC2 || type == GL_UNSIGNED_INT_VEC3 || type == GL_UNSIGNED_INT_VEC4) &&
+            !vaoUsesIntegerMode) 
+        {
+            mismatch = true;
+        }
+        else if ((type == GL_FLOAT || type == GL_FLOAT_VEC2 || type == GL_FLOAT_VEC3 || type == GL_FLOAT_VEC4) &&
+            vaoUsesIntegerMode) 
+        {
+            mismatch = true;
+        }
+
+        if (mismatch) 
+        {
+            ADLOG(error)("Attribute '{}' in program '{}' has a type mismatch. Active attribe type is {}, but use integer mode is {}",
+                         name, aProgram.mName, graphics::to_string(type), vaoUsesIntegerMode);
+        }
+    }
+}
+
+
 const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
 
 template <class T_witness>
@@ -74,8 +136,13 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
 
     // TODO use defines here for binding points
     graphics::bind(mViewProjectionBuffer, graphics::BindingIndex{0});
+    glObjectLabel(GL_BUFFER, mViewProjectionBuffer, -1, "ViewProjection");
+    graphics::bind(mEntitiesBlockBuffer, graphics::BindingIndex{1});
+    glObjectLabel(GL_BUFFER, mEntitiesBlockBuffer, -1, "Entities");
     graphics::bind(mMaterialsBlockBuffer, graphics::BindingIndex{2});
+    glObjectLabel(GL_BUFFER, mMaterialsBlockBuffer, -1, "Materials");
     graphics::bind(mLightsBlockBuffer, graphics::BindingIndex{4});
+    glObjectLabel(GL_BUFFER, mLightsBlockBuffer, -1, "Lights");
 }
 
 
@@ -108,13 +175,10 @@ renderer::LightsDataCommon transformLightsData(
 
 void Scene::render(math::Size<2, int> aRenderResolution)
 {
-    glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glEnable(GL_DEPTH_TEST);
-
-    glBindVertexArray(mVertexSpecification.mVertexArray);
-    glUseProgram(mIntrospectProgram);
+    //
+    // Entities
+    // 
+    loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
     //
     // Materials
@@ -136,6 +200,19 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                          mOrbitalCamera.getViewProjectionBlock(),
                          graphics::BufferHint::StreamDraw);
 
+    //
+    // Pipeline state
+    // 
+    glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+
+    glBindVertexArray(mVertexSpecification.mVertexArray);
+    // TODO: should be done only once for each pair of VAO-program
+    validateVertexAttributes(mIntrospectProgram);
+    glUseProgram(mIntrospectProgram);
+    
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
 
     // The input patch (directly fed to the TES) are the 3 vertices of a triangle.
@@ -143,6 +220,9 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, mTessControl.mOuterLevel.data());
     glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, mTessControl.mInnerLevel.data());
 
+    //
+    // Draw
+    //
     glDrawElementsInstanced(
         GL_PATCHES,
         static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),

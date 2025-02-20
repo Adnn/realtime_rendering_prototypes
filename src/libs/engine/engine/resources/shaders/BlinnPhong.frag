@@ -39,7 +39,7 @@ LightContributions applyBlinnPhongLight(
 }
 
 
-in vec3 ex_Color;
+in vec4 ex_Color;
 in vec3 ex_Normal;
 in vec3 ex_Position;
 
@@ -51,7 +51,7 @@ void main(void)
     Material material = ub_Materials[0];
 
     // TODO: multiply by albedo texture
-    vec4 albedo = vec4(ex_Color, 1.);
+    vec4 albedo = ex_Color;
 
 	vec3 view_cam = normalize(-ex_Position);
 	vec3 shadingNormal_cam = normalize(ex_Normal);
