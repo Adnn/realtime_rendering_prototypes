@@ -109,7 +109,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     mVertexSpecification{},
     mIndexBuffer{
         graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
-                                  std::span{scenic::icosahedron::gIndices},
+                                  //std::span{scenic::icosahedron::gIndices},
+                                  std::span{mSphere.mIndices},
                                   graphics::BufferHint::StaticDraw)},
     mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})},
     mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})}
@@ -119,7 +120,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     graphics::appendToVertexSpecification(
         mVertexSpecification,
         gVertexDescription,
-        std::span{scenic::icosahedron::gPositions},
+        //std::span{scenic::icosahedron::gVertices},
+        std::span{mSphere.mVertices},
         graphics::BufferHint::StaticDraw);
 
     graphics::appendToVertexSpecification(
@@ -247,9 +249,8 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
     glDrawElementsInstancedBaseInstance(
         GL_PATCHES,
-        static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),
-        graphics::MappedGL_v<std::remove_cvref_t<
-            decltype(*scenic::icosahedron::gIndices)>>,
+        mIndicesCount,
+        graphics::MappedGL_v<scenic::Index>,
         0,
         sphereCount,
         0);
@@ -258,9 +259,8 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glUseProgram(mLightProgram);
     glDrawElementsInstancedBaseInstance(
         GL_PATCHES,
-        static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),
-        graphics::MappedGL_v<std::remove_cvref_t<
-            decltype(*scenic::icosahedron::gIndices)>>,
+        mIndicesCount,
+        graphics::MappedGL_v<scenic::Index>,
         0,
         static_cast<GLsizei>(std::size(gInstances)) - sphereCount,
         sphereCount);

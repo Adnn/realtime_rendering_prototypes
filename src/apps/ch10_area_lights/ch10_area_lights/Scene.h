@@ -99,6 +99,9 @@ struct Scene
 
     Engine mEngine;
 
+    scenic::geodesic::Sphere mSphere{ 1 };
+    GLsizei mIndicesCount{ (GLsizei)mSphere.mIndices.size() };
+
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
     graphics::UniformBufferObject mEntitiesBlockBuffer;

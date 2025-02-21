@@ -115,8 +115,6 @@ void main(void)
     vec3 diffuseAccum = vec3(0.);
     vec3 specularAccum = vec3(0.);
 
-    float wrapK = 0.15;
-
     //
     // Point
     //
