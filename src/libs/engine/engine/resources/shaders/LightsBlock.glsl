@@ -22,6 +22,7 @@ struct PointLight
 {
     vec4 position;
     vec2 radius; 
+    float wrapK;
     LightColors colors;
 };
 

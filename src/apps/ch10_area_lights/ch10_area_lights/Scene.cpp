@@ -82,7 +82,9 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 }
 
 
-const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
+//const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
+const std::filesystem::path gProgramPath = "programs/WrapLighting.prog";
+const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
 
 template <class T_witness>
 void describe(T_witness aWitness, Scene::TessellationControl & aValue)
@@ -109,7 +111,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
                                   std::span{scenic::icosahedron::gIndices},
                                   graphics::BufferHint::StaticDraw)},
-    mIntrospectProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})}
+    mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})},
+    mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -146,6 +149,15 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
 }
 
 
+void Scene::loadPrograms()
+{
+    mLightProgram =
+        mEngine.loadProgram(renderer::ReferencePath{ gLightProgramPath });
+    mSurfaceProgram =
+        mEngine.loadProgram(renderer::ReferencePath{ gProgramPath });
+}
+
+
 void Scene::step(const graphics::Timer & /*aTimer*/,
                  math::Size<2, int> aWindowResolution)
 {
@@ -178,6 +190,12 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Entities
     // 
+    const auto & pointLight = mLights.mPointLights[0];
+    auto& entity = mEntities.mEntities[1];
+    entity.mLocalToWorld =
+        math::trans3d::scaleUniform(pointLight.mRadius.mMin)
+        * math::trans3d::translate(pointLight.mPosition.as<math::Vec>());
+    entity.mColorFactor = pointLight.mColors.mDiffuseColor;
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
     //
@@ -209,9 +227,6 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glEnable(GL_DEPTH_TEST);
 
     glBindVertexArray(mVertexSpecification.mVertexArray);
-    // TODO: should be done only once for each pair of VAO-program
-    validateVertexAttributes(mIntrospectProgram);
-    glUseProgram(mIntrospectProgram);
     
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
 
@@ -223,13 +238,32 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Draw
     //
-    glDrawElementsInstanced(
+
+    const GLuint sphereCount = 1;
+
+    // TODO: should be done only once for each pair of VAO-program
+    validateVertexAttributes(mSurfaceProgram);
+    glUseProgram(mSurfaceProgram);
+
+    glDrawElementsInstancedBaseInstance(
         GL_PATCHES,
         static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),
         graphics::MappedGL_v<std::remove_cvref_t<
             decltype(*scenic::icosahedron::gIndices)>>,
         0,
-        static_cast<GLsizei>(std::size(gInstances)));
+        sphereCount,
+        0);
+
+    validateVertexAttributes(mLightProgram);
+    glUseProgram(mLightProgram);
+    glDrawElementsInstancedBaseInstance(
+        GL_PATCHES,
+        static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),
+        graphics::MappedGL_v<std::remove_cvref_t<
+            decltype(*scenic::icosahedron::gIndices)>>,
+        0,
+        static_cast<GLsizei>(std::size(gInstances)) - sphereCount,
+        sphereCount);
 }
 
 
@@ -241,8 +275,7 @@ void Scene::presentUi(bool * aOpen)
     {
         try
         {
-            mIntrospectProgram =
-                mEngine.loadProgram(renderer::ReferencePath{gProgramPath});
+            loadPrograms();
         }
         catch (const std::exception& aException)
         {

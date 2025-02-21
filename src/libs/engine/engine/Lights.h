@@ -91,6 +91,8 @@ struct PointLight_glsl
     // Important: the radius is how we control the "windowing" of the light falloff
     // in particular, minimum should not be too small, or the attenuation factor will very rapidly get close to 0.
     alignas(8) Radius mRadius; 
+    // K factor for wrap lighting (note: this is not necessarily used by the lighting model)
+    alignas(4) GLfloat mWrapK = 0.f;
     LightColors_glsl mColors;
 };
 
@@ -100,6 +102,7 @@ void describe(T_witness & aW, PointLight_glsl & aLight)
 {
     give(aW, aLight.mPosition, "position");
     give(aW, aLight.mRadius, "Radius");
+    give(aW, aLight.mWrapK, "wrap factor");
     give(aW, aLight.mColors.mDiffuseColor, "diffuse color");
     give(aW, aLight.mColors.mSpecularColor, "specular color");
 }

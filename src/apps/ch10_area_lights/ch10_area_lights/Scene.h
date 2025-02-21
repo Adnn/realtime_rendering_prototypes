@@ -87,6 +87,8 @@ struct Scene
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
 
+    void loadPrograms();
+
     void step(
         const graphics::Timer & aTimer,
         math::Size<2, int> aWindowResolution);
@@ -103,7 +105,8 @@ struct Scene
     graphics::UniformBufferObject mViewProjectionBuffer;
     graphics::UniformBufferObject mMaterialsBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
-    renderer::IntrospectProgram mIntrospectProgram;
+    renderer::IntrospectProgram mSurfaceProgram;
+    renderer::IntrospectProgram mLightProgram;
 
     renderer::EntitiesBlock_glsl mEntities{
         .mEntities = {
