@@ -9,16 +9,30 @@
 namespace ad::scenic {
 
 using Position = math::Vec<3, float>;
-using Index = unsigned int;
+using Index = std::uint32_t;
 
 namespace icosahedron {
 
     constexpr float gPhi = 1.61803398875f;  // Golden ratio for icosahedron
 
-    constexpr Position gVertices[12] {
-        {-1.f,  gPhi,  0.f}, {1.f,  gPhi,  0.f}, {-1.f, -gPhi,  0.f}, {1.f, -gPhi,  0.f},
-        { 0.f, -1.f,  gPhi}, {0.f,  1.f,  gPhi}, { 0.f, -1.f, -gPhi}, {0.f,  1.f, -gPhi},
-        { gPhi,  0.f, -1.f}, {gPhi,  0.f,  1.f}, {-gPhi,  0.f, -1.f}, {-gPhi, 0.f,  1.f}
+    constexpr Position gVertices[12]{
+    //    {-1.f,  gPhi,  0.f}.normalize(), {1.f,  gPhi,  0.f}, {-1.f, -gPhi,  0.f}, {1.f, -gPhi,  0.f},
+    //    { 0.f, -1.f,  gPhi}, {0.f,  1.f,  gPhi}, { 0.f, -1.f, -gPhi}, {0.f,  1.f, -gPhi},
+    //    { gPhi,  0.f, -1.f}, {gPhi,  0.f,  1.f}, {-gPhi,  0.f, -1.f}, {-gPhi, 0.f,  1.f}
+    //};
+    // Normalized coordinates:
+        { -0.525731f,  0.850651f,  0.000000f },
+        {  0.525731f,  0.850651f,  0.000000f },
+        { -0.525731f, -0.850651f,  0.000000f },
+        {  0.525731f, -0.850651f,  0.000000f },
+        {  0.000000f, -0.525731f,  0.850651f },
+        {  0.000000f,  0.525731f,  0.850651f },
+        {  0.000000f, -0.525731f, -0.850651f },
+        {  0.000000f,  0.525731f, -0.850651f },
+        {  0.850651f,  0.000000f, -0.525731f },
+        {  0.850651f,  0.000000f,  0.525731f },
+        { -0.850651f,  0.000000f, -0.525731f },
+        { -0.850651f,  0.000000f,  0.525731f }
     };
 
     constexpr Index gIndices[60] {
@@ -35,6 +49,8 @@ namespace geodesic {
     struct Sphere
     {
         Sphere(unsigned int aSubdivisions);
+
+        void subdivide();
 
         std::vector<Position> mVertices;
         std::vector<Index> mIndices;

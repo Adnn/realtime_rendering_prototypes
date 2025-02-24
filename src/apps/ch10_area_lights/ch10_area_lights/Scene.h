@@ -66,9 +66,10 @@ struct Scene
             glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &mMaxTessGenLevel);
         }
 
+        static constexpr GLfloat gLevel = 1;
         GLuint mPatchVertices = 3;
-        math::Vec<4, GLfloat> mOuterLevel{ 10.f, 10.f, 10.f, 1.f };
-        math::Vec<2, GLfloat> mInnerLevel{ 10.f, 1.f };
+        math::Vec<4, GLfloat> mOuterLevel{ gLevel, gLevel, gLevel, 1.f };
+        math::Vec<2, GLfloat> mInnerLevel{ gLevel, 1.f };
 
         GLint mMaxPatchVertices;
         GLint mMaxTessGenLevel;
@@ -99,7 +100,7 @@ struct Scene
 
     Engine mEngine;
 
-    scenic::geodesic::Sphere mSphere{ 1 };
+    scenic::geodesic::Sphere mSphere{ 4 };
     GLsizei mIndicesCount{ (GLsizei)mSphere.mIndices.size() };
 
     graphics::VertexSpecification mVertexSpecification;
