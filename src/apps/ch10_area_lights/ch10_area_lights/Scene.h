@@ -53,10 +53,12 @@ constexpr graphics::AttributeDescriptionList gInstanceDescription{
 };
 
 
-static std::array<Instance, 2> gInstances{
-    0,
-    1,
-};
+// For the moment, each instance maps to a distinct entity
+// and we store all entity data in a UBO
+//static std::array<Instance, 2> gInstances{
+//    0,
+//    1,
+//};
 
 
 struct Scene
@@ -121,9 +123,6 @@ struct Scene
                 .mLocalToWorld = math::AffineMatrix<4, GLfloat>::Identity(),
                 .mColorFactor = math::hdr::gWhite<float>,
             },
-            renderer::EntityData_glsl{
-                .mLocalToWorld = math::trans3d::translate<GLfloat>({2.5f, 0.f, 0.f}),
-            },
         },
     };
     PbrMaterialsBlock_glsl mMaterials{
@@ -136,7 +135,7 @@ struct Scene
     };
     renderer::LightsDataCommon mLights{
         .mDirectionalCount = 0,
-        .mPointCount = 1,
+        .mPointCount = 2,
         // We decode a sRGB 10% white (which is also perceptually ~10%)
         // to linear space for computation.
         .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.1f),
@@ -150,7 +149,15 @@ struct Scene
          },
         .mPointLights = {
             renderer::PointLight_glsl{
-                .mPosition = {0.f, 3.f, 0.f},
+                .mPosition = {-1.f, 3.f, 0.f},
+                .mRadius{
+                    .mMin = 1.f,
+                    .mMax = 5.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 2.f,
+            },
+            renderer::PointLight_glsl{
+                .mPosition = {+1.f, 3.f, 0.f},
                 .mRadius{
                     .mMin = 1.f,
                     .mMax = 5.f,

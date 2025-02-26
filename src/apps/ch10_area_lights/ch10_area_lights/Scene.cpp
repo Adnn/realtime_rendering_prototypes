@@ -124,12 +124,12 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         std::span{mSphere.mVertices},
         graphics::BufferHint::StaticDraw);
 
-    graphics::appendToVertexSpecification(
-        mVertexSpecification,
-        gInstanceDescription,
-        std::span{gInstances},
-        graphics::BufferHint::StaticDraw,
-        1);
+    //graphics::appendToVertexSpecification(
+    //    mVertexSpecification,
+    //    gInstanceDescription,
+    //    std::span{gInstances},
+    //    graphics::BufferHint::StaticDraw,
+    //    1);
 
     // Register the camera system with glfw inputs 
     graphics::registerGlfwCallbacks(
@@ -192,12 +192,19 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Entities
     // 
-    const auto & pointLight = mLights.mPointLights[0];
-    auto& entity = mEntities.mEntities[1];
-    entity.mLocalToWorld =
-        math::trans3d::scaleUniform(pointLight.mRadius.mMin)
-        * math::trans3d::translate(pointLight.mPosition.as<math::Vec>());
-    entity.mColorFactor = pointLight.mColors.mDiffuseColor;
+    const unsigned int objectsCount = 1;
+    // Ensure the vector can fit all point lights
+    mEntities.mEntities.resize(objectsCount + mLights.mPointCount);
+
+    for (std::size_t pointLightIdx = 0; pointLightIdx != mLights.mPointCount; ++pointLightIdx)
+    {
+        const auto& pointLight = mLights.mPointLights[pointLightIdx];
+        auto& entity = mEntities.mEntities[objectsCount + pointLightIdx];
+        entity.mLocalToWorld =
+            math::trans3d::scaleUniform(pointLight.mRadius.mMin)
+            * math::trans3d::translate(pointLight.mPosition.as<math::Vec>());
+        entity.mColorFactor = pointLight.mColors.mDiffuseColor;
+    }
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
     //
@@ -255,6 +262,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         sphereCount,
         0);
 
+    // Render point lights as sphere
     validateVertexAttributes(mLightProgram);
     glUseProgram(mLightProgram);
     glDrawElementsInstancedBaseInstance(
@@ -262,7 +270,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         mIndicesCount,
         graphics::MappedGL_v<scenic::Index>,
         0,
-        static_cast<GLsizei>(std::size(gInstances)) - sphereCount,
+        mLights.mPointCount,
         sphereCount);
 }
 

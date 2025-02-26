@@ -23,7 +23,8 @@ struct alignas(16) EntityData_glsl
     // Note: 16-aligned, because it is intended to be stored as an array in a buffer object
     // and then the elements are accessed via a std140 uniform block
 
-    /*alignas(16)*/ math::AffineMatrix<4, GLfloat> mLocalToWorld;
+    /*alignas(16)*/ math::AffineMatrix<4, GLfloat> mLocalToWorld = 
+        math::AffineMatrix<4, GLfloat>::Identity();
     /*alignas(16)*/ math::hdr::Rgba_f mColorFactor = math::hdr::gWhite<GLfloat>;
 };
 
