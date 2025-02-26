@@ -38,13 +38,15 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
 		F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
 
         float nDotH = dotPlus(aShadingNormal, h);
-        float nDotL = dotPlus(aShadingNormal, aLightDir);
+        // Seems to fix some erroneous black pixels at horizon (but not all)
+        float nDotL = max(0.001, dotPlus(aShadingNormal, aLightDir));
         float nDotV = dotPlus(aShadingNormal, aView);
 
         #if !defined(BLINNPHONG_BRDF)
             result.specular = specularBrdf_GGX(F, nDotH, nDotL, nDotV, aParams.alpha)
                               * aColors.specular.rgb
-                              * nDotL;
+                              * nDotL
+                              ;
         #else
             float nDotL_raw = dot(aShadingNormal, aLightDir);
             float nDotV_raw = dot(aShadingNormal, aView);
@@ -54,6 +56,8 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
                               * aColors.specular.rgb
                               * nDotL;
         #endif // GGX_BRDF / BLINNPHONG_BRDF
+
+		//result.specular = vec3(-h.g);
     }
 
     // Diffuse
