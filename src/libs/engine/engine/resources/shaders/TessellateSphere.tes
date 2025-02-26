@@ -12,8 +12,8 @@ in vec3 vPosition[];
 
 // Output interpolated for fragment shader
 out vec4 ex_Color;
-out vec3 ex_Normal;
-out vec3 ex_Position;
+out vec3 ex_Normal_view;
+out vec3 ex_Position_view;
 
 #define ENTITY_IDX_ATTRIBUTE vEntityIdx[0]
 #include "EntitiesBlock.glsl"
@@ -39,11 +39,11 @@ void main()
 	// Compute normal
 	// Note: the on a unit sphere, the local position is the local normal
 	vec4 normal_local = vec4(position_local, 0.);
-	ex_Normal = vec3(worldToCamera * getModelTransform() * normal_local);
+	ex_Normal_view = vec3(worldToCamera * getModelTransform() * normal_local);
 
 	// Transform the tessellated vertex position to clip space
 	vec4 position_view = worldToCamera * position_world;
 	//ex_Position = position_view.xyz / position_view.w; // Note: I suppose this is useless, w should only be changed by projection
-	ex_Position = position_view.xyz;
+	ex_Position_view = position_view.xyz;
 	gl_Position = projection * position_view;
 }

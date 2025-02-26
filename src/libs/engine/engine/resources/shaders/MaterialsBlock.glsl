@@ -15,7 +15,6 @@ struct Material
 
 layout(std140, binding = 2) uniform MaterialsBlock
 {
-    // LightsDataUser
     uint ub_Count;
     Material ub_Materials[MAX_MATERIALS];
 };

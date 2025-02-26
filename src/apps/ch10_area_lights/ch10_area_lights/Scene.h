@@ -24,6 +24,9 @@
 namespace ad {
 
 
+constexpr math::hdr::Rgb<GLfloat> gBrickAlbedo{ 0.262f, 0.095f, 0.061f };
+
+
 namespace graphics {
     class AppInterface;
 } // namespace graphics
@@ -116,37 +119,43 @@ struct Scene
         .mEntities = {
             renderer::EntityData_glsl{
                 .mLocalToWorld = math::AffineMatrix<4, GLfloat>::Identity(),
-                .mColorFactor = math::hdr::gGreen<float>,
+                .mColorFactor = math::hdr::gWhite<float>,
             },
             renderer::EntityData_glsl{
                 .mLocalToWorld = math::trans3d::translate<GLfloat>({2.5f, 0.f, 0.f}),
             },
         },
     };
-    MaterialsBlock_glsl mMaterials{
+    PbrMaterialsBlock_glsl mMaterials{
         .mCount = 1,
         .mMaterials = {
-            PhongMaterial_glsl{ .mSpecularExponent = 20.f, },
+            PbrMaterial_glsl{
+                .mBaseColor{gBrickAlbedo},
+            },
         },
     };
     renderer::LightsDataCommon mLights{
-        .mDirectionalCount = 1,
+        .mDirectionalCount = 0,
         .mPointCount = 1,
-        .mAmbientColor = math::hdr::gWhite<float> *0.1,
+        // We decode a sRGB 10% white (which is also perceptually ~10%)
+        // to linear space for computation.
+        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.1f),
         .mDirectionalLights = {
             renderer::DirectionalLight_glsl{
                 .mDirection = math::UnitVec<3, float>{ {0.5f, 0.f, -0.5f} },
-                .mColors = renderer::LightColors_glsl{} *0.2,
+                // TODO: decode the srgb value to have it show correctly in Imgui
+                // (and have it perceptually proportional to the factor)
+                .mColors = renderer::LightColors_glsl{} * 0.2,
             },
          },
         .mPointLights = {
             renderer::PointLight_glsl{
-                .mPosition = {0.f, 2.f, 0.f},
+                .mPosition = {0.f, 3.f, 0.f},
                 .mRadius{
                     .mMin = 1.f,
                     .mMax = 5.f,
                 },
-                .mColors = renderer::LightColors_glsl{} * 0.5,
+                .mColors = renderer::LightColors_glsl{} * 2.f,
             },
          },
     };

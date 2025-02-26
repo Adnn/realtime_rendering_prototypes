@@ -82,8 +82,8 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 }
 
 
-//const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
-const std::filesystem::path gProgramPath = "programs/WrapLighting.prog";
+const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
+//const std::filesystem::path gProgramPath = "programs/WrapLighting.prog";
 const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
 
 template <class T_witness>

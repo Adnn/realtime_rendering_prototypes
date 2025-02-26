@@ -7,13 +7,6 @@
 #include "MaterialsBlock.glsl"
 
 
-struct LightContributions
-{
-	vec3 diffuse;
-	vec3 specular;
-};
-
-
 LightContributions applyBlinnPhongLight(
     vec3 aView, vec3 aLightDir, vec3 aShadingNormal,
     LightColors aColors, float aSpecularExponent)
@@ -40,8 +33,8 @@ LightContributions applyBlinnPhongLight(
 
 
 in vec4 ex_Color;
-in vec3 ex_Normal;
-in vec3 ex_Position;
+in vec3 ex_Normal_view;
+in vec3 ex_Position_view;
 
 out vec4 out_Color;
 
@@ -53,8 +46,8 @@ void main(void)
     // TODO: multiply by albedo texture
     vec4 albedo = ex_Color;
 
-	vec3 view_cam = normalize(-ex_Position);
-	vec3 shadingNormal_cam = normalize(ex_Normal);
+	vec3 view_cam = normalize(-ex_Position_view);
+	vec3 shadingNormal_cam = normalize(ex_Normal_view);
 
     // Accumulators for the lights contributions
     vec3 diffuseAccum = vec3(0.);
@@ -85,7 +78,7 @@ void main(void)
         PointLight point = ub_PointLights[pointIdx];
 
         // see rtr 4th p110 (5.10)
-        vec3 lightRay_cam = point.position.xyz - ex_Position;
+        vec3 lightRay_cam = point.position.xyz - ex_Position_view;
         float r = sqrt(dot(lightRay_cam, lightRay_cam));
         vec3 lightDir_cam = lightRay_cam / r;
 

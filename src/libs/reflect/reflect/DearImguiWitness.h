@@ -150,13 +150,25 @@ inline void give(DearImguiWitness & aV, math::UnitVec<3, float> & aVec, const ch
 
 inline void give(DearImguiWitness & aV, math::hdr::Rgb<float> & aRgb, const char * aName)
 {
-    ImGui::ColorEdit3(aName, aRgb.data());
+    aRgb.r() = std::pow(aRgb.r(), 1.f / 2.2f);
+    aRgb.g() = std::pow(aRgb.g(), 1.f / 2.2f);
+    aRgb.b() = std::pow(aRgb.b(), 1.f / 2.2f);
+    ImGui::ColorEdit3(aName, aRgb.data(), ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float);
+    aRgb.r() = std::pow(aRgb.r(), 2.2f);
+    aRgb.g() = std::pow(aRgb.g(), 2.2f);
+    aRgb.b() = std::pow(aRgb.b(), 2.2f);
 }
 
 
 inline void give(DearImguiWitness & aV, math::hdr::Rgba<float> & aRgba, const char * aName)
 {
-    ImGui::ColorEdit4(aName, aRgba.data());
+    aRgba.r() = std::pow(aRgba.r(), 1.f / 2.2f);
+    aRgba.g() = std::pow(aRgba.g(), 1.f / 2.2f);
+    aRgba.b() = std::pow(aRgba.b(), 1.f / 2.2f);
+    ImGui::ColorEdit4(aName, aRgba.data(), ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float);
+    aRgba.r() = std::pow(aRgba.r(), 2.2f);
+    aRgba.g() = std::pow(aRgba.g(), 2.2f);
+    aRgba.b() = std::pow(aRgba.b(), 2.2f);
 }
 
 

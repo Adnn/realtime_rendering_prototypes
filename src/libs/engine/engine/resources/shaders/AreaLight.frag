@@ -23,39 +23,6 @@ float wrapDot_Forsyth(vec3 aLightDir, vec3 aShadingNormal, float aWrapK)
 }
 
 
-// see: Karis, Brian, "Real Shading in Unreal Engine 4," p15
-/// @return A modified light direction
-vec3 representativePoint_sphere(vec3 aFragmentPosition,
-                                vec3 aLightCenter,
-                                vec3 aReflection,
-                                float aRadius)
-{
-    // shaded point to light-sphere center
-    vec3 L = aLightCenter - aFragmentPosition;
-
-    // Note: here, Kaaris use the negation of what is presented in rtr 4th fig 10.10
-    // We negate Kaaris formulation to get the correct result with our conventions.
-    // From the sphere center to the closest point on the reflection ray:
-    vec3 centerToRay = dot(L, aReflection) * aReflection - L;
-    // Note: the paper use single bars around center to ray, we take it to mean the norm
-    vec3 closestPoint = L + centerToRay * clamp(aRadius / length(centerToRay), 0., 1.);
-    // Note: here, the paper use double bars, but result is a vector. We take it to mean normalization.
-    return normalize(closestPoint);
-
-    // Note: below is rtr 4th fig 10.10 formalization:
-    //vec3 pcr = dot(L, aReflection) * aReflection - L;
-    //vec3 pcs = L + pcr * min(1, aRadius / length(pcr));
-    //return normalize(pcs);
-}
-
-
-struct LightContributions
-{
-	vec3 diffuse;
-	vec3 specular;
-};
-
-
 vec3 applyDiffuse_wrap(
     vec3 aLightDir,
     vec3 aShadingNormal,
@@ -95,8 +62,8 @@ vec3 applySpecular(
 }
 
 in vec4 ex_Color;
-in vec3 ex_Normal;
-in vec3 ex_Position;
+in vec3 ex_Normal_view;
+in vec3 ex_Position_view;
 
 out vec4 out_Color;
 
@@ -108,8 +75,8 @@ void main(void)
     // TODO: multiply by albedo texture
     vec4 albedo = ex_Color;
 
-	vec3 view_cam = normalize(-ex_Position);
-	vec3 shadingNormal_cam = normalize(ex_Normal);
+	vec3 view_cam = normalize(-ex_Position_view);
+	vec3 shadingNormal_cam = normalize(ex_Normal_view);
 
     // Accumulators for the lights contributions
     vec3 diffuseAccum = vec3(0.);
@@ -123,7 +90,7 @@ void main(void)
         PointLight point = ub_PointLights[pointIdx];
 
         // see rtr 4th p110 (5.10)
-        vec3 lightRay_cam = point.position.xyz - ex_Position;
+        vec3 lightRay_cam = point.position.xyz - ex_Position_view;
         float r = sqrt(dot(lightRay_cam, lightRay_cam));
         vec3 lightDir_cam = lightRay_cam / r;
 
@@ -139,7 +106,7 @@ void main(void)
 #endif //FEAT_WRAP_LIGHTING
 
         vec3 representativeLightDir_cam =
-            representativePoint_sphere(ex_Position, point.position.xyz,
+            representativePoint_sphere(ex_Position_view, point.position.xyz,
                                        reflect(-view_cam, shadingNormal_cam), point.radius.x);
         vec3 lightSpecularDir = representativeLightDir_cam;
         //vec3 lightSpecularDir = lightDir_cam;
