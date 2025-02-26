@@ -9,44 +9,57 @@
 
 
 
-LightContributions applyLight_pbr(vec3 aView, vec3 aLightDir, vec3 aShadingNormal,
+LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
                                   PbrParameters aParams, LightColors aColors)
 {
     LightContributions result;
-
-    vec3 h = normalize(aView + aLightDir);
-    float vDotH = dotPlus(aView, h);
-    float hDotL = dotPlus(h, aLightDir);
-    float nDotL = dotPlus(aShadingNormal, aLightDir);
-    float nDotV = dotPlus(aShadingNormal, aView);
-    float nDotH = dotPlus(aShadingNormal, h);
-
-    // Fresnel term `F` describe how the wave-length dependent reflectance (proportion of reflected light)
-    // For microfacet BRDFs, we use dot(h, l), not dot(n, l), see: rtr 4th eq (9.63)
-    vec3 F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
+    vec3 F;
 
     // IMPORTANT: All albedos are given already multiplied by Pi
     // This already satisfy the Pi factor in the reflectance equation.
 
+    // Specular and Fresnel
+    {
+		vec3 aLightDir = aSpecularLightDir;
+        // TODO #glitch: The area light representative point made visible black dot artifacts on the
+        //   sphere horizon when it is aligned to the light ("eclipse").
+        //   I suppose one problem is the degenerate h vector when aView = -aLightDir (more probable with area)
+        //   but there seem to be other underlying issue(s).
+		vec3 h = normalize(aView + aLightDir);
+		float hDotL = dotPlus(h, aLightDir);
+
+		// Fresnel term `F` describe how the wave-length dependent reflectance (proportion of reflected light)
+		// For microfacet BRDFs, we use dot(h, l), not dot(n, l), see: rtr 4th eq (9.63)
+		F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
+
+        float nDotH = dotPlus(aShadingNormal, h);
+        float nDotL = dotPlus(aShadingNormal, aLightDir);
+        float nDotV = dotPlus(aShadingNormal, aView);
+
+        #if !defined(BLINNPHONG_BRDF)
+            result.specular = specularBrdf_GGX(F, nDotH, nDotL, nDotV, aParams.alpha)
+                              * aColors.specular.rgb
+                              * nDotL;
+        #else
+            float nDotL_raw = dot(aShadingNormal, aLightDir);
+            float nDotV_raw = dot(aShadingNormal, aView);
+
+            float alpha_b = alpha / 1.7; // the magic denominator was manually tweaked to mostly match
+            result.specular = specularBrdf_BlinnPhong(F, nDotH, nDotL_raw, nDotV_raw, alpha_b)
+                              * aColors.specular.rgb
+                              * nDotL;
+        #endif // GGX_BRDF / BLINNPHONG_BRDF
+    }
+
     // Diffuse
-	result.diffuse  = diffuseBrdf_weightedLambertian(F, aParams.diffuseColor)
-					  * aColors.diffuse.rgb
-					  * nDotL;
+    {
+        vec3 aLightDir = aDiffuseLightDir;
 
-    // Specular
-	#if !defined(BLINNPHONG_BRDF)
-		result.specular = specularBrdf_GGX(F, nDotH, nDotL, nDotV, aParams.alpha)
-						  * aColors.specular.rgb
-						  * nDotL;
-	#else
-		float nDotL_raw = dot(aShadingNormal, aLightDir);
-		float nDotV_raw = dot(aShadingNormal, aView);
-
-		float alpha_b = alpha / 1.7; // the magic denominator was manually tweaked to mostly match
-		result.specular = specularBrdf_BlinnPhong(F, nDotH, nDotL_raw, nDotV_raw, alpha_b)
-						  * aColors.specular.rgb
-						  * nDotL;
-	#endif // GGX_BRDF / BLINNPHONG_BRDF
+        float nDotL = dotPlus(aShadingNormal, aLightDir);
+        result.diffuse  = diffuseBrdf_weightedLambertian(F, aParams.diffuseColor)
+                          * aColors.diffuse.rgb
+                          * nDotL;
+    }
 
     return result;
 }
@@ -117,7 +130,7 @@ void main(void)
         
         LightContributions lighting = 
             applyLight_pbr(
-                viewDir_view, lightDir_view, shadingNormal_view,
+                viewDir_view, lightDir_view, lightDir_view, shadingNormal_view,
                 pbrParameters, directional.colors);
 
         diffuseAccum += lighting.diffuse;
@@ -135,9 +148,15 @@ void main(void)
         float radius = length(lightRay_view);
         vec3 lightDir_view = lightRay_view / radius;
 
+        vec3 specularLightDir_view = 
+            representativePoint_sphere(ex_Position_view,
+                                       point.position.xyz,
+                                       reflect(-viewDir_view, shadingNormal_view),
+                                       point.radius.x);
+
         LightContributions lighting = 
             applyLight_pbr(
-                viewDir_view, lightDir_view, shadingNormal_view,
+                viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
                 pbrParameters, point.colors);
 
         float falloff = attenuatePoint(point, radius);
