@@ -34,4 +34,25 @@ vec3 remapToRgb(vec3 aInput, float aMagnitude)
 }
 
 
+vec3 highlightAberrations(vec3 aColor)
+{
+    const float limit = 1.0/255;
+    if (aColor.r < limit && aColor.g < limit && aColor.b < limit)
+    {
+        return vec3(1.0, 0.0, 1.0);
+    }
+    else if(any(isnan(aColor)))
+    {
+        return vec3(0.0, 1.0, 0.0);
+    }
+    else if(any(isinf(aColor)))
+    {
+        return vec3(1.0, 0.0, 1.0);
+    }
+    else
+    {
+        return aColor;
+    }
+}
+
 #endif //include guard

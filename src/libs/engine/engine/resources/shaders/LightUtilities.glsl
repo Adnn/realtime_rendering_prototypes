@@ -36,8 +36,8 @@ vec3 representativePoint_sphere(vec3 aFragmentPosition,
     // shaded point to light-sphere center
     vec3 L = aLightCenter - aFragmentPosition;
 
-    // Note: here, Kaaris use the negation of what is presented in rtr 4th fig 10.10
-    // We negate Kaaris formulation to get the correct result with our conventions.
+    // Note: here, Karis use the negation of what is presented in rtr 4th fig 10.10
+    // We negate Karis formulation to get the correct result with our conventions.
     // From the sphere center to the closest point on the reflection ray:
     vec3 centerToRay = dot(L, aReflectionDir) * aReflectionDir - L;
     // Note: the paper use single bars around center to ray, we take it to mean the norm

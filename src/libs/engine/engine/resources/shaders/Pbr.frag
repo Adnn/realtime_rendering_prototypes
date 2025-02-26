@@ -58,7 +58,7 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
 
     // Diffuse
     {
-        // Note: From rtr 4th structure and references to specular in Kaaris, we assume that 
+        // Note: From rtr 4th structure and references to specular in Karis, we assume that 
         //   diffuse term should still use the punctual light direction
         //   (also, it seems wrong otherwise).
         vec3 aLightDir = aDiffuseLightDir;
@@ -182,6 +182,9 @@ void main(void)
 
     vec3 fragmentColor = diffuse + ambient + specular;
 
+    // DEBUG SECTION
+    //fragmentColor = specular;
+    //fragmentColor = highlightAberrations(fragmentColor);
 
     //
     // Output
