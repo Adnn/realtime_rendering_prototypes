@@ -31,6 +31,7 @@ class GraphicsConan(ConanFile):
     def requirements(self):
         self.requires("graphics/0.1.0@adnn/develop", transitive_headers=True)
         self.requires("handy/cb47135273@adnn/develop", transitive_headers=True)
+        self.requires("math/d4042f8521@adnn/develop", transitive_headers=True)
 
         self.requires("imgui/1.91.5-docking", transitive_headers=True)
         # Note: we do not want spdlog to be a public dependency
