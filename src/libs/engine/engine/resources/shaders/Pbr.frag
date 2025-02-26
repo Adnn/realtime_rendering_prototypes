@@ -21,6 +21,11 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
     // Specular and Fresnel
     {
 		vec3 aLightDir = aSpecularLightDir;
+
+        // Note: Lacking clear guidance, the Fresnel term is computed with the specular light dir
+        //   The reasoning being that for practical purposes, this is the specular direction
+        //   (and we want the energy trade-off with diffuse for the computed specular term)
+
         // TODO #glitch: The area light representative point made visible black dot artifacts on the
         //   sphere horizon when it is aligned to the light ("eclipse").
         //   I suppose one problem is the degenerate h vector when aView = -aLightDir (more probable with area)
@@ -53,6 +58,9 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
 
     // Diffuse
     {
+        // Note: From rtr 4th structure and references to specular in Kaaris, we assume that 
+        //   diffuse term should still use the punctual light direction
+        //   (also, it seems wrong otherwise).
         vec3 aLightDir = aDiffuseLightDir;
 
         float nDotL = dotPlus(aShadingNormal, aLightDir);
