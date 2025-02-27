@@ -24,3 +24,7 @@ Suffixes for spaces:
 For texture coordinates:
 * uv when normalized texture coordinates
 * texel when integer texture coordinates
+
+For vectors:
+* `Dir` for normalized directions
+* `Ray` for segments from A to B (e.g. lightRay, from the shaded fragment to the light).

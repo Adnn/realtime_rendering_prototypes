@@ -160,11 +160,11 @@ void main(void)
     //    float radius = length(lightRay_view);
     //    vec3 lightDir_view = lightRay_view / radius;
 
-    //    vec3 specularLightDir_view = 
+    //    vec3 specularLightDir_view = normalize(
     //        representativePoint_sphere(ex_Position_view,
     //                                   point.position.xyz,
     //                                   reflect(-viewDir_view, shadingNormal_view),
-    //                                   point.radius.x);
+    //                                   point.radius.x));
 
     //    LightContributions lighting = 
     //        applyLight_pbr(
@@ -190,15 +190,27 @@ void main(void)
         float midRadius = length(midLightRay_view);
         vec3 midLightDir_view = midLightRay_view / midRadius;
 
+		vec3 reflectionDir = reflect(-viewDir_view, shadingNormal_view);
+
         TubeInterpolation tube = 
             representativePoint_tube(
                 ex_Position_view,
                 p0.position.xyz, p1.position.xyz,
-                reflect(-viewDir_view, shadingNormal_view));
+                reflectionDir);
 
-        float representativeRadius = length(tube.lightRay);
-        vec3 lightDir_view = tube.lightRay / representativeRadius;
+        vec3 lightRay_view = tube.lightRay;
         float t = tube.t;
+
+        #define FEAT_TUBE_WIDTH
+        #if defined(FEAT_TUBE_WIDTH)
+			lightRay_view = 
+				representativePoint_sphere(lightRay_view,
+										   reflectionDir,
+										   p0.radius.x);
+        #endif
+
+        float representativeRadius = length(lightRay_view);
+        vec3 lightDir_view = lightRay_view / representativeRadius;
 
         LightContributions lighting = 
             applyLight_pbr(
@@ -223,6 +235,7 @@ void main(void)
         // gamma encode t to go from a perceptually linear t to light linear space.
         // (this cancels out gamma correction, bringing it back to perceptually linear sRGB)
         //out_Color = correctGamma(vec4(vec3(pow(t, 2.2)), 1));
+        //out_Color = correctGamma(vec4(vec3(pow(representativeRadius/10, 2.2)), 1));
         //return;
     }
 

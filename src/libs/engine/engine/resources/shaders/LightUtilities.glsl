@@ -7,8 +7,8 @@
 
 struct LightContributions
 {
-	vec3 diffuse;
-	vec3 specular;
+    vec3 diffuse;
+    vec3 specular;
 };
 
 
@@ -27,14 +27,13 @@ float attenuatePoint(PointLight aLight, float aRadius)
 
 
 // see: Karis, Brian, "Real Shading in Unreal Engine 4," p15
-/// @return A modified light direction
-vec3 representativePoint_sphere(vec3 aFragmentPosition,
-                                vec3 aLightCenter,
+/// @return A modified light ray to the representative point, **not** normalized.
+vec3 representativePoint_sphere(vec3 aLightRay,
                                 vec3 aReflectionDir,
                                 float aSphereRadius)
 {
     // shaded point to light-sphere center
-    vec3 L = aLightCenter - aFragmentPosition;
+    vec3 L = aLightRay;
 
     // Note: here, Karis use the negation of what is presented in rtr 4th fig 10.10
     // We negate Karis formulation to get the correct result with our conventions.
@@ -42,19 +41,32 @@ vec3 representativePoint_sphere(vec3 aFragmentPosition,
     vec3 centerToRay = dot(L, aReflectionDir) * aReflectionDir - L;
     // Note: the paper use single bars around center to ray, we take it to mean the norm
     vec3 closestPoint = L + centerToRay * clamp(aSphereRadius / length(centerToRay), 0., 1.);
-    // Note: here, the paper use double bars, but result is a vector. We take it to mean normalization.
-    return normalize(closestPoint);
+    return closestPoint;
 
     // Note: below is rtr 4th fig 10.10 formalization:
     //vec3 pcr = dot(L, aReflectionDir) * aReflectionDir - L;
     //vec3 pcs = L + pcr * min(1, aSphereRadius / length(pcr));
-    //return normalize(pcs);
+    //return pcs;
+}
+
+
+// see: Karis, Brian, "Real Shading in Unreal Engine 4," p15
+/// @return A light ray to the representative point, **not** normalized.
+vec3 representativePoint_sphere(vec3 aFragmentPosition,
+                                vec3 aLightCenter,
+                                vec3 aReflectionDir,
+                                float aSphereRadius)
+{
+    return representativePoint_sphere(
+        aLightCenter - aFragmentPosition,
+        aReflectionDir,
+        aSphereRadius);
 }
 
 
 struct TubeInterpolation
 {
-    vec3 lightRay; // **not** normalized
+    vec3 lightRay; // **not** normalized, the complete ray from shaded point to light
     float t;
 };
 
@@ -76,7 +88,7 @@ TubeInterpolation representativePoint_tube(vec3 aFragmentPosition,
     return TubeInterpolation(
         (L0 + t * Ld),
         t
-	);
+    );
 }
 
 // see: Karis, Brian, "Real Shading in Unreal Engine 4," p17
@@ -102,7 +114,7 @@ TubeInterpolation representativePoint_tube_Picott(vec3 aFragmentPosition,
     return TubeInterpolation(
         (L0 + t * Ld),
         t
-	);
+    );
 }
 
 #endif //LIGHTUTILITIES_GLSL_INCLUDE_GUARD
