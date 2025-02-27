@@ -52,5 +52,57 @@ vec3 representativePoint_sphere(vec3 aFragmentPosition,
 }
 
 
+struct TubeInterpolation
+{
+    vec3 lightRay; // **not** normalized
+    float t;
+};
+
+// see: Karis, Brian, "Real Shading in Unreal Engine 4," p17
+TubeInterpolation representativePoint_tube(vec3 aFragmentPosition,
+                                           vec3 aTubeP0, vec3 aTubeP1,
+                                           vec3 aReflectionDir)
+{
+    // shaded point to tube endpoints
+    vec3 L0 = aTubeP0 - aFragmentPosition;
+    vec3 L1 = aTubeP1 - aFragmentPosition;
+    vec3 Ld = L1 - L0;
+
+    float t = (dot(aReflectionDir, L0) * dot(aReflectionDir, Ld) - dot(L0, Ld))
+              /
+              (pow(length(Ld), 2) - pow(dot(aReflectionDir, Ld), 2));
+              
+    t = clamp(t, 0.0, 1.0);
+    return TubeInterpolation(
+        (L0 + t * Ld),
+        t
+	);
+}
+
+// see: Karis, Brian, "Real Shading in Unreal Engine 4," p17
+TubeInterpolation representativePoint_tube_Picott(vec3 aFragmentPosition,
+                                                  vec3 aTubeP0, vec3 aTubeP1,
+                                                  vec3 aReflectionDir)
+{
+    // shaded point to tube endpoints
+    vec3 L0 = aTubeP0 - aFragmentPosition;
+    vec3 L1 = aTubeP1 - aFragmentPosition;
+    vec3 Ld = L1 - L0;
+    vec3 r = aReflectionDir;
+
+    float L0d = dot(L0, Ld);
+    float r0  = dot(r, L0);
+    float rd  = dot(r, Ld);
+
+    float t = (L0d * r0 - dot(L0, L0) * rd)
+              /
+              (L0d * rd - dot(Ld, Ld) * r0);
+
+    t = clamp(t, 0.0, 1.0);
+    return TubeInterpolation(
+        (L0 + t * Ld),
+        t
+	);
+}
 
 #endif //LIGHTUTILITIES_GLSL_INCLUDE_GUARD

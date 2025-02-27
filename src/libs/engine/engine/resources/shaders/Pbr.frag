@@ -150,30 +150,80 @@ void main(void)
     }
 
 
-    // Point lights
-    for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
+    //// Point lights
+    //for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
+    //{
+    //    PointLight point = ub_PointLights[pointIdx];
+
+    //    // see rtr 4th p110 (5.10)
+    //    vec3 lightRay_view = point.position.xyz - ex_Position_view;
+    //    float radius = length(lightRay_view);
+    //    vec3 lightDir_view = lightRay_view / radius;
+
+    //    vec3 specularLightDir_view = 
+    //        representativePoint_sphere(ex_Position_view,
+    //                                   point.position.xyz,
+    //                                   reflect(-viewDir_view, shadingNormal_view),
+    //                                   point.radius.x);
+
+    //    LightContributions lighting = 
+    //        applyLight_pbr(
+    //            viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
+    //            pbrParameters, point.colors);
+
+    //    float falloff = attenuatePoint(point, radius);
+    //    diffuseAccum  += lighting.diffuse  * falloff;
+    //    specularAccum += lighting.specular * falloff;
+    //}
+
+
+    // Tube lights
+    for(uint pointIdx = 0; pointIdx != ub_PointCount; pointIdx += 2)
     {
-        PointLight point = ub_PointLights[pointIdx];
+        PointLight p0 = ub_PointLights[pointIdx];
+        PointLight p1 = ub_PointLights[pointIdx+1];
 
-        // see rtr 4th p110 (5.10)
-        vec3 lightRay_view = point.position.xyz - ex_Position_view;
-        float radius = length(lightRay_view);
-        vec3 lightDir_view = lightRay_view / radius;
+        // TODO: #area_diffuse
+        //       Find if there are better solution than picking the middle point
+        vec3 middlePoint_view = (p0.position.xyz + p1.position.xyz) / 2;
+        vec3 midLightRay_view = middlePoint_view - ex_Position_view;
+        float midRadius = length(midLightRay_view);
+        vec3 midLightDir_view = midLightRay_view / midRadius;
 
-        vec3 specularLightDir_view = 
-            representativePoint_sphere(ex_Position_view,
-                                       point.position.xyz,
-                                       reflect(-viewDir_view, shadingNormal_view),
-                                       point.radius.x);
+        TubeInterpolation tube = 
+            representativePoint_tube(
+                ex_Position_view,
+                p0.position.xyz, p1.position.xyz,
+                reflect(-viewDir_view, shadingNormal_view));
+
+        float representativeRadius = length(tube.lightRay);
+        vec3 lightDir_view = tube.lightRay / representativeRadius;
+        float t = tube.t;
 
         LightContributions lighting = 
             applyLight_pbr(
-                viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
-                pbrParameters, point.colors);
+                viewDir_view, midLightDir_view, lightDir_view, shadingNormal_view,
+                pbrParameters,
+                // TODO: interpolate colors
+                p0.colors);
 
-        float falloff = attenuatePoint(point, radius);
-        diffuseAccum  += lighting.diffuse  * falloff;
-        specularAccum += lighting.specular * falloff;
+		// TODO interpolate point fall-off radii?
+        // Note: we cannot use the radius of the representative point:
+        // It has strong discontinuities when "escaping" from endpoints, 
+        // which cause disturbing artifacts in a "low frequency" diffuse contribution.
+        float falloffDiffuse = attenuatePoint(p0, midRadius);
+        diffuseAccum  += lighting.diffuse  * falloffDiffuse;
+
+        // Note: we might instead reuse the already computed falloff, 
+        // but this change the specular result
+        float falloffSpec = attenuatePoint(p0, representativeRadius);
+        specularAccum += lighting.specular * falloffSpec;
+
+        // Usefull to show the interpolation parameter
+        // gamma encode t to go from a perceptually linear t to light linear space.
+        // (this cancels out gamma correction, bringing it back to perceptually linear sRGB)
+        //out_Color = correctGamma(vec4(vec3(pow(t, 2.2)), 1));
+        //return;
     }
 
 
