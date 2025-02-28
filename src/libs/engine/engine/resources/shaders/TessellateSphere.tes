@@ -12,6 +12,8 @@ in vec3 vPosition[];
 
 // Output interpolated for fragment shader
 out vec4 ex_Color;
+out vec3 ex_Normal_world;
+out vec3 ex_Position_world;
 out vec3 ex_Normal_view;
 out vec3 ex_Position_view;
 
@@ -32,6 +34,7 @@ void main()
 	vec3 position_local = normalize(pos);
 	//vec3 position_local = pos;
 	vec4 position_world = getModelTransform() * vec4(position_local, 1.);
+	ex_Position_world = position_world.xyz;
 
 	// Interpolate color
 	ex_Color = vColor[0] * u + vColor[1] * v + vColor[2] * w;
@@ -39,7 +42,9 @@ void main()
 	// Compute normal
 	// Note: the on a unit sphere, the local position is the local normal
 	vec4 normal_local = vec4(position_local, 0.);
-	ex_Normal_view = vec3(worldToCamera * getModelTransform() * normal_local);
+	vec4 normal_world = getModelTransform() * normal_local;
+	ex_Normal_world = normal_world.xyz;
+	ex_Normal_view = vec3(worldToCamera * normal_world);
 
 	// Transform the tessellated vertex position to clip space
 	vec4 position_view = worldToCamera * position_world;

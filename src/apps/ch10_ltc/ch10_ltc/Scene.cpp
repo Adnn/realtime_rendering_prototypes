@@ -82,8 +82,7 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 }
 
 
-const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
-//const std::filesystem::path gProgramPath = "programs/WrapLighting.prog";
+const std::filesystem::path gProgramPath = "programs/ch10_ltc_ShowLtc.prog";
 const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
 
 template <class T_witness>
@@ -120,16 +119,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     graphics::appendToVertexSpecification(
         mVertexSpecification,
         gVertexDescription,
-        //std::span{scenic::icosahedron::gVertices},
         std::span{mSphere.mVertices},
         graphics::BufferHint::StaticDraw);
-
-    //graphics::appendToVertexSpecification(
-    //    mVertexSpecification,
-    //    gInstanceDescription,
-    //    std::span{gInstances},
-    //    graphics::BufferHint::StaticDraw,
-    //    1);
 
     // Register the camera system with glfw inputs 
     graphics::registerGlfwCallbacks(
@@ -196,6 +187,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     // 
     const unsigned int objectsCount = 1;
     // Ensure the vector can fit all point lights
+
     mEntities.mEntities.resize(objectsCount + mLights.mPointCount);
 
     for (std::size_t pointLightIdx = 0; pointLightIdx != mLights.mPointCount; ++pointLightIdx)
@@ -263,17 +255,6 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         0,
         sphereCount,
         0);
-
-    // Render point lights as sphere
-    validateVertexAttributes(mLightProgram);
-    glUseProgram(mLightProgram);
-    glDrawElementsInstancedBaseInstance(
-        GL_PATCHES,
-        mIndicesCount,
-        graphics::MappedGL_v<scenic::Index>,
-        0,
-        mLights.mPointCount,
-        sphereCount);
 }
 
 
