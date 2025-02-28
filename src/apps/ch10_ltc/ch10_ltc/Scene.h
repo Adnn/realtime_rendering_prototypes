@@ -116,6 +116,7 @@ struct Scene
     graphics::UniformBufferObject mLightsBlockBuffer;
     renderer::IntrospectProgram mSurfaceProgram;
     renderer::IntrospectProgram mLightProgram;
+    graphics::Texture mLtcColorMap;
 
     renderer::EntitiesBlock_glsl mEntities{
         .mEntities = {

@@ -13,6 +13,8 @@
 #include <renderer/BufferLoad.h>
 #include <renderer/Uniforms.h>
 
+#include <scenic/ColorPalettes.h>
+
 #include <ui/ImguiUi.h>
 #include <ui/Widgets.h>
 #include <ui/Widgets-impl.h>
@@ -112,7 +114,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
                                   std::span{mSphere.mIndices},
                                   graphics::BufferHint::StaticDraw)},
     mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})},
-    mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})}
+    mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
+    mLtcColorMap{GL_TEXTURE_1D}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -129,6 +132,25 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         graphics::EscKeyBehaviour::Close,
         // TODO: this is a dirty capture of a parameter given by reference
         &aImgui);
+
+    // Load the LTC color map 
+    {
+        constexpr GLsizei width = std::size(scenic::sdr::gLtcColorMap1D_srgb);
+        // Just to create the texture in OpenGL
+        graphics::bind(mLtcColorMap);
+        glObjectLabel(GL_TEXTURE, mLtcColorMap, -1, "LtcColorMap");
+        graphics::unbind(mLtcColorMap);
+        glTextureStorage1D(mLtcColorMap, 1, GL_RGB8, width);
+        glTextureSubImage1D(mLtcColorMap, 0, 0, width,
+                            GL_RGB, GL_UNSIGNED_BYTE, scenic::sdr::gLtcColorMap1D_srgb.data());
+
+        glTextureParameteri(mLtcColorMap, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(mLtcColorMap, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(mLtcColorMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(mLtcColorMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(mLtcColorMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+
 
     // TODO use defines here for binding points
     graphics::bind(mViewProjectionBuffer, graphics::BindingIndex{0});
@@ -220,6 +242,15 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     graphics::loadSingle(mViewProjectionBuffer,
                          mOrbitalCamera.getViewProjectionBlock(),
                          graphics::BufferHint::StreamDraw);
+
+    // 
+    // Textures
+    //
+    {
+        constexpr GLint unitIdx = 1;
+        glBindTextureUnit(unitIdx, mLtcColorMap);
+        graphics::setUniform(mSurfaceProgram, "u_LtcColorMap", unitIdx);
+    }
 
     //
     // Pipeline state
