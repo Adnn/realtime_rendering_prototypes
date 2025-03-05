@@ -19,19 +19,117 @@ namespace {
 
 
     using namespace ad;
+    using namespace ad::graphics;
 
 
-    struct CompressedBlockInfo
+    // TODO: move that to a low level utils lib (handy)
+    constexpr std::uint32_t makeFourCC(char a, char b, char c, char d)
     {
-        // TODO: rename it is overloaded to handle more than internal format...
-        GLenum mInternalFormat; // Not sure this member should exist
-        GLsizei mByteSize; 
-        math::Size<2, GLsizei> mDimensions;
+        return (std::uint32_t)a 
+            | ((std::uint32_t)b << 8)
+            | ((std::uint32_t)c << 16)
+            | ((std::uint32_t)d << 24)
+            ;
+    }
+
+
+    // Allows to test a combination of bits against a flag.
+    template <class T, class U> 
+    requires std::is_convertible_v<U, T>
+    bool isFlagged(const T aFlags, const U aTestedBits)
+    {
+        return (aFlags & aTestedBits) == aTestedBits;
+    }
+
+
+    // TODO: move that to te gl low-level library (replace existing function)
+    using namespace arte;
+    GLenum getTextureFormat(const dds::Header & aHeader)
+    {
+        if(aHeader.h_dxt10)
+        {
+            const DDS_HEADER_DXT10 & dxt10 = *aHeader.h_dxt10;
+            switch(dxt10.dxgiFormat)
+            {
+                default:
+                    // TODO Ad 2024/07/24: Extend to support a reasonable set of formats.
+                    //ADLOG(error)("DXGI format {} is not supported at the moment", dxt10.dxgiFormat)
+                    throw std::domain_error("The texture format in this DDS is not supported at the moment.");
+                case DXGI_FORMAT_BC5_UNORM:
+                    return GL_COMPRESSED_RG_RGTC2;
+                case DXGI_FORMAT_BC5_SNORM:
+                    return GL_COMPRESSED_SIGNED_RG_RGTC2;
+                case DXGI_FORMAT_BC6H_UF16:
+                    return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT;
+                case DXGI_FORMAT_BC6H_SF16:
+                    return GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT;
+                case DXGI_FORMAT_BC7_UNORM:
+                    return GL_COMPRESSED_RGBA_BPTC_UNORM;
+                case DXGI_FORMAT_BC7_UNORM_SRGB:
+                    return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM;
+            }
+        }
+        else if(isFlagged(aHeader.h.dwFlags, DDPF_FOURCC))
+        {
+            switch (aHeader.h.ddspf.dwFourCC)
+            {
+                default: 
+                    // TODO Ad 2024/07/24: Extend to support a reasonable set of formats.
+                    //ADLOG(error)("Four CC value {} is not supported at the moment", aHeader.h.ddspf.dwFourCC)
+                    throw std::domain_error("The texture format in this DDS is not supported at the moment.");
+
+                // see: https://github.com/microsoft/DirectXTex/blob/51f33c3471e4da2a2d235c8e4a745700644504a8/DDSTextureLoader/DDSTextureLoader12.cpp#L990-L1012
+                // Important: Even though the D3D name is given with most-significant bit first,
+                // the data is stored least-significant bit first (i.e. little endian).
+                // see: https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dformat#remarks
+                // So the color channels order match (it is RGBA), and if the system is little-endian
+                // the byte order also matches inside each channel.
+
+                // TODO: complete other formats if the need show up 
+                // (I do not want to write to many untested cases)
+                //case 36: // D3DFMT_A16B16G16R16
+                //    return DXGI_FORMAT_R16G16B16A16_UNORM;
+                //case 110: // D3DFMT_Q16W16V16U16
+                //    return DXGI_FORMAT_R16G16B16A16_SNORM;
+                case 111: // D3DFMT_R16F
+                    return GL_R16F;
+                case 112: // D3DFMT_G16R16F
+                    return GL_RG16F;
+                case 113: // D3DFMT_A16B16G16R16F
+                    return GL_RGBA16F;
+                //case 114: // D3DFMT_R32F
+                //    return DXGI_FORMAT_R32_FLOAT;
+                //case 115: // D3DFMT_G32R32F
+                //    return DXGI_FORMAT_R32G32_FLOAT;
+                //case 116: // D3DFMT_A32B32G32R32F
+                //    return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+                // TODO require extension EXT_texture_compression_s3tc
+                //case makeFourCC('D', 'X', 'T', '1'):
+                //    return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
+            }
+        }
+        else
+        {
+
+        }
+        throw std::invalid_argument("This DDS does not contain an extended DXT10 header.");
+    }
+
+
+    struct ImageBlockInfo
+    {
+        bool mIsCompressed;
+        GLenum mInternalFormat; // The internal format (i.e. sized format to use with glTextStorage)
+        GLenum mTexImageFormat; // The format to use with glCompressedTeximage (size) / glTexImage (non-sized)
+        GLenum mTexImageType = GL_NONE; // The data type of the pixel data in the client memory (type argument to glTexSubImage())
+        GLsizei mByteSize; // Block byte size
+        math::Size<2, GLsizei> mDimensions; // Block dimensions
     };
 
 
     // TODO: move to a general lower level header
-    CompressedBlockInfo getBlockInfo(GLenum aTextureTarget, GLenum aCompressedFormat)
+    ImageBlockInfo getCompressedBlockInfo(GLenum aTextureTarget, GLenum aCompressedFormat)
     {
         // The block byte size is the reason sub-block image size
         // are not going under a minimum value: any image in this format is at least 1 block
@@ -60,18 +158,52 @@ namespace {
                               GL_TEXTURE_COMPRESSED_BLOCK_HEIGHT, 1, &blockHeight);
         assert(blockWidth == blockHeight && blockHeight == 4);
 
+        // Sanity check: for compressed format, the internal format is also the "teximage" format
+        {
+            GLint imageFormat;
+            glGetInternalformativ(aTextureTarget, aCompressedFormat,
+                                  GL_TEXTURE_IMAGE_FORMAT, 1, &imageFormat);
+            // Note: untested while writing, so if it asserts I was wrong in this assumption
+            assert(imageFormat == aCompressedFormat);
+        }
+
         return {
+            .mIsCompressed = true,
             .mInternalFormat = aCompressedFormat,
+            .mTexImageFormat = aCompressedFormat, // For compressed formats, both are the complete format
             .mByteSize = blockByteSize,
             .mDimensions = {(GLsizei)blockWidth, (GLsizei)blockHeight},
         };
     }
 
+    /// @brief Get the image block info for non-compressed formats
+    ImageBlockInfo getBlockInfo(GLenum aTextureTarget, GLenum aInternalFormat)
+    {
+        ImageBlockInfo result{
+            .mIsCompressed = false,
+            .mInternalFormat = aInternalFormat,
+            .mDimensions = {1, 1}, // For non compressed formats, there is no block 
+                                   // (i.e. texels are transfered individually)
+        };
+
+        glGetInternalformativ(aTextureTarget, aInternalFormat, 
+                              GL_IMAGE_TEXEL_SIZE, 1, (GLint*)(&(result.mByteSize)));
+        glGetInternalformativ(aTextureTarget, aInternalFormat, 
+                              GL_TEXTURE_IMAGE_FORMAT, 1, (GLint*)(&result.mTexImageFormat));
+        // Note: here, we rely on the fact that we derived an internal format exactly matching
+        // the data type of the image in the DDS:
+        // the internal format data type thus indicates the type of the DDS content.
+        glGetInternalformativ(aTextureTarget, aInternalFormat, 
+                              GL_TEXTURE_IMAGE_TYPE, 1, (GLint*)(&result.mTexImageType));
+
+        return result;
+    }
 
     // TODO: move to a general lower level header
-    GLsizei computeCompressedImageSize(math::Size<2, GLsizei> aImageDimensions,
-                                       GLsizei aBlockByteSize,          
-                                       math::Size<2, GLsizei> aBlockDimensions = {4, 4})
+    /// @brief Compute the byte size of an image (i.e. a single level of a texture)
+    GLsizei computeImageByteSize(math::Size<2, GLsizei> aImageDimensions,
+                                 GLsizei aBlockByteSize,          
+                                 math::Size<2, GLsizei> aBlockDimensions)
     {
         const math::Size<2, GLsizei> gCeilOffset = aBlockDimensions - math::Size<2, GLsizei>{1, 1};
 
@@ -89,21 +221,19 @@ namespace {
     void loadDdsData(graphics::Texture & aTexture,
                                GLenum aLoadedTarget, // might be a specific cubemap face
                                math::Size<2, GLsizei> aMainImageDimensions,
-                               const CompressedBlockInfo & aBlockInfo,
+                               const ImageBlockInfo & aBlockInfo,
                                const arte::dds::Header aDdsHeader,
                                std::istream & aDataStream,
                                GLint aLayerIdx = -1 /* -1 implies 2D texture target*/)
     {
-        bool isCompressed = (aBlockInfo.mDimensions != math::Size<2, GLsizei>{1, 1});
-
         // The image data should be 2D
         assert(aDdsHeader.h.dwDepth == 1);
-        assert(!isCompressed ||
+        assert(!aBlockInfo.mIsCompressed ||
                 (aDdsHeader.h_dxt10 
                 && aDdsHeader.h_dxt10->resourceDimension == arte::DDS_DIMENSION_TEXTURE2D));
 
         const GLsizei imageByteSize = 
-                computeCompressedImageSize(aMainImageDimensions, aBlockInfo.mByteSize, aBlockInfo.mDimensions);
+                computeImageByteSize(aMainImageDimensions, aBlockInfo.mByteSize, aBlockInfo.mDimensions);
 
         graphics::ScopedBind bound{aTexture};
         
@@ -132,7 +262,7 @@ namespace {
 
             if(aLayerIdx < 0) // Assumed to mean the target is a 2D texture type
             {
-                if (isCompressed)
+                if (aBlockInfo.mIsCompressed)
                 {
                     glCompressedTexSubImage2D(
                         aLoadedTarget,
@@ -140,7 +270,7 @@ namespace {
                         0, 0, // x, y offsets
                         levelDimensions.width(),
                         levelDimensions.height(),
-                        aBlockInfo.mInternalFormat,
+                        aBlockInfo.mTexImageFormat,
                         levelByteSize,
                         imageData.get());
                 }
@@ -152,15 +282,15 @@ namespace {
                         0, 0, // x, y offsets
                         levelDimensions.width(),
                         levelDimensions.height(),
-                        aBlockInfo.mInternalFormat,
-                        GL_HALF_FLOAT,
+                        aBlockInfo.mTexImageFormat,
+                        aBlockInfo.mTexImageType,
                         imageData.get());
                 }
             }
             else
             {
                 // TODO: handle 3D equivalent
-                assert(isCompressed);
+                assert(aBlockInfo.mIsCompressed);
 
                 // For 3D texture, I am unaware of a use case to make it distinct atm.
                 assert(aLoadedTarget == aTexture.mTarget);
@@ -170,14 +300,14 @@ namespace {
                                           levelDimensions.width(),
                                           levelDimensions.height(),
                                           aDdsHeader.h.dwDepth,
-                                          aBlockInfo.mInternalFormat, 
+                                          aBlockInfo.mTexImageFormat, 
                                           levelByteSize,
                                           imageData.get());
             }
 
             // Prepare next iteration
             levelDimensions = max((levelDimensions / 2), {1, 1});
-            levelByteSize = computeCompressedImageSize(levelDimensions, aBlockInfo.mByteSize, aBlockInfo.mDimensions);
+            levelByteSize = computeImageByteSize(levelDimensions, aBlockInfo.mByteSize, aBlockInfo.mDimensions);
         }
     }
 
@@ -201,28 +331,32 @@ graphics::Texture loadDds(const std::filesystem::path & aDds)
 
     const math::Size<2, unsigned int> imageSize = arte::dds::getDimensions(header);
 
-    // TODO: address this stuff in the call to getTextureTarget, that's hell
-    //const GLenum target = graphics::getTextureTarget(header);
-    const GLenum target = GL_TEXTURE_2D;
+    const GLenum target = graphics::getTextureTarget(header);
+    GLenum internalFormat = getTextureFormat(header);
+    ImageBlockInfo blockInfo;
 
-    GLenum internalFormat;
-    CompressedBlockInfo blockInfo;
-    if (header.h_dxt10)
+    GLint isCompressed;
+    glGetInternalformativ(target, internalFormat, 
+                          GL_TEXTURE_COMPRESSED, 1, &isCompressed);
+    if (isCompressed)
     {
-        internalFormat = graphics::getCompressedFormat(header);
-        blockInfo = getBlockInfo(target, internalFormat);
+        blockInfo = getCompressedBlockInfo(target, internalFormat);
     }
     else
     {
-        blockInfo.mDimensions = {1, 1};
-        // TODO: cleanly handle that in graphics lib, test the capacities etc
-        // consolidate behind a single interface if possible for both paths
+        blockInfo = getBlockInfo(target, internalFormat);
+
+        // We only tested with this non-compressed format as of writting
+        // It should work with the rest, but the first person to test should be aware!
+        assert(header.h.ddspf.dwFourCC == 113);
+
+        // Some sanity check we hardcoded while implementing LTC support
         if (header.h.ddspf.dwFourCC == 113)
         {
-            internalFormat = GL_RGBA16F;
-            // Uncompressed but we piggyback until refactor
-            blockInfo.mByteSize = 8;
-            blockInfo.mInternalFormat = GL_RGBA;
+            assert(target == GL_TEXTURE_2D);
+            assert(blockInfo.mByteSize = 8);
+            assert(blockInfo.mTexImageFormat == GL_RGBA);
+            assert(blockInfo.mTexImageType == GL_HALF_FLOAT);
         }
     }
 
@@ -230,7 +364,7 @@ graphics::Texture loadDds(const std::filesystem::path & aDds)
     graphics::ScopedBind boundTexture{texture};
     glTexStorage2D(texture.mTarget, 
                    header.h.dwMipMapCount,
-                   internalFormat,
+                   blockInfo.mInternalFormat,
                    imageSize.width(), imageSize.height());
     { // scoping `isSuccess`
         GLint isSuccess;
