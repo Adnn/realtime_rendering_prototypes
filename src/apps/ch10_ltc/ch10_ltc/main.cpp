@@ -30,6 +30,7 @@ int main(int argc, const char * argv[])
         ad::graphics::ApplicationGlfw application("ch10_ltc", 1080, 600,
                                                   ad::graphics::ApplicationFlag::None,
                                                   4, 6);
+        glClearColor(1.f, 1.f, 1.f, 1.f);
 
         // Ensures the messages are sent synchronously with the event triggering them
         // This makes debug stepping much more feasible.

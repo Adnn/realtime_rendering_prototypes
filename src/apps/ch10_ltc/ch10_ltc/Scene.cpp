@@ -115,7 +115,9 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
                                   graphics::BufferHint::StaticDraw)},
     mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})},
     mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
-    mLtcColorMap{GL_TEXTURE_1D}
+    mLtcColorMap{GL_TEXTURE_1D},
+    mLtc_1{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_1.dds"}) },
+    mLtc_2{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_2.dds"}) }
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -135,11 +137,14 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
 
     // Load the LTC color map 
     {
-        constexpr GLsizei width = std::size(scenic::sdr::gLtcColorMap1D_srgb);
-        // Just to create the texture in OpenGL
+        // Ltc Color Map
+
+        // Just to create the textures in OpenGL (use the opportunity to name them)
         graphics::bind(mLtcColorMap);
         glObjectLabel(GL_TEXTURE, mLtcColorMap, -1, "LtcColorMap");
         graphics::unbind(mLtcColorMap);
+
+        constexpr GLsizei width = std::size(scenic::sdr::gLtcColorMap1D_srgb);
         glTextureStorage1D(mLtcColorMap, 1, GL_RGB8, width);
         glTextureSubImage1D(mLtcColorMap, 0, 0, width,
                             GL_RGB, GL_UNSIGNED_BYTE, scenic::sdr::gLtcColorMap1D_srgb.data());
@@ -149,6 +154,25 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         glTextureParameteri(mLtcColorMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(mLtcColorMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(mLtcColorMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        // Ltc 1 and 2
+        graphics::bind(mLtc_1);
+        glObjectLabel(GL_TEXTURE, mLtc_1, -1, "Ltc_1");
+        graphics::bind(mLtc_2);
+        glObjectLabel(GL_TEXTURE, mLtc_2, -1, "Ltc_2");
+        graphics::unbind(mLtc_2);
+
+        glTextureParameteri(mLtc_1, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(mLtc_1, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(mLtc_1, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(mLtc_1, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(mLtc_1, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glTextureParameteri(mLtc_2, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(mLtc_2, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(mLtc_2, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(mLtc_2, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(mLtc_2, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
 
 
@@ -247,9 +271,25 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     // Textures
     //
     {
-        constexpr GLint unitIdx = 1;
+        GLint unitIdx = 1;
         glBindTextureUnit(unitIdx, mLtcColorMap);
         graphics::setUniform(mSurfaceProgram, "u_LtcColorMap", unitIdx);
+
+        ++unitIdx;
+        glBindTextureUnit(unitIdx, mLtc_1);
+        graphics::setUniform(mSurfaceProgram, "u_Ltc_1", unitIdx);
+
+        ++unitIdx;
+        glBindTextureUnit(unitIdx, mLtc_2);
+        graphics::setUniform(mSurfaceProgram, "u_Ltc_2", unitIdx);
+    }
+
+    //
+    // LTC
+    //
+    {
+        graphics::setUniform(mSurfaceProgram, "u_alpha", mLtcControl.mAlpha);
+        graphics::setUniform(mSurfaceProgram, "u_thetaViewDir", mLtcControl.mViewAngle.data());
     }
 
     //
@@ -318,10 +358,17 @@ void Scene::presentUi(bool * aOpen)
     describe(witness, mTessControl);
 
     ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Materials"))
+    if (ImGui::CollapsingHeader("Ltc"))
     {
-        describe(witness, mMaterials);
+        ImGui::DragFloat("Alpha", &mLtcControl.mAlpha, 0.005, 0.f, 1.f);
+        ImGui::SliderAngle("View polar angle", &mLtcControl.mViewAngle.data(), 0.f, 90.f);
     }
+
+    //ImGui::Spacing();
+    //if (ImGui::CollapsingHeader("Materials"))
+    //{
+    //    describe(witness, mMaterials);
+    //}
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Lights"))

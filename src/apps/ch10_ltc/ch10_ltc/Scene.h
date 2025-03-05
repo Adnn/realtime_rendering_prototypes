@@ -91,6 +91,12 @@ struct Scene
        decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
     };
 
+    struct LtcControl
+    {
+        float mAlpha = 0.3;
+        math::Radian<float> mViewAngle{ math::Degree<float>{45.f} };
+    };
+
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
 
     void loadPrograms();
@@ -117,6 +123,8 @@ struct Scene
     renderer::IntrospectProgram mSurfaceProgram;
     renderer::IntrospectProgram mLightProgram;
     graphics::Texture mLtcColorMap;
+    graphics::Texture mLtc_1;
+    graphics::Texture mLtc_2;
 
     renderer::EntitiesBlock_glsl mEntities{
         .mEntities = {
@@ -145,6 +153,7 @@ struct Scene
 
     TessellationControl mTessControl;
     PipelineControl mPipelineControl;
+    LtcControl mLtcControl;
 };
 
 
