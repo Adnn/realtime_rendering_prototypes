@@ -29,6 +29,7 @@ float clampedCos(vec3 aDir)
     return max(0, aDir.z) / PI;
 }
 
+
 // @param aDir must be normalized
 float evaluateLtc(vec3 aDir, mat3 M_inv)
 {
@@ -41,14 +42,60 @@ float evaluateLtc(vec3 aDir, mat3 M_inv)
     return clampedCos(omega_0) * jacobian;
 }
 
+// The implementation found in Stephen Hill repository
+// see: https://github.com/selfshadow/ltc_code/blob/31e5e96b54f98f33098f8503003119ba2231a1c6/fit/LTC.h#L51
+float evaluateLtc_Hill(vec3 aDir, mat3 M_inv)
+{
+    mat3 M = inverse(M_inv);
+
+    vec3 omega = aDir;
+    vec3 omega_0 = normalize(M_inv * omega);
+    vec3 omega_0_scaled = M * omega_0;
+    float norm = length(omega_0_scaled);
+    float jacobian = abs(determinant(M)) / pow(norm, 3);
+
+    return clampedCos(omega_0) / jacobian;
+}
+
+#define EVALUATE evaluateLtc
+
+// see: https://github.com/selfshadow/ltc_code/blob/31e5e96b54f98f33098f8503003119ba2231a1c6/fit/LTC.h#L65-L71
+vec3 sampleDirection(float U1, float U2, mat3 M)
+{
+	float theta = acos(sqrt(U1));
+	float phi = 2.0f*3.14159f * U2;
+	vec3 L = normalize(M * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)));
+	return L;
+}
+
+
+float sampleMaxValue(mat3 M_inv)
+{
+    const mat3 M = inverse(M_inv);
+	float max_value = 0.0;
+
+	const int Nsample = 50;
+	for (int j = 0; j < Nsample; ++j)
+    {
+		for (int i = 0; i < Nsample; ++i)
+		{
+			const float U1 = (i + 0.5f)/Nsample;
+			const float U2 = (j + 0.5f)/Nsample;
+			max_value = max(max_value, EVALUATE(sampleDirection(U1, U2, M), M_inv));
+		}
+	}
+	return max_value;
+}
+
+
 // See: "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines"
 // https://drive.google.com/file/d/0BzvWIdpUpRx_d09ndGVjNVJzZjA/view?resourcekey=0-21tmiqk55JIZU8UoeJatXQ
 void main(void)
 {
     vec3 shadingNormal_world = normalize(ex_Normal_world);
-    vec3 shadingNormal_view = normalize(ex_Normal_view);
     vec3 N = shadingNormal_world;
 
+    // Draw the equator line
     if (abs(N.z) < 0.004)
     {
         out_Color = vec4(vec3(0), 1);
@@ -56,7 +103,7 @@ void main(void)
     }
 
     // the view direction is given as the angle from normal
-    //float nDotV = clamp(cos(u_thetaViewDir), 0, 1);
+    // No need to clamp, as negative values will sample border texture value
     float nDotV = cos(u_thetaViewDir);
     
 	// TODO: We have to clarify wether the texture is parameterized on roughness
@@ -72,29 +119,22 @@ void main(void)
     vec4 t1 = texture(u_Ltc_1, uv);
     vec4 t2 = texture(u_Ltc_2, uv);
 
-    // TODO: why this order? seems row major...
+    // Note: GLSL matrix are column major (so each vec3 below is a column)
+    // Note that this simply matches the order in which the glm::mat3 (also column major)
+    // is packed into the texture:
+    // https://github.com/selfshadow/ltc_code/blob/31e5e96b54f98f33098f8503003119ba2231a1c6/fit/fitLTC.cpp#L356-L359
     mat3 M_inv = mat3(
         vec3(t1.x, 0, t1.y),
         vec3(  0,  1,    0),
         vec3(t1.z, 0, t1.w)
-
-        //vec3(t1.x, 0, t1.z),
-        //vec3(  0,  1,    0),
-        //vec3(t1.y, 0, t1.w)
-
-        //vec3(t1.x,  0, t1.y),
-        //vec3(  0, t1.z,   0),
-        //vec3(t1.w,  0, t2.x)
     );
 
 	// 3.1 Closed-Form Expression:
-	float value = evaluateLtc(N, M_inv);
-	value *= t2.x;
-	//float max = evaluateLtc(maxDir, M_inv);
-	//// normalize for display, as done by the plot in original code
-	//// see: https://github.com/selfshadow/ltc_code/blob/31e5e96b54f98f33098f8503003119ba2231a1c6/fit/plot.h#L140
-    //// 
-	//value /= max;
+	float value = EVALUATE(N, M_inv);
+
+    // Sample the hemisphere looking for an (approximate) maximum
+	float max = sampleMaxValue(M_inv);
+	value /= max;
 
     #define COLOR_MAPPING
     #if ! defined(COLOR_MAPPING)
