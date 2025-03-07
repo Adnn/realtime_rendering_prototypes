@@ -1,8 +1,10 @@
 #version 460
 
 #include "shaders/Constants.glsl"
+#include "shaders/Gamma.glsl"
 #include "shaders/Helpers.glsl"
 #include "shaders/MaterialPbrBlock.glsl"
+#include "shaders/PbrUtilities.glsl"
 #include "shaders/ViewProjectionBlock.glsl"
 
 in vec4 ex_Color;
@@ -116,8 +118,12 @@ vec3 integrateLtcOverPolygon(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], 
 void main(void)
 {
     MaterialPbr material = ub_MaterialPbr[0];
+
+    vec4 albedo = ex_Color * material.baseColor;
     float metallic = material.metallicRoughness.x;
     float roughness = material.metallicRoughness.y;
+    float alpha = alphaFromRoughness(roughness);
+    alpha = max(0.005, alpha);
 
     //vec3 shadingNormal_view = normalize(ex_Normal_view);
     vec3 shadingNormal_world = normalize(ex_Normal_world);
@@ -138,12 +144,19 @@ void main(void)
     // that we take to mean roughness, which is consistent with the fetch in sample:
     // https://github.com/selfshadow/ltc_code/blob/31e5e96b54f98f33098f8503003119ba2231a1c6/webgl/shaders/ltc/ltc_quad.fs#L433
 
-    // Note: the sample code use a sqrt, which does not seem to be explained by the paper
+    // TODO: mirroring the texture on the Y axis would save the the substraction from one.
     vec2 uv = vec2(roughness, sqrt(1.0 - nDotV));
     uv = uv * LUT_SCALE + LUT_BIAS;
 
     vec4 t1 = texture(u_Ltc_1, uv);
     vec4 t2 = texture(u_Ltc_2, uv);
+    // t2 components:
+    // * x: average magnitude
+    // * y: mean fresnel
+    // * z: unused
+    // * w: "projected (cosine-weighted) solid angle of spherical cap". 
+    //      The reference implementation uses it to scale the result when the polygon 
+    //      is not clipped against horizon
 
     // Note: GLSL matrix are column major (so each vec3 below is a column)
     // Note that this simply matches the order in which the glm::mat3 (also column major)
@@ -155,8 +168,6 @@ void main(void)
         vec3(t1.z, 0, t1.w)
     );
 
-    // TODO review all that
-    vec3 scol = material.baseColor.rgb; // TODO: the usual pbr assignment to diffuse and specular
 
     vec3 points[4];
     points[0] = vec3( 1, 2,  1);
@@ -166,12 +177,32 @@ void main(void)
 
     bool isTwoSided = false;
 	vec3 spec = integrateLtcOverPolygon(N, view, P, M_inv, points, isTwoSided);
-    
-	// BRDF shadowing and Fresnel
+    // Diffuse lambertian BRDF is exactly the untransformed clamped cosine.
+	vec3 diff = integrateLtcOverPolygon(N, view, P, mat3(1), points, isTwoSided);
+
+    // We blend the parameters before computing the lighting model.
+    // This is not physically correct (parameters do not have linear relationship to output)
+    // but this is fast and results are still convincing. 
+    PbrParameters pbrParameters;
+    pbrParameters.diffuseColor = mix(albedo.rgb, vec3(0.), metallic);
+    pbrParameters.f0 = mix(gF0_dielec, albedo.rgb, metallic);
+    pbrParameters.f90 = gF90;
+    pbrParameters.alpha = alpha;
+
+//#define REFERENCE_ILLUMINATION
+#if defined(REFERENCE_ILLUMINATION)
+	//// BRDF shadowing and Fresnel
+    vec3 scol = pbrParameters.f0;
 	spec *= scol*t2.x + (1.0 - scol)*t2.y;
+    diff *= pbrParameters.diffuseColor;
+#else
+    // TODO: how to properly understand t2.x?
+    vec3 fresnel = pbrParameters.f0 /* * t2.x */ + (pbrParameters.f90 - pbrParameters.f0) * t2.y;
+    spec *= fresnel;
+    diff *= (1 - fresnel) * pbrParameters.diffuseColor;
+#endif
 
     // TODO contribute light color
-    vec3 fragmentColor = spec;
-
-    out_Color = vec4(fragmentColor, 1);
+    vec3 fragmentColor = (spec + diff);
+    out_Color = vec4(correctGamma(fragmentColor), 1);
 }

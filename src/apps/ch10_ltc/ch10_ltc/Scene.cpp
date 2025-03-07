@@ -376,10 +376,10 @@ void Scene::presentUi(bool * aOpen)
     }
 
     //ImGui::Spacing();
-    //if (ImGui::CollapsingHeader("Materials"))
-    //{
-    //    describe(witness, mMaterials);
-    //}
+    if (ImGui::CollapsingHeader("Materials"))
+    {
+        describe(witness, mMaterials);
+    }
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Lights"))
