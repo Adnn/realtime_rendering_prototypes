@@ -1,5 +1,7 @@
 #include "Loader.h"
 
+#include "ShaderInclusionLookup.h"
+
 #include <engine/log/Logging.h>
 
 #include <arte/dds/Dds.h>
@@ -478,9 +480,14 @@ IntrospectProgram Loader::loadProgram(const ReferencePath & aProgFile,
             throw std::invalid_argument{"Unhandled shader stage key."};
         }
         
+        auto shaderPath = mFinder.pathFor(shaderFile);
+        ShaderInclusionLookup lookup{shaderPath, &mFinder};
         shaders.emplace_back(
             stageEnumerator,
-            graphics::ShaderSource::Preprocess(mFinder.pathFor(shaderFile), aDefines));
+            graphics::ShaderSource::Preprocess(std::ifstream{shaderPath},
+                                               aDefines,
+                                               lookup.top(),
+                                               lookup));
     }
 
     ADLOG(debug)("Compiling shader program from '{}', containing {} stages, {defines}.",

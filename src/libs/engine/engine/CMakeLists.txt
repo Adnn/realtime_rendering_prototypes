@@ -12,6 +12,7 @@ set(${TARGET_NAME}_HEADERS
     ShaderProgramManager.h
 
     files/Loader.h
+    files/ShaderInclusionLookup.h
 
     log/Logging.h
     log/Logging-channels.h
