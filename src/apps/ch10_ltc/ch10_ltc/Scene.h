@@ -4,10 +4,10 @@
 #include "CameraSystem.h"
 #include "Engine.h"
 #include "Material.h"
+#include "PlanarLights.h"
 
 #include <engine/Entities.h>
 #include <engine/IntrospectProgram.h>
-#include <engine/Lights.h>
 
 #include <graphics/Timer.h>
 
@@ -40,25 +40,6 @@ namespace imguiui {
 constexpr graphics::AttributeDescriptionList gVertexDescription{
     {0, 3, /*offset*/0, graphics::MappedGL<GLfloat>::enumerator},
 };
-
-
-struct Instance
-{
-    GLuint mEntityIdx;
-};
-
-constexpr graphics::AttributeDescriptionList gInstanceDescription{
-    {   graphics::ShaderParameter{1, graphics::ShaderParameter::Access::Integer},
-        1, offsetof(Instance, mEntityIdx), graphics::MappedGL<GLuint>::enumerator },
-};
-
-
-// For the moment, each instance maps to a distinct entity
-// and we store all entity data in a UBO
-//static std::array<Instance, 2> gInstances{
-//    0,
-//    1,
-//};
 
 
 struct Scene
@@ -116,8 +97,9 @@ struct Scene
     scenic::geodesic::Sphere mSphere{ 4 };
     GLsizei mIndicesCount{ (GLsizei)mSphere.mIndices.size() };
 
-    graphics::VertexSpecification mVertexSpecification;
-    graphics::IndexBufferObject mIndexBuffer;
+    graphics::VertexSpecification mSphereVertexSpecification;
+    graphics::IndexBufferObject mSphereIndexBuffer;
+    graphics::VertexSpecification mCardLightVertexSpecification;
     graphics::UniformBufferObject mEntitiesBlockBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
     graphics::UniformBufferObject mMaterialsBlockBuffer;
@@ -144,12 +126,20 @@ struct Scene
             },
         },
     };
-    renderer::LightsDataCommon mLights{
-        .mDirectionalCount = 0,
-        .mPointCount = 0,
+    PlanarLightsBlock mLights{
+        .mPlanarCount = 1,
         // We decode a sRGB 10% white (which is also perceptually ~10%)
         // to linear space for computation.
-        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.1f),
+        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> *0.1f),
+        .mPlanarLights{
+            CardLight_glsl{
+                .mHeight = 2.f,
+                .mRect{
+                    .mPosition{0.f, 0.f},
+                    .mDimension{2.f, 2.f},
+                },
+            }
+        }
     };
     OrbitalCamera mOrbitalCamera;
 

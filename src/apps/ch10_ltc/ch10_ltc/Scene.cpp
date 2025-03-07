@@ -96,7 +96,8 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 // The integration demo, lighting a sphere from a polygon
 const std::filesystem::path gProgramPath = "programs/ch10_ltc_PolygonLight.prog";
 
-const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
+const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
+
 
 template <class T_witness>
 void describe(T_witness aWitness, Scene::TessellationControl & aValue)
@@ -118,9 +119,9 @@ void describe(T_witness aWitness, Scene::TessellationControl & aValue)
 
 
 Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
-    mVertexSpecification{},
-    mIndexBuffer{
-        graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
+    mSphereVertexSpecification{},
+    mSphereIndexBuffer{
+        graphics::loadIndexBuffer(mSphereVertexSpecification.mVertexArray,
                                   //std::span{scenic::icosahedron::gIndices},
                                   std::span{mSphere.mIndices},
                                   graphics::BufferHint::StaticDraw)},
@@ -130,12 +131,29 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     mLtc_1{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_1.dds"}) },
     mLtc_2{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_2.dds"}) }
 {
-    graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
+    graphics::attachIndexBuffer(mSphereIndexBuffer, mSphereVertexSpecification.mVertexArray);
 
     graphics::appendToVertexSpecification(
-        mVertexSpecification,
+        mSphereVertexSpecification,
         gVertexDescription,
         std::span{mSphere.mVertices},
+        graphics::BufferHint::StaticDraw);
+
+    scenic::Position cardVertices[4] = {
+        { 0.0f, 0.0f, 0.0f },
+        { 1.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 1.0f },
+        { 1.0f, 0.0f, 1.0f },
+    };
+    graphics::appendToVertexSpecification(
+        mCardLightVertexSpecification,
+        { {0, 3, /*offset*/0, graphics::MappedGL<GLfloat>::enumerator}, },
+        std::span{cardVertices},
+        graphics::BufferHint::StaticDraw);
+    graphics::appendToVertexSpecification(
+        mCardLightVertexSpecification,
+        { {1, 3, /*offset*/0, graphics::MappedGL<GLfloat>::enumerator}, },
+        std::span{scenic::quad::gNormals},
         graphics::BufferHint::StaticDraw);
 
     // Register the camera system with glfw inputs 
@@ -245,16 +263,22 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     const unsigned int objectsCount = 1;
     // Ensure the vector can fit all point lights
 
-    mEntities.mEntities.resize(objectsCount + mLights.mPointCount);
+    mEntities.mEntities.resize(objectsCount + mLights.mPlanarCount);
 
-    for (std::size_t pointLightIdx = 0; pointLightIdx != mLights.mPointCount; ++pointLightIdx)
+    for (std::size_t lightIdx = 0; lightIdx != mLights.mPlanarCount; ++lightIdx)
     {
-        const auto& pointLight = mLights.mPointLights[pointLightIdx];
-        auto& entity = mEntities.mEntities[objectsCount + pointLightIdx];
+        const auto& light = mLights.mPlanarLights[lightIdx];
+        auto& entity = mEntities.mEntities[objectsCount + lightIdx];
         entity.mLocalToWorld =
-            math::trans3d::scaleUniform(pointLight.mRadius.mMin)
-            * math::trans3d::translate(pointLight.mPosition.as<math::Vec>());
-        entity.mColorFactor = pointLight.mColors.mDiffuseColor;
+            math::trans3d::scale(
+                light.mRect.mDimension.width(),
+                1.f,
+                light.mRect.mDimension.height())
+            * math::trans3d::translate<GLfloat>({
+                light.mRect.mPosition.x(),
+                light.mHeight,
+                light.mRect.y()});
+        entity.mColorFactor = light.mColors.mSpecularColor;
     }
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
@@ -266,9 +290,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Lights
     //
-    auto lights_cam = 
-        transformLightsData(mLights, mOrbitalCamera.mCamera.getParentToCamera());
-    graphics::loadSingle(mLightsBlockBuffer, lights_cam, graphics::BufferHint::StreamDraw);
+    graphics::loadSingle(mLightsBlockBuffer, mLights, graphics::BufferHint::StreamDraw);
 
     //
     // Camera
@@ -311,7 +333,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
 
-    glBindVertexArray(mVertexSpecification.mVertexArray);
+    glBindVertexArray(mSphereVertexSpecification.mVertexArray);
     
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
 
@@ -337,6 +359,19 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         0,
         sphereCount,
         0);
+
+
+    glDisable(GL_CULL_FACE);
+    glBindVertexArray(mCardLightVertexSpecification.mVertexArray);
+    // TODO: should be done only once for each pair of VAO-program
+    validateVertexAttributes(mLightProgram);
+    glUseProgram(mLightProgram);
+    glDrawArraysInstancedBaseInstance(
+        GL_TRIANGLE_STRIP,
+        0,
+        std::size(scenic::quad::gVertices),
+        mLights.mPlanarCount,
+        sphereCount);
 }
 
 

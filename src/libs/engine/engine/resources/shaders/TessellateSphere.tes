@@ -44,11 +44,11 @@ void main()
 	vec4 normal_local = vec4(position_local, 0.);
 	vec4 normal_world = getModelTransform() * normal_local;
 	ex_Normal_world = normal_world.xyz;
-	ex_Normal_view = vec3(worldToCamera * normal_world);
+	ex_Normal_view = vec3(ub_worldToCamera * normal_world);
 
 	// Transform the tessellated vertex position to clip space
-	vec4 position_view = worldToCamera * position_world;
+	vec4 position_view = ub_worldToCamera * position_world;
 	//ex_Position = position_view.xyz / position_view.w; // Note: I suppose this is useless, w should only be changed by projection
 	ex_Position_view = position_view.xyz;
-	gl_Position = projection * position_view;
+	gl_Position = ub_projection * position_view;
 }

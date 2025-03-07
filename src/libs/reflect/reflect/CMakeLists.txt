@@ -1,6 +1,7 @@
 set(TARGET_NAME reflect)
 
 set(${TARGET_NAME}_HEADERS
+    DescribeMath.h
     ReflectHelpers.h
     DearImguiWitness.h
 )

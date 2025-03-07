@@ -4,6 +4,7 @@ set(${TARGET_NAME}_HEADERS
     CameraSystem.h
     Engine.h
     Material.h
+    PlanarLights.h
     Scene.h
     ShaderConstants.h
     Ui.h

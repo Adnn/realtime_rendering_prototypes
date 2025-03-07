@@ -9,7 +9,34 @@
 namespace ad::scenic {
 
 using Position = math::Vec<3, float>;
+using Normal = math::Vec<3, float>;
 using Index = std::uint32_t;
+
+namespace quad {
+
+    constexpr Position gVertices[4]{
+        // Full-screen quad coordinates
+        { -1.0f, -1.0f, 0.0f },
+        {  1.0f, -1.0f, 0.0f },
+        { -1.0f,  1.0f, 0.0f },
+        {  1.0f,  1.0f, 0.0f },
+    };
+
+    constexpr Normal gNormals[4]{
+        // Full-screen quad coordinates
+        { 0.0f, 0.0f, 1.0f },
+        { 0.0f, 0.0f, 1.0f },
+        { 0.0f, 0.0f, 1.0f },
+        { 0.0f, 0.0f, 1.0f },
+    };
+
+    // To validate when needed
+    //constexpr Index gIndices[6] {
+    //    0, 1, 2,
+    //    2, 1, 3,
+    //};
+
+} // namespace quad
 
 namespace icosahedron {
 

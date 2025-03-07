@@ -1,5 +1,7 @@
 #version 460
 
+#include "ch10_ltc_LightsBlock.glsl"
+
 #include "shaders/Constants.glsl"
 #include "shaders/Gamma.glsl"
 #include "shaders/Helpers.glsl"
@@ -56,6 +58,7 @@ vec3 integrateLtcOverPolygon(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], 
     // TODO: make robust to parallel N and V
     T1 = normalize(V - N*dot(V, N));
     T2 = cross(N, T1);
+
 
     // rotate area light in (T1, T2, N) basis
     Minv = Minv * transpose(mat3(T1, T2, N));
@@ -130,7 +133,7 @@ void main(void)
     vec3 N = shadingNormal_world;
 
     //vec3 viewDir_view = normalize(-ex_Position_view);
-    vec3 viewDir_world = normalize(cameraPosition_world.xyz - ex_Position_world);
+    vec3 viewDir_world = normalize(ub_cameraPosition_world.xyz - ex_Position_world);
     vec3 view = viewDir_world;
 
     vec3 P = ex_Position_world;
@@ -169,16 +172,21 @@ void main(void)
     );
 
 
-    vec3 points[4];
-    points[0] = vec3( 1, 2,  1);
-    points[1] = vec3( 1, 2, -1);
-    points[2] = vec3(-1, 2, -1);
-    points[3] = vec3(-1, 2,  1);
+	vec3 spec;
+	vec3 diff;
 
-    bool isTwoSided = false;
-	vec3 spec = integrateLtcOverPolygon(N, view, P, M_inv, points, isTwoSided);
-    // Diffuse lambertian BRDF is exactly the untransformed clamped cosine.
-	vec3 diff = integrateLtcOverPolygon(N, view, P, mat3(1), points, isTwoSided);
+    for(uint planarIdx = 0; planarIdx != ub_PlanarCount; ++planarIdx)
+    {
+        CardLight light = ub_PlanarLights[planarIdx];
+		vec3 points[4] = getPolygon(light);
+
+		spec += integrateLtcOverPolygon(N, view, P, M_inv, points, light.doubleSided)
+                * light.colors.specular.rgb;
+		// Diffuse lambertian BRDF is exactly the untransformed clamped cosine.
+		diff += integrateLtcOverPolygon(N, view, P, mat3(1), points, light.doubleSided)
+                * light.colors.diffuse.rgb;
+	}
+
 
     // We blend the parameters before computing the lighting model.
     // This is not physically correct (parameters do not have linear relationship to output)
@@ -202,7 +210,10 @@ void main(void)
     diff *= (1 - fresnel) * pbrParameters.diffuseColor;
 #endif
 
-    // TODO contribute light color
-    vec3 fragmentColor = (spec + diff);
+    // Note: the ambient term is a quick hack, to be removed when IBL is in place
+    // We multiply it by the diffuse color, so metals do not have ambient terms, and dielectrics have their tint.
+    vec3 ambient =  ub_AmbientColor.rgb * material.ambientColor.rgb * pbrParameters.diffuseColor;
+
+    vec3 fragmentColor = ambient + diff + spec;
     out_Color = vec4(correctGamma(fragmentColor), 1);
 }
