@@ -93,6 +93,8 @@ struct Scene
 
     struct LtcControl
     {
+        // Note: control alpha instead of roughness because the paper and plots are
+        // using alpha as a dimension.
         float mAlpha = 0.3;
         math::Radian<float> mViewAngle{ math::Degree<float>{45.f} };
     };

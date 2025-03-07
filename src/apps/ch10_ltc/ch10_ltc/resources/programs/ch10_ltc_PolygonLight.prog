@@ -1,0 +1,5 @@
+{
+    "vertex": "shaders/Forward.vert",
+    "tes": "shaders/TessellateSphere.tes",
+    "fragment": "shaders/ch10_ltc_PolygonLight.frag"
+}

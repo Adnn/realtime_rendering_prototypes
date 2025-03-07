@@ -84,7 +84,18 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 }
 
 
-const std::filesystem::path gProgramPath = "programs/ch10_ltc_ShowLtc.prog";
+// This program replicates the results from figure 2
+//const std::filesystem::path gProgramPath = "programs/ch10_ltc_ShowBasicLtc.prog";
+
+// This program replicates the plots from the ltc_code repository
+// (and lower line of Figure 5 in the paper).
+// Use controls alpha and view polar angle, and the sphere show resulting LTC.
+//const std::filesystem::path gProgramPath = "programs/ch10_ltc_ShowGgxLtc.prog";
+
+
+// The integration demo, lighting a sphere from a polygon
+const std::filesystem::path gProgramPath = "programs/ch10_ltc_PolygonLight.prog";
+
 const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
 
 template <class T_witness>

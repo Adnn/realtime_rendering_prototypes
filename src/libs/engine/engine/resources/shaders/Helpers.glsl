@@ -2,9 +2,6 @@
 #define HELPERS_GLSL_INCLUDE_GUARD
 
 
-const float M_PI = 3.141592653589793;
-
-
 float dotPlus(vec3 a, vec3 b)
 {
     return max(0.f, dot(a, b));
@@ -25,12 +22,17 @@ float maxCw(vec4 v)
 }
 
 
-// TODO find a better name for this operation, and its symmetrical.
-// Remaps a vector [-magniture, magnitude]^3 to [0, 1]^3.
+// Remaps a vector from symmetric domain [-amplitude, amplitude]^3 to [0, 1]^3.
 // Notably useful to display unit direction vectors as colors.
-vec3 remapToRgb(vec3 aInput, float aMagnitude)
+vec3 mapToRgb(vec3 aInput, float aAmplitude)
 {
-    return (aInput + vec3(aMagnitude)) / (2 * aMagnitude);
+    return (aInput + vec3(aAmplitude)) / (2 * aAmplitude);
+}
+
+// Remaps a unit vector from [-1, 1]^3 to [0, 1]^3.
+vec3 mapToRgb(vec3 aInput)
+{
+    return mapToRgb(aInput, 1);
 }
 
 
