@@ -28,12 +28,14 @@ using Index = GLuint;
 inline constexpr Index gNoEntryIndex = std::numeric_limits<Index>::max();
 
 
-struct LightColors_glsl
+// std140 rule 9.: struct is aligned to its largest member alignment, rounded up to 16 
+struct alignas(16) LightColors_glsl
 {
+    // Alignment rules for std140 UB are defined by core glspec 7.6.2.2
+    // In LightsBlock.glsl, the colors are defined as vec4 (4 floats), 
+    // by std140 rule 2. the alignment of the each vec4 member is 16 (4 * 4).
     alignas(16) math::hdr::Rgb<GLfloat> mDiffuseColor = math::hdr::gWhite<GLfloat>;
     alignas(16) math::hdr::Rgb<GLfloat> mSpecularColor = math::hdr::gWhite<GLfloat>;
-    // alignment rules for std140 UB are defined by core glspec 7.6.2.2
-    // In LightsBlock.glsl, the colors are defined as vec4 (4 floats), so the alignment of the next member is 16 (4 * 4).
 };
 
 
