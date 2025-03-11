@@ -1,5 +1,6 @@
 #version 460
 
+#include "ch10_ltc_HorizonClipping.glsl"
 #include "ch10_ltc_LightsBlock.glsl"
 
 #include "shaders/Constants.glsl"
@@ -49,16 +50,21 @@ vec3 IntegrateEdgeVec(vec3 v1, vec3 v2)
 }
 
 
+float IntegrateEdge(vec3 v1, vec3 v2)
+{
+    return IntegrateEdgeVec(v1, v2).z;
+}
+
+
 // TODO: handle arbitrary N polygons
 // see: https://github.com/selfshadow/ltc_code/blob/31e5e96b54f98f33098f8503003119ba2231a1c6/webgl/shaders/ltc/ltc_quad.fs#L274
-vec3 integrateLtcOverPolygon(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], bool twoSided)
+vec3 integrateLtcOverPolygon(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], bool twoSided, bool clipHorizon)
 {
-    // Construct the TBN basis, around N, and orienting tagent along V
+    // Construct the TBN basis, around N, and orienting tangent along V
     vec3 T1, T2;
     // TODO: make robust to parallel N and V
     T1 = normalize(V - N*dot(V, N));
     T2 = cross(N, T1);
-
 
     // rotate area light in (T1, T2, N) basis
     Minv = Minv * transpose(mat3(T1, T2, N));
@@ -73,10 +79,7 @@ vec3 integrateLtcOverPolygon(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], 
     // integrate
     float sum = 0.0;
 
-    bool clipless = true;
-
-    // TODO implement clipping
-    if (clipless)
+    if (!clipHorizon)
     {
         vec3 dir = points[0].xyz - P;
         vec3 lightNormal = cross(points[1] - points[0], points[3] - points[0]);
@@ -110,6 +113,31 @@ vec3 integrateLtcOverPolygon(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], 
         if (behind && !twoSided)
             sum = 0.0;
     } 
+    else // Do clip horizon
+    {
+        int n;
+        ClipQuadToHorizon(L, n);
+
+        if (n == 0)
+            return vec3(0, 0, 0);
+        // project onto sphere
+        L[0] = normalize(L[0]);
+        L[1] = normalize(L[1]);
+        L[2] = normalize(L[2]);
+        L[3] = normalize(L[3]);
+        L[4] = normalize(L[4]);
+
+        // integrate
+        sum += IntegrateEdge(L[0], L[1]);
+        sum += IntegrateEdge(L[1], L[2]);
+        sum += IntegrateEdge(L[2], L[3]);
+        if (n >= 4)
+            sum += IntegrateEdge(L[3], L[4]);
+        if (n == 5)
+            sum += IntegrateEdge(L[4], L[0]);
+
+        sum = twoSided ? abs(sum) : max(0.0, sum);
+    }
 
     vec3 Lo_i = vec3(sum, sum, sum);
     return Lo_i;
@@ -180,10 +208,10 @@ void main(void)
         CardLight light = ub_PlanarLights[planarIdx];
 		vec3 points[4] = getPolygon(light);
 
-		spec += integrateLtcOverPolygon(N, view, P, M_inv, points, light.doubleSided)
+		spec += integrateLtcOverPolygon(N, view, P, M_inv, points, light.doubleSided, light.clipHorizon)
                 * light.colors.specular.rgb;
 		// Diffuse lambertian BRDF is exactly the untransformed clamped cosine.
-		diff += integrateLtcOverPolygon(N, view, P, mat3(1), points, light.doubleSided)
+		diff += integrateLtcOverPolygon(N, view, P, mat3(1), points, light.doubleSided, light.clipHorizon)
                 * light.colors.diffuse.rgb;
 	}
 

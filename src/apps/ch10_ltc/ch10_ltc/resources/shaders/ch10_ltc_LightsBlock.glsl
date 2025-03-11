@@ -16,6 +16,7 @@ struct CardLight
 {
     float height;
     bool doubleSided;
+    bool clipHorizon;
     vec2 rectPosition;
     vec2 rectDimensions;
     LightColors colors;

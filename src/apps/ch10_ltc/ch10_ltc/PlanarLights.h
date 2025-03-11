@@ -16,7 +16,10 @@ namespace ad {
 struct alignas(16) CardLight_glsl
 {
     GLfloat mHeight;
+    // TODO: In production, we would pack those bools
     bool mDoubleSided = false;
+    // std140 align GLSL's bool on 4-bytes boundary
+    alignas(4) bool mClipHorizon = false;
     alignas(8) math::Rectangle<GLfloat> mRect;
     renderer::LightColors_glsl mColors;
 };
@@ -26,6 +29,7 @@ DESCRIBE(CardLight_glsl)
 {
     GIVE(Height);
     GIVE(DoubleSided);
+    GIVE(ClipHorizon);
     GIVE(Rect);
     GIVE_EX(aValue.mColors.mDiffuseColor,  "diffuse color");
     GIVE_EX(aValue.mColors.mSpecularColor, "specular color");
