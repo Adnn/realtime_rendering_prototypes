@@ -131,9 +131,6 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     mLtc_1{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_1.dds"}) },
     mLtc_2{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_2.dds"}) }
 {
-    getCardlightLayout(std::cout);
-    std::cout << std::endl;
-
     graphics::attachIndexBuffer(mSphereIndexBuffer, mSphereVertexSpecification.mVertexArray);
 
     graphics::appendToVertexSpecification(

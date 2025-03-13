@@ -182,7 +182,7 @@ void main(void)
     vec4 t1 = texture(u_Ltc_1, uv);
     vec4 t2 = texture(u_Ltc_2, uv);
     // t2 components:
-    // * x: average magnitude
+    // * x: average magnitude (norm of the fitted BRDF)
     // * y: mean fresnel
     // * z: unused
     // * w: "projected (cosine-weighted) solid angle of spherical cap". 
