@@ -1,1 +1,3 @@
 @find_package@(graphics CONFIG @REQUIRED@ COMPONENTS ad::graphics)
+
+@find_package@(assimp CONFIG @REQUIRED@)
