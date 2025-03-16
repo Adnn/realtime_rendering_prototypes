@@ -2,6 +2,8 @@
 
 #include "Model.h"
 
+#include <renderer/BufferLoad.h>
+
 
 namespace ad::scenic {
 
@@ -23,9 +25,43 @@ inline GLuint getByteSize(AttributeDescription aAttribute)
 }
 
 
+graphics::BufferAny makeBufferByteSize(GLsizeiptr aByteSize,
+                                       GLenum aHint);
+
+
 graphics::BufferAny makeBuffer(GLsizei aElementSize,
                                GLsizeiptr aElementCount,
                                GLenum aHint);
+
+
+template <class T_element>
+std::pair<renderer::Semantic, MeshPart_Naive::Accessor_Naive> 
+makeLoadedAccessor_Naive(const AttributeDescription & aAttribute,
+                         std::span<T_element> aData,
+                         GLenum aHint)
+{
+    std::pair<renderer::Semantic, MeshPart_Naive::Accessor_Naive> result = {
+        aAttribute.mSemantic,
+        MeshPart_Naive::Accessor_Naive{
+            .mBuffer = makeBuffer(getByteSize(aAttribute),
+                                  aData.size(),
+                                  aHint),
+            .mClientDataFormat{
+                .mDimension = aAttribute.mDimension,
+                .mOffset = 0, // No interleaving of attributes: each gets its own buffer
+                .mComponentType = aAttribute.mComponentType,
+            }
+        }
+    };
+
+    const graphics::BufferAny& buffer = result.second.mBuffer;
+
+    const GLsizei firstElement = 0; // We do not share buffers among several meshes in this approach
+    graphics::replaceSubset(buffer, firstElement, aData);
+
+    return result;
+}
+
 
 #if 0
 /// @brief Create a GL buffer of specified size (without loading data into it).

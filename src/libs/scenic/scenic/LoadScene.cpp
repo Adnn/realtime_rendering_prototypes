@@ -29,22 +29,6 @@ namespace {
     using IndexType = std::remove_pointer_t<decltype(std::declval<aiFace>().mIndices)>;
     static_assert(std::is_same_v<IndexType, unsigned int>);
 
-    // TODO: move to a generic header
-    /// @brief Load data into an existing buffer, with offset aElementFirst.
-    template <class T_element>
-    void loadBuffer(const graphics::BufferAny & aBuffer, 
-                    GLuint aElementFirst,
-                    std::span<T_element> aCpuBuffer)
-    {
-        const std::size_t elementSize = sizeof(T_element);
-
-        glNamedBufferSubData(
-            aBuffer,
-            aElementFirst * elementSize, // offset
-            aCpuBuffer.size_bytes(), // data length
-            aCpuBuffer.data());
-    };
-
 
     /// @brief Return type on "visiting" a node (i.e. recurseNode())
     struct NodeResult
@@ -71,34 +55,6 @@ namespace {
     //        Data> mStreamFromSemantics;
     //};
 
-
-    template <class T_element>
-    std::pair<renderer::Semantic, MeshPart_Naive::Accessor_Naive> 
-    makeLoadedAccessor_Naive(const AttributeDescription & aAttribute,
-                             std::span<T_element> aData,
-                             GLenum aHint)
-    {
-        std::pair<renderer::Semantic, MeshPart_Naive::Accessor_Naive> result = {
-            renderer::semantic::gPosition,
-            MeshPart_Naive::Accessor_Naive{
-                .mBuffer = makeBuffer(getByteSize(aAttribute),
-                                      aData.size(),
-                                      aHint),
-                .mClientDataFormat{
-                    .mDimension = aAttribute.mDimension,
-                    .mOffset = 0, // No interleaving of attributes: each gets its own buffer
-                    .mComponentType = aAttribute.mComponentType,
-                }
-            }
-        };
-
-        const graphics::BufferAny& buffer = result.second.mBuffer;
-
-        const GLuint firstElement = 0; // We do not share buffers among several meshes in this approach
-        loadBuffer(buffer, firstElement, aData);
-
-        return result;
-    }
 
     MeshPart_Naive handleMesh(aiMesh * aMesh)
     {
@@ -162,7 +118,7 @@ namespace {
             assert(face.mNumIndices == 3);
             std::memcpy(indexBuffer.get() + (faceIdx * 3), face.mIndices, sizeof(IndexType) * 3);
         }
-        loadBuffer(mesh.mIndexBuffer, 0, std::span{ indexBuffer.get(), mesh.mIndicesCount });
+        graphics::replaceSubset(mesh.mIndexBuffer, 0, std::span{ indexBuffer.get(), mesh.mIndicesCount });
 
 #if 0
         // Vertices

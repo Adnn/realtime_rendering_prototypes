@@ -7,6 +7,7 @@
 
 #include <engine/Entities.h>
 #include <engine/IntrospectProgram.h>
+#include <engine/Lights.h>
 
 #include <graphics/Timer.h>
 
@@ -18,6 +19,7 @@
 #include <renderer/Drawing.h>
 
 #include <scenic/ColorPalettes.h>
+#include <scenic/ShapesAsModel.h>
 
 
 namespace ad {
@@ -32,11 +34,6 @@ namespace graphics {
 namespace imguiui {
     class ImguiUi;
 } // namespace imguiui
-
-
-constexpr graphics::AttributeDescriptionList gVertexDescription{
-    {0, 3, /*offset*/0, graphics::MappedGL<GLfloat>::enumerator},
-};
 
 
 struct Scene
@@ -71,18 +68,13 @@ struct Scene
     graphics::UniformBufferObject mMaterialsBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
     renderer::IntrospectProgram mSurfaceProgram;
+    renderer::IntrospectProgram mLightProgram;
 
     OrbitalCamera mOrbitalCamera;
     scenic::SceneTree mSceneTree;
+    scenic::Object mSphere{ scenic::makeSphere(4) };
 
-    renderer::EntitiesBlock_glsl mEntities{
-        .mEntities = {
-            renderer::EntityData_glsl{
-                .mLocalToWorld = math::AffineMatrix<4, GLfloat>::Identity(),
-                .mColorFactor = math::hdr::gWhite<float>,
-            },
-        },
-    };
+    renderer::EntitiesBlock_glsl mEntities;
     PbrMaterialsBlock_glsl mMaterials{
         .mCount = 1,
         .mMaterials = {
@@ -90,6 +82,39 @@ struct Scene
                 .mBaseColor{scenic::hdr::gBrickAlbedo},
             },
         },
+    };
+    renderer::LightsDataCommon mLights{
+        .mDirectionalCount = 0,
+        .mPointCount = 0,
+        // We decode a sRGB 50% white (which is also perceptually ~50%)
+        // to linear space for computation.
+        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.5f),
+        .mDirectionalLights = {
+            renderer::DirectionalLight_glsl{
+                .mDirection = math::UnitVec<3, float>{ {0.5f, 0.f, -0.5f} },
+                // TODO: decode the srgb value to have it show correctly in Imgui
+                // (and have it perceptually proportional to the factor)
+                .mColors = renderer::LightColors_glsl{} * 0.2,
+            },
+         },
+        .mPointLights = {
+            renderer::PointLight_glsl{
+                .mPosition = {-2.f, 3.f, 0.f},
+                .mRadius{
+                    .mMin = 0.2f,
+                    .mMax = 5.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 30.f,
+            },
+            renderer::PointLight_glsl{
+                .mPosition = {+2.f, 3.f, 0.f},
+                .mRadius{
+                    .mMin = 0.2f,
+                    .mMax = 5.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 30.f,
+            },
+         },
     };
 
     PipelineControl mPipelineControl;

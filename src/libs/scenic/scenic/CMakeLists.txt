@@ -9,6 +9,7 @@ set(${TARGET_NAME}_HEADERS
     Model.h
     Pose.h
     Shapes.h
+    ShapesAsModel.h
     VertexStreamUtilities.h
 
     log/Logging.h
@@ -23,6 +24,7 @@ set(${TARGET_NAME}_SOURCES
     Model.cpp
     Pose.cpp
     Shapes.cpp
+    ShapesAsModel.cpp
     VertexStreamUtilities.cpp
 
     log/Logging-init.cpp

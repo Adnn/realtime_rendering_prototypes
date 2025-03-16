@@ -30,24 +30,32 @@ namespace {
 } // unnamed namespace
 
 
-graphics::BufferAny makeBuffer(GLsizei aElementSize,
-                               GLsizeiptr aElementCount,
-                               GLenum aHint)
+graphics::BufferAny makeBufferByteSize(GLsizeiptr aByteSize,
+                                       GLenum aHint)
 {
     graphics::BufferAny glBuffer; // glGenBuffers()
     // TODO: should we use glCreate*() instead of glGen*() in our wrappers?
     // Bind to create the buffer state
     glBindBuffer(GL_ARRAY_BUFFER, glBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    const GLsizeiptr bufferSize = aElementSize * aElementCount;
     glNamedBufferData(
         glBuffer,
-        bufferSize,
+        aByteSize,
         nullptr,
         aHint);
 
     return glBuffer;
 }
+
+
+graphics::BufferAny makeBuffer(GLsizei aElementSize,
+                               GLsizeiptr aElementCount,
+                               GLenum aHint)
+{
+    const GLsizeiptr bufferSize = aElementSize * aElementCount;
+    return makeBufferByteSize(bufferSize, aHint);
+}
+
 
 #if 0
 BufferView makeBufferGetView(GLsizei aElementSize,
