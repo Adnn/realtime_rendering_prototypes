@@ -82,7 +82,7 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 }
 
 
-const std::filesystem::path gProgramPath = "programs/TessellateSphere.prog";
+const std::filesystem::path gProgramPath = "programs/ch10_area_lights_TessellateSphere.prog";
 //const std::filesystem::path gProgramPath = "programs/WrapLighting.prog";
 const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
 
