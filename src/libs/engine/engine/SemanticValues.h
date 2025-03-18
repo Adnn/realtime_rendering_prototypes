@@ -15,6 +15,7 @@ namespace semantic
     SEM(_builtin);
 
     SEM(Bitangent);
+    SEM(Normal);
     SEM(Position);
     SEM(Tangent);
     SEM(Uv01);

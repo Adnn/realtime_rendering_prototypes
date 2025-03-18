@@ -8,6 +8,12 @@
 #include "PbrUtilities.glsl"
 
 
+in vec4 ex_Color;
+in vec3 ex_Normal_view;
+in vec3 ex_Position_view;
+
+out vec4 out_Color;
+
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
                                   PbrParameters aParams, LightColors aColors)
@@ -75,13 +81,6 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
 
     return result;
 }
-
-
-in vec4 ex_Color;
-in vec3 ex_Normal_view;
-in vec3 ex_Position_view;
-
-out vec4 out_Color;
 
 
 void main(void)

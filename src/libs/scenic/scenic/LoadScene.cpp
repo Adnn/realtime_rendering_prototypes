@@ -80,33 +80,32 @@ namespace {
         };
 
         // Vertices positions
-        AttributeDescription positionAttribute{
-            .mSemantic = renderer::semantic::gPosition,
-            .mDimension = 3,
-            .mComponentType = GL_FLOAT
-        };
+        {
+            AttributeDescription attribute{
+                .mSemantic = renderer::semantic::gPosition,
+                .mDimension = 3,
+                .mComponentType = GL_FLOAT,
+            };
 
-        mesh.mSemanticToAttribute.insert(
-            makeLoadedAccessor_Naive(positionAttribute,
-                                     std::span{ aMesh->mVertices, aMesh->mNumVertices },
-                                     GL_STATIC_DRAW));
+            mesh.mSemanticToAttribute.insert(
+                makeLoadedAccessor_Naive(attribute,
+                                         std::span{ aMesh->mVertices, aMesh->mNumVertices },
+                                         GL_STATIC_DRAW));
+        }
 
-        //renderer::semantic::gPosition,
-        //MeshPart_Naive::Accessor_Naive{
-        //    .mBuffer = makeBuffer(GLsizei aElementSize,
-        //                   GLsizeiptr aElementCount,
-        //                   GLenum aHint)
-        //    .mClientDataFormat{
-        //        .mDimension = 3,
-        //        .mOffset = 0, // No interleaving of attributes: each gets its own buffer
-        //        .mComponentType = GL_FLOAT,
-        //    }
-        //});
+        // Vertices normals
+        {
+            AttributeDescription attribute{
+                .mSemantic = renderer::semantic::gNormal,
+                .mDimension = 3,
+                .mComponentType = GL_FLOAT,
+            };
 
-        //const graphics::BufferAny & buffer = added.first->second.mBuffer;
-        //const GLuint firstElement = 0; // We do not share buffers among several meshes in this approach
-        //loadBuffer(buffer, firstElement, std::span{aMesh->mVertices, aMesh->mNumVertices});
-
+            mesh.mSemanticToAttribute.insert(
+                makeLoadedAccessor_Naive(attribute,
+                                         std::span{ aMesh->mNormals, aMesh->mNumVertices },
+                                         GL_STATIC_DRAW));
+        }
         // Indices
         mesh.mIndexBuffer = makeBuffer(sizeof(IndexType),
                                        mesh.mIndicesCount,
