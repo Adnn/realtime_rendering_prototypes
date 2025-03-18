@@ -12,6 +12,13 @@
 #define ADLOG_LG(logger, severity) spdlog::get(logger)->severity
 #define ADLOG(severity)            spdlog::get(::ad::gMainLogger)->severity
 
+#define ADLOG_THROW(severity, formatting)                       \
+    {                                                           \
+        std::string formatted = fmt::format(formatting);        \
+        spdlog::get(::ad::gMainLogger)->severity(formatted);    \
+        throw std::runtime_error(formatted);                    \
+    }
+
 #if defined(_MSC_VER) && !defined(__llvm__)
 // NOTE Ad 2024/02/09: It seems that the linker is happilly removing
 // LoggerInitialization::gInitialized symbol. This hack seems to make it keep

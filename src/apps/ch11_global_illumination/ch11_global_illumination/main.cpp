@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "Ui.h"
+#include "log/Logging.h"
 
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/AppInterface.h>
@@ -21,18 +22,30 @@
 //   * Show / write image diff
 //   * Offer side-by-side & toggle between images
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
     try
     {
         spdlog::set_level(spdlog::level::debug);
 
+        glfwWindowHint(GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET);
         ad::graphics::ApplicationGlfw application("ch11_global_illumination", 1080, 600,
                                                   ad::graphics::ApplicationFlag::None,
-                                                  4, 6);
+                                                  4, 6,
+                                                  { {GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET} });
+
+        // Sanity checks: the context is robust and lose context as requested
+        {
+            GLint contextFlags = 0;
+            glGetIntegerv(GL_CONTEXT_FLAGS, &contextFlags);
+            assert(contextFlags & GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT);
+            glGetIntegerv(GL_RESET_NOTIFICATION_STRATEGY, &contextFlags);
+            assert(contextFlags & GL_LOSE_CONTEXT_ON_RESET);
+        }
+
         //glClearColor(1.f, 1.f, 1.f, 1.f);
 
-        // Ensures the messages are sent synchronously with the event triggering them
+        // This ensures the messages are sent synchronously with the event triggering them
         // This makes debug stepping much more feasible.
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
@@ -56,6 +69,30 @@ int main(int argc, const char * argv[])
             ad::imguiui::newFrame();
             ui.present("Root", scene);
             ad::imguiui::renderFrame();
+
+            // If an error occurs, such as infinite loop in a shader causing the driver to timeout
+            // it seems to only be catched at this point, not immediately after the triggering drawcall.
+            // TODO: Avoid terminate(). The problem is that stack unwinding calls destructors, 
+            // and some try to destruct GL objects thus failing if the context is not valid.
+            GLenum resetStatus = glGetGraphicsResetStatus();
+            if (resetStatus != GL_NO_ERROR)
+            {
+                if (resetStatus == GL_GUILTY_CONTEXT_RESET)
+                {
+                    ADLOG_THROW(critical, "OpenGL: Guilty context reset (likely caused by the application).");
+                    terminate();
+                }
+                else if (resetStatus == GL_INNOCENT_CONTEXT_RESET)
+                {
+                    ADLOG_THROW(critical, "OpenGL: Innocent context reset (external cause).");
+                    terminate();
+                }
+                else if (resetStatus == GL_UNKNOWN_CONTEXT_RESET)
+                {
+                    ADLOG_THROW(critical, "OpenGL: Unknown context reset (cause undetermined).");
+                    terminate();
+                }
+            }
         }
     }
     catch(const std::exception & e)
@@ -74,3 +111,4 @@ int main(int argc, const char * argv[])
 
     std::exit(EXIT_SUCCESS);
 }
+

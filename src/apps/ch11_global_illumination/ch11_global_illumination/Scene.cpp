@@ -34,7 +34,7 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 
 
 // The integration demo, lighting a sphere from a polygon
-const std::filesystem::path gSurfaceProgramPath = "programs/RenderModel_PlainColor.prog";
+const std::filesystem::path gSurfaceProgramPath = "programs/RenderModel_Pbr.prog";
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
 const std::filesystem::path gModelPath = "models/Mat/meetmat_2.glb";
@@ -185,6 +185,18 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                     (void *)part.mIndexFirst,
                     1, // One instance
                     0 /* base instance */);
+
+                GLenum resetStatus = glGetGraphicsResetStatus();
+                if (resetStatus != GL_NO_ERROR) {
+                    if (resetStatus == GL_GUILTY_CONTEXT_RESET) {
+                        std::cerr << "OpenGL: Guilty context reset (likely caused by the application)." << std::endl;
+                    } else if (resetStatus == GL_INNOCENT_CONTEXT_RESET) {
+                        std::cerr << "OpenGL: Innocent context reset (external cause)." << std::endl;
+                    } else if (resetStatus == GL_UNKNOWN_CONTEXT_RESET) {
+                        std::cerr << "OpenGL: Unknown context reset (cause undetermined)." << std::endl;
+                    }
+                }
+
             }
             else
             {
