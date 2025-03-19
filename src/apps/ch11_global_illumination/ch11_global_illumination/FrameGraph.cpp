@@ -2,6 +2,10 @@
 
 #include "SetupDrawing.h"
 
+#include <renderer/Uniforms.h>
+
+#include <scenic/Camera.h>
+
 
 namespace ad {
 
@@ -9,6 +13,7 @@ namespace ad {
 
 
         const std::filesystem::path gDepthProgramPath = "programs/DepthMap.prog";
+        const std::filesystem::path gShowTextureProgramPath = "programs/ShowTexture.prog";
 
 
         graphics::Texture makeTexture(GLenum aTarget, const char * aDebugName)
@@ -60,9 +65,15 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
 }
 
 
+FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
+    mDepth{ aEngine.loadProgram(renderer::ReferencePath{ gDepthProgramPath }) },
+    mShowTexture{ aEngine.loadProgram(renderer::ReferencePath{ gShowTextureProgramPath }) }
+{}
+
+
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mShadowMap{makeTexture(GL_TEXTURE_2D, "shadow_map")},
-    mDepthProgram{ mEngine.loadProgram(renderer::ReferencePath{gDepthProgramPath}) }
+    mPrograms{mEngine}
 {
     mShadowMapSize = aFrameSize;
     glTextureStorage2D(mShadowMap,
@@ -94,21 +105,31 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                              /*mip map level*/0);
         assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
     }
+
+    // Dummy VAO
+    graphics::ScopedBind{ mDummyVao };
+    glObjectLabel(GL_VERTEX_ARRAY, mDummyVao, -1, "dummy_vao");
 }
 
 
 void FrameGraph::loadPrograms()
+{ 
+    mPrograms = ProgramStore{mEngine}; 
+}
+
+
+void FrameGraph::renderDepth(const scenic::SceneTree& aSceneTree)
 {
-    mDepthProgram =
-        mEngine.loadProgram(renderer::ReferencePath{ gDepthProgramPath });
+    graphics::ScopedBind boundFbo{ mFbo, graphics::FrameBufferTarget::Draw };
+    glViewport(0, 0, mShadowMapSize.width(), mShadowMapSize.height());
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    passDepth(aSceneTree);
 }
 
 
 void FrameGraph::passDepth(const scenic::SceneTree & aSceneTree)
 {
-    graphics::ScopedBind boundFbo{mFbo, graphics::FrameBufferTarget::Draw};
-    glViewport(0, 0, mShadowMapSize.width(), mShadowMapSize.height());
-    glClear(GL_DEPTH_BUFFER_BIT);
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_CULL_FACE);
@@ -116,7 +137,27 @@ void FrameGraph::passDepth(const scenic::SceneTree & aSceneTree)
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
 
-    drawPass(mDepthProgram, aSceneTree);
+    drawPass(mPrograms.mDepth, aSceneTree);
+}
+
+
+void FrameGraph::passShowDepth(const scenic::Camera & aCamera)
+{
+    glDisable(GL_DEPTH_TEST);
+
+    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+    const GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, mShadowMap);
+    graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
+
+    auto [near, far] = scenic::getNearFarPlanes(aCamera);
+    graphics::setUniform(mPrograms.mShowTexture, "u_NearDistance", near);
+    graphics::setUniform(mPrograms.mShowTexture, "u_FarDistance", far);
+
+    glUseProgram(mPrograms.mShowTexture);
+    glBindVertexArray(mDummyVao);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 } // namespace ad

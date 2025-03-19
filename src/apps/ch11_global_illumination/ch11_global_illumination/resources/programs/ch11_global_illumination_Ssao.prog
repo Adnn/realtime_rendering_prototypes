@@ -1,4 +1,4 @@
 {
     "vertex": "shaders/FullTransform.vert",
-    "fragment": "shaders/ch11_global_illumination_Pbr.frag"
+    "fragment": "shaders/ch11_global_illumination_ShowAo.frag"
 }

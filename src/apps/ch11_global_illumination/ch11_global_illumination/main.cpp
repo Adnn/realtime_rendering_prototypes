@@ -13,6 +13,8 @@
 
 // TODOS:
 // * Merge back serializeTexture()
+// * Histogram computation for textures content (compute shaders)
+// * Depth texture linearization for display
 
 int main(int argc, const char* argv[])
 {
@@ -53,7 +55,6 @@ int main(int argc, const char* argv[])
 
         while(application.nextFrame())
         {
-            application.getAppInterface()->clear();
             scene.step(timer, application.getAppInterface()->getWindowSize());
             scene.render(application.getAppInterface()->getFramebufferSize());
             timer.mark(glfwGetTime());

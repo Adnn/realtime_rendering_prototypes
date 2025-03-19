@@ -214,55 +214,71 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Frame rendering
     //
-    mGraph.passDepth(mSceneTree);
+    mGraph.renderDepth(mSceneTree);
 
     //
     // Draw objects
     //
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Pipeline state
-    glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glEnable(GL_DEPTH_TEST);
-
-    glTextureParameteri(mGraph.mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-    GLint unitIdx = 1;
-    glBindTextureUnit(unitIdx, mGraph.mShadowMap);
-    graphics::setUniform(mSurfaceProgram, "u_DepthMap", unitIdx);
-
-    drawPass(mSurfaceProgram, mSceneTree);
-
-
-    //
-    // Draw lights
-    //
-
-    // Program
-    glUseProgram(mLightProgram);
-
-    for (const scenic::MeshPart_Naive & part : mSphere.mParts)
+    if (mSceneControl.mShowDepth)
     {
-        graphics::VertexArrayObject vao = prepareVAO(mLightProgram, part);
-        glBindVertexArray(vao);
-
-        if (scenic::useElementIndices(part))
-        {
-            glDrawElementsInstancedBaseInstance(
-                part.mPrimitiveMode,
-                part.mIndicesCount,
-                part.mIndicesType,
-                (void *)part.mIndexFirst,
-                mLights.mPointCount, /* instances count */
-                objectsCount /* base instance, light instances are after objects in UBOs */);
-        }
-        else
-        {
-            throw std::logic_error{ "Who is not using indexed rendering?" };
-        }
-
+        mGraph.passShowDepth(mOrbitalCamera.mCamera);
     }
+    else
+    {
+        // Pipeline state
+        glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glEnable(GL_DEPTH_TEST);
+
+        glTextureParameteri(mGraph.mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        GLint unitIdx = 1;
+        glBindTextureUnit(unitIdx, mGraph.mShadowMap);
+        graphics::setUniform(mSurfaceProgram, "u_DepthMap", unitIdx);
+
+        graphics::setUniform(mSurfaceProgram, "u_FramebufferSize", aRenderResolution);
+
+        drawPass(mSurfaceProgram, mSceneTree);
+
+
+        //
+        // Draw lights
+        //
+
+        // Program
+        glUseProgram(mLightProgram);
+
+        for (const scenic::MeshPart_Naive& part : mSphere.mParts)
+        {
+            graphics::VertexArrayObject vao = prepareVAO(mLightProgram, part);
+            glBindVertexArray(vao);
+
+            if (scenic::useElementIndices(part))
+            {
+                glDrawElementsInstancedBaseInstance(
+                    part.mPrimitiveMode,
+                    part.mIndicesCount,
+                    part.mIndicesType,
+                    (void*)part.mIndexFirst,
+                    mLights.mPointCount, /* instances count */
+                    objectsCount /* base instance, light instances are after objects in UBOs */);
+            }
+            else
+            {
+                throw std::logic_error{ "Who is not using indexed rendering?" };
+            }
+        }
+    }
+}
+
+
+DESCRIBE(Scene::SceneControl)
+{
+    GIVE(ShowDepth);
 }
 
 
@@ -290,6 +306,8 @@ void Scene::presentUi(bool * aOpen)
         [](auto aModeIt){return graphics::to_string(*aModeIt);});
 
     DearImguiWitness witness;
+
+    describe(witness, mSceneControl);
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Materials"))

@@ -50,6 +50,11 @@ struct Scene
        decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
     };
 
+    struct SceneControl
+    {
+        bool mShowDepth = false;
+    };
+
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
 
     void loadPrograms();
@@ -119,6 +124,7 @@ struct Scene
     };
 
     PipelineControl mPipelineControl;
+    SceneControl mSceneControl;
 };
 
 

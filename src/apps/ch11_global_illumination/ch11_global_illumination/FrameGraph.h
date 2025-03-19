@@ -16,6 +16,10 @@ namespace renderer {
     struct IntrospectProgram;
 }
 
+namespace scenic {
+    class Camera;
+}
+
 void drawPass(const renderer::IntrospectProgram & aProgram,
               const scenic::SceneTree& aSceneTree);
 
@@ -24,15 +28,27 @@ struct FrameGraph
 {
     FrameGraph(math::Size<2, int> aFrameSize);
 
+    void renderDepth(const scenic::SceneTree & aSceneTree);
+    void passDepth(const scenic::SceneTree & aSceneTree);
+
+    void passShowDepth(const scenic::Camera & aCamera);
+
     void loadPrograms();
 
-    void passDepth(const scenic::SceneTree & aSceneTree);
+    struct ProgramStore
+    {
+        ProgramStore(Engine & aEngine);
+
+        renderer::IntrospectProgram mDepth;
+        renderer::IntrospectProgram mShowTexture;
+    };
 
     Engine mEngine;
     graphics::FrameBuffer mFbo;
     graphics::Texture mShadowMap;
     math::Size<2, int> mShadowMapSize;
-    renderer::IntrospectProgram mDepthProgram;
+    ProgramStore mPrograms;
+    graphics::VertexArrayObject mDummyVao;
 };
 
 
