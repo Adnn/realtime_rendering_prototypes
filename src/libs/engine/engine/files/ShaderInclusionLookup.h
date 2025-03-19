@@ -56,7 +56,7 @@ public:
             {
                 throw graphics::ShaderCompilationError {
                     "GLSL inclusion error",
-                    "Cannot include '" + filePath.make_preferred().string() 
+                    "Cannot include '" + aRelativePath
                         + "', requested from '" + mPathes.top().string() + "'."};
             }
         }

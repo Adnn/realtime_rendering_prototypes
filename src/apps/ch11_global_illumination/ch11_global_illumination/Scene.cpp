@@ -25,6 +25,55 @@
 
 namespace ad {
 
+
+// TODO: merge back to graphics
+template <class T_Pixel>
+void serializeTexture(const graphics::Texture & aTexture,
+                      GLint aLevel,
+                      arte::ImageFormat aFormat,
+                      std::ostream & aOut)
+{
+    graphics::ScopedBind boundTexture{aTexture};
+
+    math::Size<2, GLint> size;
+    glGetTexLevelParameteriv(aTexture.mTarget,
+                             aLevel,
+                             GL_TEXTURE_WIDTH,
+                             &size.width());
+    glGetTexLevelParameteriv(aTexture.mTarget,
+                             aLevel,
+                             GL_TEXTURE_HEIGHT,
+                             &size.height());
+
+    // TODO: retrieve the texture internal format, and assert T_Pixel compatibility
+    //GLenum internalFormat;
+    //glGetTexLevelParameteriv(aTexture.mTarget,
+    //                         aLevel,
+    //                         GL_TEXTURE_INTERNAL_FORMAT,
+    //                         static_cast<GLint *>(&internalFormat));
+
+    // Note: All image format we can write to accept 1-byte alignment for rows,
+    // and STBI_writer only allow to control the stride for PNG.
+    // Default OpenGL value is 4-bytes alignment for row start, which can be problematic
+    // for < 4 components image with a width that is not a multiple of 4.
+    // The easy solution is to always require 1-byte alignment 
+    // (even when it gives the same results than 4-bytes alignment)
+    auto packAlignmentGuard = graphics::scopePackAlignment(1);
+
+    std::unique_ptr<unsigned char[]> raster = 
+        std::make_unique<unsigned char[]>(sizeof(T_Pixel) * size.area());
+
+    glGetTexImage(aTexture.mTarget,
+                  aLevel,
+                  GL_DEPTH_COMPONENT, 
+                  graphics::MappedPixelComponentType_v<T_Pixel>,
+                  raster.get());
+
+    arte::Image<T_Pixel> result{size, std::move(raster)};
+    result.write(aFormat, aOut);
+}
+
+
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
                   graphics::BufferHint aUsageHint)
@@ -34,18 +83,23 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 
 
 // The integration demo, lighting a sphere from a polygon
-const std::filesystem::path gSurfaceProgramPath = "programs/RenderModel_Pbr.prog";
+const std::filesystem::path gSurfaceProgramPath = "programs/ch11_global_illumination_Ssao.prog";
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
 const std::filesystem::path gModelPath = "models/Mat/meetmat_2.glb";
 constexpr float gModelScale = 0.1f;
 
+//const std::filesystem::path gModelPath = "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl";
+//constexpr float gModelScale = 0.01f;
 
-Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
-    mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gSurfaceProgramPath})},
-    mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
-    mSceneTree{ scenic::loadModel(mEngine.mLoader.mFinder.pathFor(gModelPath),
-                                  mEngine.mContext,
+
+// TODO: on framebuffer resize, inform the framegraph
+Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImgui) :
+    mSurfaceProgram{mGraph.mEngine.loadProgram(renderer::ReferencePath{gSurfaceProgramPath})},
+    mLightProgram{mGraph.mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
+    mGraph(aAppInterface.getFramebufferSize()),
+    mSceneTree{ scenic::loadModel(mGraph.mEngine.mLoader.mFinder.pathFor(gModelPath),
+                                  mGraph.mEngine.mContext,
                                   gModelScale) }
 {
     // Register the camera system with glfw inputs 
@@ -70,10 +124,11 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
 
 void Scene::loadPrograms()
 {
+    mGraph.loadPrograms();
     mSurfaceProgram =
-        mEngine.loadProgram(renderer::ReferencePath{ gSurfaceProgramPath });
+        mGraph.mEngine.loadProgram(renderer::ReferencePath{ gSurfaceProgramPath });
     mLightProgram =
-        mEngine.loadProgram(renderer::ReferencePath{ gLightProgramPath });
+        mGraph.mEngine.loadProgram(renderer::ReferencePath{ gLightProgramPath });
 }
 
 
@@ -105,6 +160,7 @@ renderer::LightsDataCommon transformLightsData(
 
     return aLightsData;
 }
+
 
 void Scene::render(math::Size<2, int> aRenderResolution)
 {
@@ -156,6 +212,11 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                          graphics::BufferHint::StreamDraw);
 
     //
+    // Frame rendering
+    //
+    mGraph.passDepth(mSceneTree);
+
+    //
     // Draw objects
     //
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
@@ -166,45 +227,13 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
 
-    // Program
-    glUseProgram(mSurfaceProgram);
+    glTextureParameteri(mGraph.mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+    GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, mGraph.mShadowMap);
+    graphics::setUniform(mSurfaceProgram, "u_DepthMap", unitIdx);
 
-    for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
-    {
-        for (const scenic::MeshPart_Naive & part : object.mParts)
-        {
-            graphics::VertexArrayObject vao = prepareVAO(mSurfaceProgram, part);
-            glBindVertexArray(vao);
+    drawPass(mSurfaceProgram, mSceneTree);
 
-            if (scenic::useElementIndices(part))
-            {
-                glDrawElementsInstancedBaseInstance(
-                    part.mPrimitiveMode,
-                    part.mIndicesCount,
-                    part.mIndicesType,
-                    (void *)part.mIndexFirst,
-                    1, // One instance
-                    0 /* base instance */);
-
-                GLenum resetStatus = glGetGraphicsResetStatus();
-                if (resetStatus != GL_NO_ERROR) {
-                    if (resetStatus == GL_GUILTY_CONTEXT_RESET) {
-                        std::cerr << "OpenGL: Guilty context reset (likely caused by the application)." << std::endl;
-                    } else if (resetStatus == GL_INNOCENT_CONTEXT_RESET) {
-                        std::cerr << "OpenGL: Innocent context reset (external cause)." << std::endl;
-                    } else if (resetStatus == GL_UNKNOWN_CONTEXT_RESET) {
-                        std::cerr << "OpenGL: Unknown context reset (cause undetermined)." << std::endl;
-                    }
-                }
-
-            }
-            else
-            {
-                throw std::logic_error{ "Who is not using indexed rendering?" };
-            }
-
-        }
-    }
 
     //
     // Draw lights
@@ -274,6 +303,15 @@ void Scene::presentUi(bool * aOpen)
         describe(witness, mLights);
     }
 
+    if (ImGui::Button("Dump depth map"))
+    {
+        std::ofstream outFile{ "rtr_11-depth_texture.png", std::ios::binary };
+        if (!outFile.good())
+        {
+            throw std::runtime_error{ "Cannot open output file." };
+        }
+        ad::serializeTexture<math::sdr::Grayscale>(mGraph.mShadowMap, 0, arte::ImageFormat::Png, outFile);
+    }
     ImGui::End();
 }
 

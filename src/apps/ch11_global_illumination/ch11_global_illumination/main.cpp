@@ -12,15 +12,7 @@
 
 
 // TODOS:
-// * Implement spotlight
-// * Handle the auto registration of loggers
-// * Load / reload from prog files, from asset folders
-//   * Keep an history of compiled programs
-// * Offer checkbox to auto-reload on file change vs. explicit button
-// * Use StringIds for Semantic
-// * Offer color buffer (all texture type?) comparison
-//   * Show / write image diff
-//   * Offer side-by-side & toggle between images
+// * Merge back serializeTexture()
 
 int main(int argc, const char* argv[])
 {

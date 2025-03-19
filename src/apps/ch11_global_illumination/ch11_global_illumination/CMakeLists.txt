@@ -3,6 +3,7 @@ set(TARGET_NAME ch11_global_illumination)
 set(${TARGET_NAME}_HEADERS
     CameraSystem.h
     Engine.h
+    FrameGraph.h
     Material.h
     Scene.h
     SetupDrawing.h
@@ -16,6 +17,7 @@ set(${TARGET_NAME}_HEADERS
 
 set(${TARGET_NAME}_SOURCES
     CameraSystem.cpp
+    FrameGraph.cpp
     main.cpp
     Scene.cpp
     SetupDrawing.cpp
@@ -24,13 +26,19 @@ set(${TARGET_NAME}_SOURCES
     log/Logging-init.cpp
 )
 
+set(${TARGET_NAME}_INFRA
+    README.md
+)
+
 file(GLOB_RECURSE ${TARGET_NAME}_RESOURCES "resources/*")
+
+source_group(/ FILES ${${TARGET_NAME}_INFRA})
 
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
              FILES
                 ${${TARGET_NAME}_HEADERS}
                 ${${TARGET_NAME}_SOURCES}
-		${${TARGET_NAME}_RESOURCES}
+		        ${${TARGET_NAME}_RESOURCES}
 )
 
 
@@ -38,6 +46,7 @@ add_executable(${TARGET_NAME}
     ${${TARGET_NAME}_SOURCES}
     ${${TARGET_NAME}_HEADERS}
     ${${TARGET_NAME}_RESOURCES}
+	${${TARGET_NAME}_INFRA}
 )
 
 

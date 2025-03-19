@@ -1,0 +1,4 @@
+{
+    "vertex": "shaders/FullTransform.vert",
+    "fragment": "shaders/Depth.frag"
+}

@@ -3,6 +3,7 @@
 
 #include "CameraSystem.h"
 #include "Engine.h"
+#include "FrameGraph.h"
 #include "Material.h"
 
 #include <engine/Entities.h>
@@ -61,7 +62,7 @@ struct Scene
 
     void presentUi(bool * aOpen = nullptr);
 
-    Engine mEngine;
+    FrameGraph mGraph;
 
     graphics::UniformBufferObject mEntitiesBlockBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;
