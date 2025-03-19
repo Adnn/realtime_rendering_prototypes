@@ -407,6 +407,11 @@ SceneTree loadModel(const std::filesystem::path& aModelFile, Context& aContext, 
     // Create an instance of the Importer class
     Assimp::Importer importer;
     importer.SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, aGlobalScale);
+
+    // Remove points and lines during "SortByPType" step.
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
+                                aiPrimitiveType_POINT | aiPrimitiveType_LINE);
+
     // This is really extra verbose
     //importer.SetExtraVerbose(true); 
 

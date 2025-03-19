@@ -16,8 +16,15 @@ namespace ad::scenic {
 
 inline bool hasTrianglesOnly(aiMesh * aMesh)
 {
-    //TODO Ad 2023/07/21: Understand what is this NGON encoding flag for.
-    return (aMesh->mPrimitiveTypes = (aiPrimitiveType_TRIANGLE | aiPrimitiveType_NGONEncodingFlag));
+    // Note: NGON (N-gon) encoding is applied by assimp triangulation to faces in the source that 
+    //       have more than 3 vertices (e.g. quads). 
+    //       With this encoding, triangles (aiFaces) that are part of the same source N-gon are
+    //       identified by the fact that they are consecutive and share the same 1st vertex 
+    //       (an triangle fan, where the 1st vertex is explicitly repeated).
+    // Wether or not NGON encoding has been set does not change the fact that the mesh only has trianges:
+    return (
+        (aMesh->mPrimitiveTypes & ~aiPrimitiveType_NGONEncodingFlag) 
+        == aiPrimitiveType_TRIANGLE);
 }
 
 
