@@ -18,10 +18,15 @@ struct Engine
         return mLoader.loadDds(aDdsFile);
     }
 
-    inline renderer::IntrospectProgram loadProgram(const renderer::ReferencePath& aProgFile)
+    inline renderer::IntrospectProgram loadProgram(const renderer::ReferencePath& aProgFile,
+                                                   // By value as we will mutate
+                                                   std::vector<graphics::MacroDefine> aClientDefines = {})
     {
         // Important: uses this application version of glClientConstantDefines
-        return mLoader.loadProgram(aProgFile, gClientConstantDefines);
+        aClientDefines.insert(aClientDefines.end(),
+                              gClientConstantDefines.begin(), gClientConstantDefines.end());
+
+        return mLoader.loadProgram(aProgFile, aClientDefines);
     }
 
     renderer::Loader mLoader{ renderer::makeResourceFinder() };

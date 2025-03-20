@@ -14,8 +14,11 @@ void describe(T_witness & aWitness, type & aValue)
 
 namespace ad {
 
+ 
+template <typename T>
+concept Numeric = std::integral<T> || std::floating_point<T>;
 
-template <std::integral T_value>
+template <Numeric T_value>
 struct Clamped
 {
     T_value & mValue;
@@ -23,14 +26,14 @@ struct Clamped
     T_value mMax;
 };
 
-template <std::integral T_value>
+template <Numeric T_value>
 struct Interval
 {
     T_value mMin = 0;
     T_value mMax = std::numeric_limits<T_value>::max();
 };
 
-template <std::integral T_value>
+template <Numeric T_value>
 Clamped<T_value> make_Clamped(T_value& aValue, Interval<T_value> aInterval)
 {
     return {

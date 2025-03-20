@@ -9,6 +9,7 @@ set(${TARGET_NAME}_HEADERS
     SetupDrawing.h
     ShaderConstants.h
     Ui.h
+    UniformSetterWitness.h
 
     log/Logging.h
     log/Logging-channels.h

@@ -1,6 +1,10 @@
 #include "FrameGraph.h"
 
 #include "SetupDrawing.h"
+#include "UniformSetterWitness.h"
+
+#include <reflect/DearImguiWitness.h>
+#include <reflect/ReflectHelpers.h>
 
 #include <renderer/Uniforms.h>
 
@@ -34,7 +38,24 @@ namespace ad {
         }
 
 
+    static constexpr std::array<GLfloat, 4> gLowestBorder = []() -> std::array<GLfloat, 4>
+        {
+            GLfloat lowest = std::numeric_limits<GLfloat>::lowest();
+            return { lowest, lowest, lowest, lowest };
+        }();
+
     } // unnamed namespace
+
+
+DESCRIBE(FrameGraph::SsaoControl)
+{
+    GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), DepthBias);
+    GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), SphereRadius);
+    GIVE(ReflectSamples);
+    GIVE(Weighted);
+    GIVE_EX(make_Clamped(aValue.mWeightFactor, { .mMax = 50.0f }), WeightFactor);
+    GIVE(SphereInScreenSpace);
+}
 
 
 void drawPass(const renderer::IntrospectProgram & aProgram, 
@@ -111,48 +132,86 @@ void generateRandomDirections(const graphics::Texture & aDestination, math::Size
 }
 
 FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
-    mDepth{ aEngine.loadProgram(renderer::ReferencePath{ gDepthProgramPath }) },
+    mDepth{ aEngine.loadProgram(renderer::ReferencePath{ gDepthProgramPath },
+                                {"OUTPUT_FRAGMENT_VIEW_POSITION",})},
     mShowTexture{ aEngine.loadProgram(renderer::ReferencePath{ gShowTextureProgramPath }) },
     mShowSsao{ aEngine.loadProgram(renderer::ReferencePath{ gShowSsaoProgramPath }) }
 {}
 
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
-    mShadowMap{makeTexture(GL_TEXTURE_2D, "shadow_map")},
+    mDepthMap{makeTexture(GL_TEXTURE_2D, "shadow_map")},
+    mFragPosition_view{makeTexture(GL_TEXTURE_2D, "frag_position_view")},
+    mScreenTextureSize{ aFrameSize },
     mNoiseDirections{makeTexture(GL_TEXTURE_2D, "noise_directions")},
     mPrograms{mEngine}
 {
-    mShadowMapSize = aFrameSize;
-    glTextureStorage2D(mShadowMap,
+    //
+    //
+    //
+    glTextureStorage2D(mDepthMap,
                        1,
                        GL_DEPTH_COMPONENT24,
-                       mShadowMapSize.width(),
-                       mShadowMapSize.height());
+                       mScreenTextureSize.width(),
+                       mScreenTextureSize.height());
 
     // Set texture comparison mode, allowing to compare the depth component to a reference value
-    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
-    glTextureParameteri(mShadowMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTextureParameteri(mShadowMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTextureParameterfv(mShadowMap, GL_TEXTURE_BORDER_COLOR,
+    glTextureParameteri(mDepthMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(mDepthMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTextureParameterfv(mDepthMap, GL_TEXTURE_BORDER_COLOR,
                          math::hdr::Rgba_f{1.f, 0.f, 0.f, 0.f}.data());
 
     // We disable mipmap minification filter, otherwise a mutable texture
     // would not be mipmap complete, and could not be sampled.
     // (will be touched again by the PCF parameter)
-    glTextureParameteri(mShadowMap, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(mDepthMap, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
+    // 
+    //
+    //
+    glTextureStorage2D(mFragPosition_view,
+                       1,
+                       GL_RGB16F,
+                       mScreenTextureSize.width(),
+                       mScreenTextureSize.height());
+
+
+    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTextureParameterfv(mFragPosition_view, GL_TEXTURE_BORDER_COLOR, gLowestBorder.data());
+
+    //
+    // FBO attachments
+    //
     {
         graphics::ScopedBind boundFbo{mFbo, graphics::FrameBufferTarget::Draw};
         // The texture attachment is permanent, no need to recreate it each time the FBO is bound
         glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
                              GL_DEPTH_ATTACHMENT,
-                             mShadowMap,
+                             mDepthMap,
                              /*mip map level*/0);
+
+        glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
+                             GL_COLOR_ATTACHMENT0,
+                             mFragPosition_view,
+                             0);
+
+        const GLenum attachmentPerLocation[1] = {
+            GL_COLOR_ATTACHMENT0,
+        };
+        assert(std::size(attachmentPerLocation) == 1); // Remove that when we extend
+        glDrawBuffers(std::size(attachmentPerLocation), attachmentPerLocation);
+
         assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
     }
 
+
+    // 
+    //
+    //
     generateRandomDirections(mNoiseDirections, { 64, 64 });
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -174,8 +233,10 @@ void FrameGraph::loadPrograms()
 void FrameGraph::renderDepth(const scenic::SceneTree& aSceneTree)
 {
     graphics::ScopedBind boundFbo{ mFbo, graphics::FrameBufferTarget::Draw };
-    glViewport(0, 0, mShadowMapSize.width(), mShadowMapSize.height());
+    glViewport(0, 0, mScreenTextureSize.width(), mScreenTextureSize.height());
     glClear(GL_DEPTH_BUFFER_BIT);
+
+    glClearTexImage(mFragPosition_view, 0, GL_RGBA, GL_FLOAT, gLowestBorder.data());
 
     passDepth(aSceneTree);
 }
@@ -189,6 +250,9 @@ void FrameGraph::passDepth(const scenic::SceneTree & aSceneTree)
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+    // A requirement if we want to write to a vec3 color output 
+    // otherwise, it seems the alpha is treated as being zero, and nothing is actually written
+    glDisable(GL_BLEND);
 
     drawPass(mPrograms.mDepth, aSceneTree);
 }
@@ -204,14 +268,23 @@ void FrameGraph::renderSsaoFactor(const scenic::SceneTree& aSceneTree,
 
     GLint unitIdx = 1;
 
-    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glBindTextureUnit(unitIdx, mShadowMap);
+    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glBindTextureUnit(unitIdx, mDepthMap);
     graphics::setUniform(mPrograms.mShowSsao, "u_DepthMap", unitIdx);
+
+    glBindTextureUnit(++unitIdx, mFragPosition_view);
+    graphics::setUniform(mPrograms.mShowSsao, "u_FragPosition_view", unitIdx);
 
     glBindTextureUnit(++unitIdx, mNoiseDirections);
     graphics::setUniform(mPrograms.mShowSsao, "u_NoiseDirections", unitIdx);
 
     graphics::setUniform(mPrograms.mShowSsao, "u_FramebufferSize", aRenderResolution);
+
+    {
+        UniformSetterWitness setter{ .mProgram = mPrograms.mShowSsao.mProgram };
+        describe(setter, mSsaoControl);
+    }
+
 
     // TODO: load once, in a uniform buffer
     for (unsigned int i = 0; i != gSsaoSampleCount; ++i)
@@ -224,14 +297,41 @@ void FrameGraph::renderSsaoFactor(const scenic::SceneTree& aSceneTree,
     drawPass(mPrograms.mShowSsao, aSceneTree);
 }
 
+#define MODE_LINEARIZE_DEPTH 1u
+#define MODE_DIRECTION 2u
+#define MODE_DEPTH_FROM_POSITION 3u
 
 void FrameGraph::passShowDepth(const scenic::Camera & aCamera)
 {
     glDisable(GL_DEPTH_TEST);
 
-    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_LINEARIZE_DEPTH);
+
+    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
     const GLint unitIdx = 1;
-    glBindTextureUnit(unitIdx, mShadowMap);
+    glBindTextureUnit(unitIdx, mDepthMap);
+    graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
+
+    auto [near, far] = scenic::getNearFarPlanes(aCamera);
+    graphics::setUniform(mPrograms.mShowTexture, "u_NearDistance", near);
+    graphics::setUniform(mPrograms.mShowTexture, "u_FarDistance", far);
+    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_LINEARIZE_DEPTH);
+
+    glUseProgram(mPrograms.mShowTexture);
+    glBindVertexArray(mDummyVao);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+
+void FrameGraph::passShowLinearDepth(const scenic::Camera & aCamera)
+{
+    glDisable(GL_DEPTH_TEST);
+
+    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_DEPTH_FROM_POSITION);
+
+    const GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, mFragPosition_view);
     graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
 
     auto [near, far] = scenic::getNearFarPlanes(aCamera);
@@ -249,6 +349,8 @@ void FrameGraph::passShowNoise()
 {
     glDisable(GL_DEPTH_TEST);
 
+    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_DIRECTION);
+
     const GLint unitIdx = 1;
     glBindTextureUnit(unitIdx, mNoiseDirections);
     graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
@@ -257,6 +359,13 @@ void FrameGraph::passShowNoise()
     glBindVertexArray(mDummyVao);
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+
+void FrameGraph::appendUi()
+{
+    DearImguiWitness witness;
+    describe(witness, mSsaoControl);
 }
 
 

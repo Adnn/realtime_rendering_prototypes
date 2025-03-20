@@ -30,6 +30,7 @@ namespace ad {
 template <class T_Pixel>
 void serializeTexture(const graphics::Texture & aTexture,
                       GLint aLevel,
+                      GLenum aPixelFormat,
                       arte::ImageFormat aFormat,
                       std::ostream & aOut)
 {
@@ -65,7 +66,7 @@ void serializeTexture(const graphics::Texture & aTexture,
 
     glGetTexImage(aTexture.mTarget,
                   aLevel,
-                  GL_DEPTH_COMPONENT, 
+                  aPixelFormat, 
                   graphics::MappedPixelComponentType_v<T_Pixel>,
                   raster.get());
 
@@ -226,7 +227,8 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     if (mSceneControl.mShowDepth)
     {
         //mGraph.passShowDepth(mOrbitalCamera.mCamera);
-        mGraph.passShowNoise();
+        //mGraph.passShowNoise();
+        mGraph.passShowLinearDepth(mOrbitalCamera.mCamera);
     }
     else
     {
@@ -241,9 +243,9 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         glCullFace(GL_BACK);
         glEnable(GL_DEPTH_TEST);
 
-        glTextureParameteri(mGraph.mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTextureParameteri(mGraph.mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
         GLint unitIdx = 1;
-        glBindTextureUnit(unitIdx, mGraph.mShadowMap);
+        glBindTextureUnit(unitIdx, mGraph.mDepthMap);
         graphics::setUniform(mSurfaceProgram, "u_DepthMap", unitIdx);
 
         drawPass(mSurfaceProgram, mSceneTree);
@@ -311,6 +313,10 @@ void Scene::presentUi(bool * aOpen)
     describe(witness, mSceneControl);
 
     ImGui::Spacing();
+    if (ImGui::CollapsingHeader("SSAO"))
+    mGraph.appendUi();
+
+    ImGui::Spacing();
     if (ImGui::CollapsingHeader("Materials"))
     {
         describe(witness, mMaterials);
@@ -329,7 +335,18 @@ void Scene::presentUi(bool * aOpen)
         {
             throw std::runtime_error{ "Cannot open output file." };
         }
-        ad::serializeTexture<math::sdr::Grayscale>(mGraph.mShadowMap, 0, arte::ImageFormat::Png, outFile);
+        ad::serializeTexture<math::sdr::Grayscale>(mGraph.mDepthMap, 0, GL_DEPTH_COMPONENT,
+                                                   arte::ImageFormat::Png, outFile);
+    }
+    if (ImGui::Button("Dump position map"))
+    {
+        std::ofstream outFile{ "rtr_11-position_texture.png", std::ios::binary };
+        if (!outFile.good())
+        {
+            throw std::runtime_error{ "Cannot open output file." };
+        }
+        ad::serializeTexture<math::sdr::Rgb>(mGraph.mFragPosition_view, 0, GL_RGB,
+                                             arte::ImageFormat::Png, outFile);
     }
     ImGui::End();
 }

@@ -2,10 +2,13 @@
 
 #include "shaders/Helpers.glsl"
 
+#define MODE_LINEARIZE_DEPTH 1
+#define MODE_DIRECTION 2
+#define MODE_DEPTH_FROM_POSITION 3
 
 in vec2 ex_Uv;
 
-#define DIRECTIONS
+uniform uint u_Mode;
 
 uniform sampler2D u_Texture;
 
@@ -61,19 +64,29 @@ float my_b(float aDepth)
 
 void main(void)
 {
-	#if defined(DIRECTIONS)
-		vec2 uv = gl_FragCoord.xy / textureSize(u_Texture, 0);
-	#else
-		vec2 uv = ex_Uv;
-	#endif
+	vec2 uv = ex_Uv;
+	switch(u_Mode)
+	{
+		case MODE_DIRECTION:
+			uv = gl_FragCoord.xy / textureSize(u_Texture, 0);
+			break;
+	}
 
 	vec4 value = texture(u_Texture, uv);
 
-	#if defined(DIRECTIONS)
-		out_Color = vec4(mapToRgb(value.rgb), 1);
-	#else
-		out_Color = vec4(vec3(linearizeDepth(value.r)), 1);
-		//out_Color = vec4(vec3(nonWorking(depthValue)), 1);
-		//out_Color = vec4(vec3(my_b(depthValue)), 1);
-	#endif
+	switch(u_Mode)
+	{
+		case MODE_LINEARIZE_DEPTH:
+			out_Color = vec4(vec3(linearizeDepth(value.r)), 1);
+			//out_Color = vec4(vec3(nonWorking(depthValue)), 1);
+			//out_Color = vec4(vec3(my_b(depthValue)), 1);
+		case MODE_DIRECTION:
+			out_Color = vec4(mapToRgb(value.rgb), 1);
+			break;
+		case MODE_DEPTH_FROM_POSITION:
+			out_Color = vec4(
+				vec3((value.z - u_NearDistance) / (u_FarDistance - u_NearDistance)),
+				1);
+			break;
+	}
 }

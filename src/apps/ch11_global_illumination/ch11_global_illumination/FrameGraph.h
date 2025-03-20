@@ -39,6 +39,16 @@ constexpr unsigned int gSsaoSampleCount = 32;
 
 struct FrameGraph
 {
+    struct SsaoControl
+    {
+        GLfloat mDepthBias = 0.01;
+        GLfloat mSphereRadius = 0.15;
+        bool mReflectSamples{ true };
+        bool mWeighted{ true };
+        GLfloat mWeightFactor{ 5 };
+        bool mSphereInScreenSpace{ false };
+    };
+
     FrameGraph(math::Size<2, int> aFrameSize);
 
     void renderDepth(const scenic::SceneTree & aSceneTree);
@@ -48,11 +58,12 @@ struct FrameGraph
                           math::Size<2, int> aRenderResolution);
 
     void passShowDepth(const scenic::Camera & aCamera);
-
     void passShowNoise();
-
+    void passShowLinearDepth(const scenic::Camera & aCamera);
 
     void loadPrograms();
+
+    void appendUi();
 
     struct ProgramStore
     {
@@ -65,13 +76,16 @@ struct FrameGraph
 
     Engine mEngine;
     graphics::FrameBuffer mFbo;
-    graphics::Texture mShadowMap;
+    graphics::Texture mDepthMap;
+    graphics::Texture mFragPosition_view;
+    math::Size<2, int> mScreenTextureSize;
     graphics::Texture mNoiseDirections;
-    math::Size<2, int> mShadowMapSize;
     ProgramStore mPrograms;
     graphics::VertexArrayObject mDummyVao;
     std::vector<math::Vec<3, GLfloat>> mSsaoSamples{
         generateUnitSphereSamples(gSsaoSampleCount, Domain::Volume)};
+
+    SsaoControl mSsaoControl;
 };
 
 
