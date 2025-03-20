@@ -13,42 +13,52 @@ in vec3 ex_Normal_view;
 in vec3 ex_Position_view;
 
 uniform sampler2DShadow u_DepthMap;
+// Random normals (already unit length)
+uniform sampler2D u_NoiseDirections;
 uniform ivec2 u_FramebufferSize;
+uniform vec3 u_SsaoSamples[SSAO_SAMPLE_COUNT];
 
 out vec4 out_Color;
 
-float e = 0.01;
-vec2 o[16] = vec2[](
-	vec2(-e, 0),
-	vec2(+e, 0),
-	vec2(0, -e),
-	vec2(0, +e),
-	vec2(e, -e),
-	vec2(e, +e),
-	vec2(-e, -e),
-	vec2(-e, +e),
-	vec2(-e * 2, 0),
-	vec2(+e * 2, 0),
-	vec2(0, -e * 2),
-	vec2(0, +e * 2),
-	vec2(e, -e * 2),
-	vec2(e * 2, +e),
-	vec2(-e * 2, -e),
-	vec2(-e * 2, +e)
-);
-
 void main(void)
 {
+	// UV coordinate of this fragment, mapping window space to [0, 1]^2 
 	const vec2 frag_uv = gl_FragCoord.xy / u_FramebufferSize;
 
-	float accu = 0;
-	for(uint i = 0; i != 16; ++i)
-	{
-		vec2 uv = frag_uv + o[i];
-		accu += texture(u_DepthMap, vec3(uv, gl_FragCoord.z));
-	}
-	accu /= 16;
+	// UV coordinate in the noise texture, matching texel to fragment 1:1
+	const vec2 noise_uv = gl_FragCoord.xy / textureSize(u_NoiseDirections, 0);
+	vec3 reflectionPlaneNormal = texture(u_NoiseDirections, noise_uv).xyz;
 
+	const float offset_scale = 0.01f;
+	float accu = 0;
+	float w = 0;
+	for(uint i = 0; i != SSAO_SAMPLE_COUNT; ++i)
+	{
+		vec3 sphereSample = u_SsaoSamples[i];
+
+		#define REFLECT
+		#if defined(REFLECT)
+			sphereSample = reflect(sphereSample, reflectionPlaneNormal);
+		#endif
+
+		vec3 offset = offset_scale * sphereSample;
+		vec2 uv = frag_uv + offset.xy;
+
+		#define WEIGHT
+		#if defined(WEIGHT)
+			// Taken from iquilez
+			float zd = 4 * length(u_SsaoSamples[i]);
+			float weight = 1 / (1 + zd * zd);
+		#else
+			float weight = 1;
+		#endif
+
+		// TODO: I probably cannot sum the fragcoord.z (which is transformed by projection)
+		// with some linear z offset.
+		accu += texture(u_DepthMap, vec3(uv, gl_FragCoord.z + offset.z)) * weight;
+		w += weight;
+	}
+	accu /= w;
 
     out_Color = correctGamma(vec4(vec3(accu), 1));
 }

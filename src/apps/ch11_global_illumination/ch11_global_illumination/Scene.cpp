@@ -83,7 +83,7 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 
 
 // The integration demo, lighting a sphere from a polygon
-const std::filesystem::path gSurfaceProgramPath = "programs/ch11_global_illumination_Ssao.prog";
+const std::filesystem::path gSurfaceProgramPath = "programs/ch11_global_illumination_Pbr.prog";
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
 const std::filesystem::path gModelPath = "models/Mat/meetmat_2.glb";
@@ -217,7 +217,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     mGraph.renderDepth(mSceneTree);
 
     //
-    // Draw objects
+    // Draw 
     //
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
@@ -225,11 +225,17 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
     if (mSceneControl.mShowDepth)
     {
-        mGraph.passShowDepth(mOrbitalCamera.mCamera);
+        //mGraph.passShowDepth(mOrbitalCamera.mCamera);
+        mGraph.passShowNoise();
     }
     else
     {
-        // Pipeline state
+        mGraph.renderSsaoFactor(mSceneTree, aRenderResolution);
+        return;
+
+        //
+        // Draw objects
+        //
         glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
@@ -240,16 +246,11 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         glBindTextureUnit(unitIdx, mGraph.mShadowMap);
         graphics::setUniform(mSurfaceProgram, "u_DepthMap", unitIdx);
 
-        graphics::setUniform(mSurfaceProgram, "u_FramebufferSize", aRenderResolution);
-
         drawPass(mSurfaceProgram, mSceneTree);
-
 
         //
         // Draw lights
         //
-
-        // Program
         glUseProgram(mLightProgram);
 
         for (const scenic::MeshPart_Naive& part : mSphere.mParts)

@@ -14,8 +14,7 @@ in vec3 ex_Position_view;
 
 out vec4 out_Color;
 
-//uniform sampler2DShadow u_DepthMap;
-uniform sampler2D u_DepthMap;
+uniform sampler2DShadow u_DepthMap;
 
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
@@ -193,7 +192,4 @@ void main(void)
     // Output
     //
     out_Color = correctGamma(vec4(fragmentColor, albedo.a));
-    out_Color = correctGamma(
-        vec4( vec3(texture(u_DepthMap, gl_FragCoord.xy / vec2(1080, 600)).r), 1)
-	);
 }

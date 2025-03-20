@@ -6,6 +6,8 @@
 
 #include <scenic/Camera.h>
 
+#include <random>
+
 
 namespace ad {
 
@@ -14,6 +16,7 @@ namespace ad {
 
         const std::filesystem::path gDepthProgramPath = "programs/DepthMap.prog";
         const std::filesystem::path gShowTextureProgramPath = "programs/ShowTexture.prog";
+        const std::filesystem::path gShowSsaoProgramPath = "programs/ch11_global_illumination_Ssao.prog";
 
 
         graphics::Texture makeTexture(GLenum aTarget, const char * aDebugName)
@@ -65,14 +68,58 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
 }
 
 
+std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples(unsigned int aCount, Domain aDomain)
+{
+    std::vector<math::Vec<3, GLfloat>> result;
+    result.reserve(aCount);
+
+    std::uniform_real_distribution<GLfloat> coord{ -1.0f, 1.0f };
+    std::uniform_real_distribution<GLfloat> norm{ 0.0f, 1.0f };
+    std::default_random_engine e;
+
+    for (unsigned int idx = 0; idx != aCount; ++idx)
+    {
+        math::Vec<3, GLfloat> v{
+            coord(e),
+            coord(e),
+            coord(e),
+        };
+        // TODO: importance sample to implement the "quadratic attenation"
+        // see: https://iquilezles.org/articles/ssao/
+        switch (aDomain)
+        {
+        case Domain::Surface:
+            result.push_back(v.normalize());
+            break;
+        case Domain::Volume:
+            result.push_back(v.normalize() * norm(e));
+            break;
+        }
+    }
+
+    return result;
+}
+
+
+void generateRandomDirections(const graphics::Texture & aDestination, math::Size<2, int> aResolution)
+{
+    // Using floating point texture, to be able to store negative values without remapping.
+    glTextureStorage2D(aDestination, 1, GL_RGB16F, aResolution.width(), aResolution.height());
+    glTextureSubImage2D(aDestination, 0, 0, 0, aResolution.width(), aResolution.height(),
+                        GL_RGB, GL_FLOAT,
+                        generateUnitSphereSamples(aResolution.area(), Domain::Surface).data());
+}
+
 FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mDepth{ aEngine.loadProgram(renderer::ReferencePath{ gDepthProgramPath }) },
-    mShowTexture{ aEngine.loadProgram(renderer::ReferencePath{ gShowTextureProgramPath }) }
+    mShowTexture{ aEngine.loadProgram(renderer::ReferencePath{ gShowTextureProgramPath }) },
+    mShowSsao{ aEngine.loadProgram(renderer::ReferencePath{ gShowSsaoProgramPath }) }
 {}
 
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mShadowMap{makeTexture(GL_TEXTURE_2D, "shadow_map")},
+    mNoiseDirections{makeTexture(GL_TEXTURE_2D, "noise_directions")},
     mPrograms{mEngine}
 {
     mShadowMapSize = aFrameSize;
@@ -105,6 +152,12 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                              /*mip map level*/0);
         assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
     }
+
+    generateRandomDirections(mNoiseDirections, { 64, 64 });
+    glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(mNoiseDirections, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(mNoiseDirections, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // Dummy VAO
     graphics::ScopedBind{ mDummyVao };
@@ -141,6 +194,37 @@ void FrameGraph::passDepth(const scenic::SceneTree & aSceneTree)
 }
 
 
+void FrameGraph::renderSsaoFactor(const scenic::SceneTree& aSceneTree,
+                                  math::Size<2, int> aRenderResolution)
+{
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+
+    GLint unitIdx = 1;
+
+    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glBindTextureUnit(unitIdx, mShadowMap);
+    graphics::setUniform(mPrograms.mShowSsao, "u_DepthMap", unitIdx);
+
+    glBindTextureUnit(++unitIdx, mNoiseDirections);
+    graphics::setUniform(mPrograms.mShowSsao, "u_NoiseDirections", unitIdx);
+
+    graphics::setUniform(mPrograms.mShowSsao, "u_FramebufferSize", aRenderResolution);
+
+    // TODO: load once, in a uniform buffer
+    for (unsigned int i = 0; i != gSsaoSampleCount; ++i)
+    {
+        graphics::setUniform(mPrograms.mShowSsao,
+                             "u_SsaoSamples[" + std::to_string(i) + "]",
+                             mSsaoSamples[i]);
+    }
+    
+    drawPass(mPrograms.mShowSsao, aSceneTree);
+}
+
+
 void FrameGraph::passShowDepth(const scenic::Camera & aCamera)
 {
     glDisable(GL_DEPTH_TEST);
@@ -159,5 +243,21 @@ void FrameGraph::passShowDepth(const scenic::Camera & aCamera)
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
+
+
+void FrameGraph::passShowNoise()
+{
+    glDisable(GL_DEPTH_TEST);
+
+    const GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, mNoiseDirections);
+    graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
+
+    glUseProgram(mPrograms.mShowTexture);
+    glBindVertexArray(mDummyVao);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
 
 } // namespace ad
