@@ -65,6 +65,19 @@ DESCRIBE(FrameGraph::BlurControl)
     GIVE_EX(make_Clamped(aValue.mBlurRadius, {.mMin = 0, .mMax = 32 }), BlurRadius);
 }
 
+std::string to_string(TextureStore::Name aName)
+{
+#define STR(enumerator) case TextureStore::##enumerator: return #enumerator
+    switch (aName)
+    {
+        STR(DepthMap);
+        STR(FragPositionView);
+        STR(RawOcclusion);
+        STR(FilteredOcclusion);
+    }
+#undef STR
+}
+
 void drawPass(const renderer::IntrospectProgram & aProgram, 
               const scenic::SceneTree & aSceneTree)
 {
@@ -151,10 +164,10 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mTextures{
         .mStore = makeVector(
-             makeTexture(GL_TEXTURE_2D, "shadow_map"),
-             makeTexture(GL_TEXTURE_2D, "frag_position_view"),
-             makeTexture(GL_TEXTURE_2D, "RawOcclusion"),
-             makeTexture(GL_TEXTURE_2D, "FilteredOcclusion")
+            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "shadow_map"), TextureStore::LINEARIZE_DEPTH,},
+            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "frag_position_view"), TextureStore::DEPTH_FROM_POSITION,},
+            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "RawOcclusion"), TextureStore::RAW_RED_CHANNEL,},
+            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "FilteredOcclusion"), TextureStore::RAW_RED_CHANNEL,}
         ),
         .mScreenTextureSize{ aFrameSize },
     },
@@ -192,7 +205,6 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                        GL_RGB16F,
                        mTextures.mScreenTextureSize.width(),
                        mTextures.mScreenTextureSize.height());
-
 
     glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -333,7 +345,8 @@ void FrameGraph::passFragPosition(const scenic::SceneTree & aSceneTree)
 }
 
 
-void FrameGraph::renderSsaoFactor(const scenic::SceneTree& aSceneTree,
+// TODO: we could avoid the vertex processing stage here, everything in the frag position texture
+void FrameGraph::passSsaoFactor(const scenic::SceneTree& aSceneTree,
                                   math::Size<2, int> aRenderResolution)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -462,12 +475,14 @@ void FrameGraph::passShowNoise()
 
 
 void FrameGraph::passShowTexture(const scenic::Camera & aCamera,
-                                 TextureStore::Name aName,
-                                 TextureStore::Mode aMode)
+                                 TextureStore::Name aName)
 {
     glDisable(GL_DEPTH_TEST);
 
-    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", aMode);
+    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", mTextures.mStore.at(aName).mMode);
+
+    // In case this is the depth map:
+    glTextureParameteri(tex(aName), GL_TEXTURE_COMPARE_MODE, GL_NONE);
 
     const GLint unitIdx = 1;
     glBindTextureUnit(unitIdx, tex(aName));

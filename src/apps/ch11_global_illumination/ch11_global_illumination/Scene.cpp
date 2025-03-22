@@ -222,14 +222,13 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
     mGraph.renderFrame(mSceneTree, aRenderResolution);
 
-    if (mSceneControl.mShowDepth)
+    if (mSceneControl.mShowTexture)
     {
         //mGraph.passShowDepth(mOrbitalCamera.mCamera);
         //mGraph.passShowNoise();
         //mGraph.passShowLinearDepth(mOrbitalCamera.mCamera);
         mGraph.passShowTexture(mOrbitalCamera.mCamera,
-                               TextureStore::FilteredOcclusion,
-                               TextureStore::RAW_RED_CHANNEL);
+                               mSceneControl.mTexture);
     }
     else
     {
@@ -287,12 +286,6 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 }
 
 
-DESCRIBE(Scene::SceneControl)
-{
-    GIVE(ShowDepth);
-}
-
-
 void Scene::presentUi(bool* aOpen)
 {
     ImGui::Begin("Scene", aOpen);
@@ -316,9 +309,13 @@ void Scene::presentUi(bool* aOpen)
                       PipelineControl::gPolygonModes.end(),
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
-    DearImguiWitness witness;
+    // Scene control
+    ImGui::Checkbox("Show Texture", &mSceneControl.mShowTexture);
+    imguiui::addCombo("Texture",
+                      mSceneControl.mTexture,
+                      std::span{ TextureStore::gNames });
 
-    describe(witness, mSceneControl);
+    DearImguiWitness witness;
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("SSAO"))

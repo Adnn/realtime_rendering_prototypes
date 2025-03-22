@@ -23,9 +23,11 @@ out vec4 out_Color;
 
 float linearizeDepth(float aDepthBufferValue)
 {
+	// Remap depth value [0, 1] to NDC [-1, 1]
+	float d = 2 * aDepthBufferValue - 1.0;
 	return
 		(2 * u_NearDistance) 
-		/ (u_FarDistance + u_NearDistance - aDepthBufferValue * (u_FarDistance - u_NearDistance));
+		/ (u_FarDistance + u_NearDistance - d * (u_FarDistance - u_NearDistance));
 }
 
 
@@ -81,6 +83,7 @@ void main(void)
 			out_Color = vec4(vec3(linearizeDepth(value.r)), 1);
 			//out_Color = vec4(vec3(nonWorking(depthValue)), 1);
 			//out_Color = vec4(vec3(my_b(depthValue)), 1);
+			break;
 		case MODE_DIRECTION:
 			out_Color = vec4(mapToRgb(value.rgb), 1);
 			break;

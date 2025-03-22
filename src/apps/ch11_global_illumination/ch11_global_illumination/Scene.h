@@ -52,7 +52,8 @@ struct Scene
 
     struct SceneControl
     {
-        bool mShowDepth = false;
+        bool mShowTexture = false;
+        TextureStore::Name mTexture = TextureStore::RawOcclusion;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);

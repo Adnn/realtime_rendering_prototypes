@@ -49,7 +49,7 @@ void addCombo(const char *aLabel,
 template <class T_enumeration, std::size_t N_spanExtent>
 void addCombo(const char * aLabel,
               T_enumeration & aValue,
-              const std::span<const T_enumeration, N_spanExtent> & aAvailableValues)
+              std::span<const T_enumeration, N_spanExtent> aAvailableValues)
 {
     // Note: this is intended to make the to_string(GLenum) visible
     // but is smelly. Can we address that another way?

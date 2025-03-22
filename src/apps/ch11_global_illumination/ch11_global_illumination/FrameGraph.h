@@ -54,9 +54,27 @@ struct TextureStore
         RAW_RED_CHANNEL = 4u,
     };
 
-    std::vector<graphics::Texture> mStore;
+    // TODO: get better automation for enumerations
+    // (even if they cannot be language "enum").
+    inline static const std::vector<Name> gNames{
+        DepthMap,
+        FragPositionView,
+        RawOcclusion,
+        FilteredOcclusion,
+    };
+
+    struct Data
+    {
+        graphics::Texture mTexture;
+        Mode mMode;
+    };
+
+    std::vector<Data> mStore;
     math::Size<2, int> mScreenTextureSize;
 };
+
+
+std::string to_string(TextureStore::Name aName);
 
 
 struct FrameGraph
@@ -94,8 +112,7 @@ struct FrameGraph
     void passShowLinearDepth(const scenic::Camera & aCamera);
 
     void passShowTexture(const scenic::Camera& aCamera,
-                         TextureStore::Name aName,
-                         TextureStore::Mode aMode);
+                         TextureStore::Name aName);
 
     void loadPrograms();
 
@@ -103,7 +120,7 @@ struct FrameGraph
 
     const graphics::Texture & tex(TextureStore::Name aName) const
     {
-        return mTextures.mStore.at(aName);
+        return mTextures.mStore.at(aName).mTexture;
     }
 
     struct ProgramStore
