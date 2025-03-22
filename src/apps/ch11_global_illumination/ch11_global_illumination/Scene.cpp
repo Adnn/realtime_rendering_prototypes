@@ -250,9 +250,10 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         glCullFace(GL_BACK);
         glEnable(GL_DEPTH_TEST);
 
-        glTextureParameteri(mGraph.mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTextureParameteri(mGraph.tex(TextureStore::DepthMap),
+                            GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
         GLint unitIdx = 1;
-        glBindTextureUnit(unitIdx, mGraph.mDepthMap);
+        glBindTextureUnit(unitIdx, mGraph.tex(TextureStore::DepthMap));
         graphics::setUniform(mSurfaceProgram, "u_DepthMap", unitIdx);
 
         drawPass(mSurfaceProgram, mSceneTree);
@@ -344,7 +345,7 @@ void Scene::presentUi(bool* aOpen)
         {
             throw std::runtime_error{ "Cannot open output file." };
         }
-        ad::serializeTexture<math::sdr::Grayscale>(mGraph.mDepthMap, 0, GL_DEPTH_COMPONENT,
+        ad::serializeTexture<math::sdr::Grayscale>(mGraph.tex(TextureStore::DepthMap), 0, GL_DEPTH_COMPONENT,
                                                    arte::ImageFormat::Png, outFile);
     }
     if (ImGui::Button("Dump position map"))
@@ -354,7 +355,7 @@ void Scene::presentUi(bool* aOpen)
         {
             throw std::runtime_error{ "Cannot open output file." };
         }
-        ad::serializeTexture<math::sdr::Rgb>(mGraph.mFragPosition_view, 0, GL_RGB,
+        ad::serializeTexture<math::sdr::Rgb>(mGraph.tex(TextureStore::FragPositionView), 0, GL_RGB,
                                              arte::ImageFormat::Png, outFile);
     }
     ImGui::End();

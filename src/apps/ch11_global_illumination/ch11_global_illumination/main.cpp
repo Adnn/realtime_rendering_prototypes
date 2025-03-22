@@ -18,6 +18,7 @@
 // * Render SSAO pass without rendering geometry (with the position buffer instead)
 // * Bilateralize the filter
 // * Attempt to accept larger noise textures
+// * Provide the viewport and the samples in UBOs
 
 int main(int argc, const char* argv[])
 {

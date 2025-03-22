@@ -40,6 +40,8 @@ constexpr unsigned int gSsaoSampleCount = 32;
 struct TextureStore
 {
     enum Name {
+        DepthMap,
+        FragPositionView,
         RawOcclusion,
         FilteredOcclusion,
         _End/*keep last*/
@@ -53,6 +55,7 @@ struct TextureStore
     };
 
     std::vector<graphics::Texture> mStore;
+    math::Size<2, int> mScreenTextureSize;
 };
 
 
@@ -115,11 +118,8 @@ struct FrameGraph
 
     Engine mEngine;
     graphics::FrameBuffer mFbo;
-    // TODO: move other texture to the repo
-    graphics::Texture mDepthMap;
-    graphics::Texture mFragPosition_view;
     TextureStore mTextures;
-    math::Size<2, int> mScreenTextureSize;
+    // TODO: move to texture store
     graphics::Texture mNoiseDirections;
     ProgramStore mPrograms;
     graphics::VertexArrayObject mDummyVao;

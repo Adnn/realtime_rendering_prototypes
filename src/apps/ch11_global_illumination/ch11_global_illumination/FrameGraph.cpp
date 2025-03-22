@@ -96,6 +96,7 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
 }
 
 
+// TODO: this is likely biased toward the corners, make an unbiased distribution.
 std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples(unsigned int aCount, Domain aDomain)
 {
     std::vector<math::Vec<3, GLfloat>> result;
@@ -148,53 +149,53 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
-    mDepthMap{ makeTexture(GL_TEXTURE_2D, "shadow_map") },
-    mFragPosition_view{ makeTexture(GL_TEXTURE_2D, "frag_position_view") },
     mTextures{
         .mStore = makeVector(
+             makeTexture(GL_TEXTURE_2D, "shadow_map"),
+             makeTexture(GL_TEXTURE_2D, "frag_position_view"),
              makeTexture(GL_TEXTURE_2D, "RawOcclusion"),
              makeTexture(GL_TEXTURE_2D, "FilteredOcclusion")
         ),
+        .mScreenTextureSize{ aFrameSize },
     },
-    mScreenTextureSize{ aFrameSize },
     mNoiseDirections{makeTexture(GL_TEXTURE_2D, "noise_directions")},
     mPrograms{mEngine}
 {
     //
     //
     //
-    glTextureStorage2D(mDepthMap,
+    glTextureStorage2D(tex(TextureStore::DepthMap),
                        1,
                        GL_DEPTH_COMPONENT24,
-                       mScreenTextureSize.width(),
-                       mScreenTextureSize.height());
+                       mTextures.mScreenTextureSize.width(),
+                       mTextures.mScreenTextureSize.height());
 
     // Set texture comparison mode, allowing to compare the depth component to a reference value
-    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
-    glTextureParameteri(mDepthMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTextureParameteri(mDepthMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTextureParameterfv(mDepthMap, GL_TEXTURE_BORDER_COLOR,
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTextureParameterfv(tex(TextureStore::DepthMap), GL_TEXTURE_BORDER_COLOR,
                          math::hdr::Rgba_f{1.f, 0.f, 0.f, 0.f}.data());
 
     // We disable mipmap minification filter, otherwise a mutable texture
     // would not be mipmap complete, and could not be sampled.
     // (will be touched again by the PCF parameter)
-    glTextureParameteri(mDepthMap, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
     // 
     //
     //
-    glTextureStorage2D(mFragPosition_view,
+    glTextureStorage2D(tex(TextureStore::FragPositionView),
                        1,
                        GL_RGB16F,
-                       mScreenTextureSize.width(),
-                       mScreenTextureSize.height());
+                       mTextures.mScreenTextureSize.width(),
+                       mTextures.mScreenTextureSize.height());
 
 
-    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     // 
     //
@@ -205,8 +206,8 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                            1,
                            // TODO: should we just use 8-bit normalized integer?
                            GL_R16F,
-                           mScreenTextureSize.width(),
-                           mScreenTextureSize.height());
+                           mTextures.mScreenTextureSize.width(),
+                           mTextures.mScreenTextureSize.height());
 
         glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -217,8 +218,8 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                            1,
                            // TODO: should we just use 8-bit normalized integer?
                            GL_R16F,
-                           mScreenTextureSize.width(),
-                           mScreenTextureSize.height());
+                           mTextures.mScreenTextureSize.width(),
+                           mTextures.mScreenTextureSize.height());
 
         glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -232,7 +233,7 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
         // The texture attachment is permanent, no need to recreate it each time the FBO is bound
         glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
                              GL_DEPTH_ATTACHMENT,
-                             mDepthMap,
+                             tex(TextureStore::DepthMap),
                              /*mip map level*/0);
 
         const GLenum attachmentPerLocation[1] = {
@@ -273,7 +274,7 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     renderFragPosition(aSceneTree);
 
     graphics::ScopedBind boundFbo{ mFbo, graphics::FrameBufferTarget::Draw };
-    glViewport(0, 0, mScreenTextureSize.width(), mScreenTextureSize.height());
+    glViewport(0, 0, mTextures.mScreenTextureSize.width(), mTextures.mScreenTextureSize.height());
 
     // Pass: produce ambient occlusion factors
     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
@@ -305,12 +306,12 @@ void FrameGraph::renderFragPosition(const scenic::SceneTree& aSceneTree)
     // We reuse the FBO for several passes, changing the color attachment
     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
                          GL_COLOR_ATTACHMENT0,
-                         mFragPosition_view,
+                         tex(TextureStore::FragPositionView),
                          0);
 
-    glViewport(0, 0, mScreenTextureSize.width(), mScreenTextureSize.height());
+    glViewport(0, 0, mTextures.mScreenTextureSize.width(), mTextures.mScreenTextureSize.height());
     glClear(GL_DEPTH_BUFFER_BIT);
-    glClearTexImage(mFragPosition_view, 0, GL_RGBA, GL_FLOAT, gLowestBorder.data());
+    glClearTexImage(tex(TextureStore::FragPositionView), 0, GL_RGBA, GL_FLOAT, gLowestBorder.data());
 
     passFragPosition(aSceneTree);
 }
@@ -342,23 +343,23 @@ void FrameGraph::renderSsaoFactor(const scenic::SceneTree& aSceneTree,
 
     GLint unitIdx = 1;
 
-    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glBindTextureUnit(unitIdx, mDepthMap);
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glBindTextureUnit(unitIdx, tex(TextureStore::DepthMap));
     graphics::setUniform(mPrograms.mShowSsao, "u_DepthMap", unitIdx);
 
-    glBindTextureUnit(++unitIdx, mFragPosition_view);
+    glBindTextureUnit(++unitIdx, tex(TextureStore::FragPositionView));
     graphics::setUniform(mPrograms.mShowSsao, "u_FragPosition_view", unitIdx);
 
     glBindTextureUnit(++unitIdx, mNoiseDirections);
     graphics::setUniform(mPrograms.mShowSsao, "u_NoiseDirections", unitIdx);
 
+    // TODO: we actually need the whole viewport, and we could set it once in a uniform buffer
     graphics::setUniform(mPrograms.mShowSsao, "u_FramebufferSize", aRenderResolution);
 
     {
         UniformSetterWitness setter{ .mProgram = mPrograms.mShowSsao.mProgram };
         describe(setter, mSsaoControl);
     }
-
 
     // TODO: load once, in a uniform buffer
     for (unsigned int i = 0; i != gSsaoSampleCount; ++i)
@@ -405,9 +406,9 @@ void FrameGraph::passShowDepth(const scenic::Camera & aCamera)
 
     graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_LINEARIZE_DEPTH);
 
-    glTextureParameteri(mDepthMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_MODE, GL_NONE);
     const GLint unitIdx = 1;
-    glBindTextureUnit(unitIdx, mDepthMap);
+    glBindTextureUnit(unitIdx, tex(TextureStore::DepthMap));
     graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
 
     auto [near, far] = scenic::getNearFarPlanes(aCamera);
@@ -429,7 +430,7 @@ void FrameGraph::passShowLinearDepth(const scenic::Camera & aCamera)
     graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_DEPTH_FROM_POSITION);
 
     const GLint unitIdx = 1;
-    glBindTextureUnit(unitIdx, mFragPosition_view);
+    glBindTextureUnit(unitIdx, tex(TextureStore::FragPositionView));
     graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
 
     auto [near, far] = scenic::getNearFarPlanes(aCamera);
