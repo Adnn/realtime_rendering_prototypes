@@ -52,6 +52,7 @@ add_executable(${TARGET_NAME}
 
 
 find_package(graphics REQUIRED COMPONENTS ad::graphics ad::renderer)
+find_package(handy REQUIRED COMPONENTS ad::handy)
 find_package(math REQUIRED COMPONENTS ad::math)
 find_package(Rtr_prototypes REQUIRED COMPONENTS scenic)
 
@@ -60,6 +61,7 @@ find_package(spdlog REQUIRED)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         ad::engine
+        ad::handy
         ad::reflect
         ad::ui # TODO: replace with the graphics/imguiui when moved back
 

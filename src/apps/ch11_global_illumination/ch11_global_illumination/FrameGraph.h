@@ -37,6 +37,25 @@ void generateRandomDirections(const graphics::Texture& aDestination,
 
 constexpr unsigned int gSsaoSampleCount = 32;
 
+struct TextureStore
+{
+    enum Name {
+        RawOcclusion,
+        FilteredOcclusion,
+        _End/*keep last*/
+    };
+
+    enum Mode : unsigned int {
+        LINEARIZE_DEPTH = 1u,
+        DIRECTION = 2u,
+        DEPTH_FROM_POSITION = 3u,
+        RAW_RED_CHANNEL = 4u,
+    };
+
+    std::vector<graphics::Texture> mStore;
+};
+
+
 struct FrameGraph
 {
     struct SsaoControl
@@ -48,22 +67,41 @@ struct FrameGraph
         GLfloat mWeightFactor{ 5 };
         bool mSphereInScreenSpace{ false };
     };
+    
+    struct BlurControl
+    {
+        GLint mBlurRadius = 4;
+    };
 
     FrameGraph(math::Size<2, int> aFrameSize);
 
-    void renderDepth(const scenic::SceneTree & aSceneTree);
-    void passDepth(const scenic::SceneTree & aSceneTree);
+    void renderFrame(const scenic::SceneTree& aSceneTree,
+                     math::Size<2, int> aRenderResolution);
 
-    void renderSsaoFactor(const scenic::SceneTree& aSceneTree,
-                          math::Size<2, int> aRenderResolution);
+    void renderFragPosition(const scenic::SceneTree & aSceneTree);
+    void passFragPosition(const scenic::SceneTree & aSceneTree);
+
+    void passSsaoFactor(const scenic::SceneTree& aSceneTree,
+                        math::Size<2, int> aRenderResolution);
+
+    void passFilterAo(math::Size<2, int> aRenderResolution);
 
     void passShowDepth(const scenic::Camera & aCamera);
     void passShowNoise();
     void passShowLinearDepth(const scenic::Camera & aCamera);
 
+    void passShowTexture(const scenic::Camera& aCamera,
+                         TextureStore::Name aName,
+                         TextureStore::Mode aMode);
+
     void loadPrograms();
 
     void appendUi();
+
+    const graphics::Texture & tex(TextureStore::Name aName) const
+    {
+        return mTextures.mStore.at(aName);
+    }
 
     struct ProgramStore
     {
@@ -72,12 +110,15 @@ struct FrameGraph
         renderer::IntrospectProgram mDepth;
         renderer::IntrospectProgram mShowTexture;
         renderer::IntrospectProgram mShowSsao;
+        renderer::IntrospectProgram mBlurTexture;
     };
 
     Engine mEngine;
     graphics::FrameBuffer mFbo;
+    // TODO: move other texture to the repo
     graphics::Texture mDepthMap;
     graphics::Texture mFragPosition_view;
+    TextureStore mTextures;
     math::Size<2, int> mScreenTextureSize;
     graphics::Texture mNoiseDirections;
     ProgramStore mPrograms;
@@ -86,6 +127,7 @@ struct FrameGraph
         generateUnitSphereSamples(gSsaoSampleCount, Domain::Volume)};
 
     SsaoControl mSsaoControl;
+    BlurControl mBlurControl;
 };
 
 

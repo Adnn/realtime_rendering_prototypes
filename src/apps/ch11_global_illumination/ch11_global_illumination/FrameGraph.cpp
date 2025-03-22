@@ -3,6 +3,8 @@
 #include "SetupDrawing.h"
 #include "UniformSetterWitness.h"
 
+#include <handy/vector_utils.h>
+
 #include <reflect/DearImguiWitness.h>
 #include <reflect/ReflectHelpers.h>
 
@@ -21,6 +23,7 @@ namespace ad {
         const std::filesystem::path gDepthProgramPath = "programs/DepthMap.prog";
         const std::filesystem::path gShowTextureProgramPath = "programs/ShowTexture.prog";
         const std::filesystem::path gShowSsaoProgramPath = "programs/ch11_global_illumination_Ssao.prog";
+        const std::filesystem::path gBlurTextureProgramPath = "programs/ch11_global_illumination_Blur.prog";
 
 
         graphics::Texture makeTexture(GLenum aTarget, const char * aDebugName)
@@ -57,6 +60,10 @@ DESCRIBE(FrameGraph::SsaoControl)
     GIVE(SphereInScreenSpace);
 }
 
+DESCRIBE(FrameGraph::BlurControl)
+{
+    GIVE_EX(make_Clamped(aValue.mBlurRadius, {.mMin = 0, .mMax = 32 }), BlurRadius);
+}
 
 void drawPass(const renderer::IntrospectProgram & aProgram, 
               const scenic::SceneTree & aSceneTree)
@@ -105,7 +112,7 @@ std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples(unsigned int aCount
             coord(e),
             coord(e),
         };
-        // TODO: importance sample to implement the "quadratic attenation"
+        // TODO: importance sample to implement the "quadratic attenuation"
         // see: https://iquilezles.org/articles/ssao/
         switch (aDomain)
         {
@@ -135,13 +142,20 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mDepth{ aEngine.loadProgram(renderer::ReferencePath{ gDepthProgramPath },
                                 {"OUTPUT_FRAGMENT_VIEW_POSITION",})},
     mShowTexture{ aEngine.loadProgram(renderer::ReferencePath{ gShowTextureProgramPath }) },
-    mShowSsao{ aEngine.loadProgram(renderer::ReferencePath{ gShowSsaoProgramPath }) }
+    mShowSsao{ aEngine.loadProgram(renderer::ReferencePath{ gShowSsaoProgramPath }) },
+    mBlurTexture{ aEngine.loadProgram(renderer::ReferencePath{ gBlurTextureProgramPath }) }
 {}
 
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
-    mDepthMap{makeTexture(GL_TEXTURE_2D, "shadow_map")},
-    mFragPosition_view{makeTexture(GL_TEXTURE_2D, "frag_position_view")},
+    mDepthMap{ makeTexture(GL_TEXTURE_2D, "shadow_map") },
+    mFragPosition_view{ makeTexture(GL_TEXTURE_2D, "frag_position_view") },
+    mTextures{
+        .mStore = makeVector(
+             makeTexture(GL_TEXTURE_2D, "RawOcclusion"),
+             makeTexture(GL_TEXTURE_2D, "FilteredOcclusion")
+        ),
+    },
     mScreenTextureSize{ aFrameSize },
     mNoiseDirections{makeTexture(GL_TEXTURE_2D, "noise_directions")},
     mPrograms{mEngine}
@@ -179,9 +193,36 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                        mScreenTextureSize.height());
 
 
-    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTextureParameterfv(mFragPosition_view, GL_TEXTURE_BORDER_COLOR, gLowestBorder.data());
+    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(mFragPosition_view, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // 
+    //
+    //
+    {
+        auto & texture = tex(TextureStore::RawOcclusion);
+        glTextureStorage2D(texture,
+                           1,
+                           // TODO: should we just use 8-bit normalized integer?
+                           GL_R16F,
+                           mScreenTextureSize.width(),
+                           mScreenTextureSize.height());
+
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    {
+        auto & texture = tex(TextureStore::FilteredOcclusion);
+        glTextureStorage2D(texture,
+                           1,
+                           // TODO: should we just use 8-bit normalized integer?
+                           GL_R16F,
+                           mScreenTextureSize.width(),
+                           mScreenTextureSize.height());
+
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
 
     //
     // FBO attachments
@@ -193,11 +234,6 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                              GL_DEPTH_ATTACHMENT,
                              mDepthMap,
                              /*mip map level*/0);
-
-        glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
-                             GL_COLOR_ATTACHMENT0,
-                             mFragPosition_view,
-                             0);
 
         const GLenum attachmentPerLocation[1] = {
             GL_COLOR_ATTACHMENT0,
@@ -230,19 +266,57 @@ void FrameGraph::loadPrograms()
 }
 
 
-void FrameGraph::renderDepth(const scenic::SceneTree& aSceneTree)
+void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
+                             math::Size<2, int> aRenderResolution)
 {
+    // Fragment position pass
+    renderFragPosition(aSceneTree);
+
     graphics::ScopedBind boundFbo{ mFbo, graphics::FrameBufferTarget::Draw };
     glViewport(0, 0, mScreenTextureSize.width(), mScreenTextureSize.height());
-    glClear(GL_DEPTH_BUFFER_BIT);
 
-    glClearTexImage(mFragPosition_view, 0, GL_RGBA, GL_FLOAT, gLowestBorder.data());
+    // Pass: produce ambient occlusion factors
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
+                         GL_COLOR_ATTACHMENT0,
+                         tex(TextureStore::RawOcclusion),
+                         0);
 
-    passDepth(aSceneTree);
+    // TODO: DO NOT CLEAR THE DEPTH BUFFER, once we render the SSAO factor pass without rendering
+    // geometry
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    passSsaoFactor(aSceneTree, aRenderResolution);
+
+    // Pass: filter AO factors
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
+                         GL_COLOR_ATTACHMENT0,
+                         tex(TextureStore::FilteredOcclusion),
+                         0);
+    assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    passFilterAo(aRenderResolution);
 }
 
 
-void FrameGraph::passDepth(const scenic::SceneTree & aSceneTree)
+void FrameGraph::renderFragPosition(const scenic::SceneTree& aSceneTree)
+{
+    graphics::ScopedBind boundFbo{ mFbo, graphics::FrameBufferTarget::Draw };
+    // We reuse the FBO for several passes, changing the color attachment
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
+                         GL_COLOR_ATTACHMENT0,
+                         mFragPosition_view,
+                         0);
+
+    glViewport(0, 0, mScreenTextureSize.width(), mScreenTextureSize.height());
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glClearTexImage(mFragPosition_view, 0, GL_RGBA, GL_FLOAT, gLowestBorder.data());
+
+    passFragPosition(aSceneTree);
+}
+
+
+void FrameGraph::passFragPosition(const scenic::SceneTree & aSceneTree)
 {
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -296,6 +370,30 @@ void FrameGraph::renderSsaoFactor(const scenic::SceneTree& aSceneTree,
     
     drawPass(mPrograms.mShowSsao, aSceneTree);
 }
+
+void FrameGraph::passFilterAo(math::Size<2, int> aRenderResolution)
+{
+    glDisable(GL_DEPTH_TEST);
+
+    const GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, tex(TextureStore::RawOcclusion));
+    graphics::setUniform(mPrograms.mBlurTexture, "u_Texture", unitIdx);
+
+    // TODO: we actually need the whole viewport, and we could set it once in a uniform buffer
+    graphics::setUniform(mPrograms.mBlurTexture, "u_FramebufferSize", aRenderResolution);
+
+    {
+        UniformSetterWitness setter{ .mProgram = mPrograms.mBlurTexture.mProgram };
+        describe(setter, mBlurControl);
+    }
+
+    glUseProgram(mPrograms.mBlurTexture);
+    glBindVertexArray(mDummyVao);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+
 
 #define MODE_LINEARIZE_DEPTH 1u
 #define MODE_DIRECTION 2u
@@ -362,10 +460,35 @@ void FrameGraph::passShowNoise()
 }
 
 
+void FrameGraph::passShowTexture(const scenic::Camera & aCamera,
+                                 TextureStore::Name aName,
+                                 TextureStore::Mode aMode)
+{
+    glDisable(GL_DEPTH_TEST);
+
+    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", aMode);
+
+    const GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, tex(aName));
+    graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
+
+    auto [near, far] = scenic::getNearFarPlanes(aCamera);
+    graphics::setUniform(mPrograms.mShowTexture, "u_NearDistance", near);
+    graphics::setUniform(mPrograms.mShowTexture, "u_FarDistance", far);
+
+    glUseProgram(mPrograms.mShowTexture);
+    glBindVertexArray(mDummyVao);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+
+
 void FrameGraph::appendUi()
 {
     DearImguiWitness witness;
     describe(witness, mSsaoControl);
+    describe(witness, mBlurControl);
 }
 
 

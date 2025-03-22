@@ -5,6 +5,7 @@
 #define MODE_LINEARIZE_DEPTH 1
 #define MODE_DIRECTION 2
 #define MODE_DEPTH_FROM_POSITION 3
+#define MODE_RAW_RED_CHANNEL 4
 
 in vec2 ex_Uv;
 
@@ -87,6 +88,9 @@ void main(void)
 			out_Color = vec4(
 				vec3((value.z - u_NearDistance) / (u_FarDistance - u_NearDistance)),
 				1);
+			break;
+		case MODE_RAW_RED_CHANNEL:
+			out_Color = vec4(vec3(value.r), 1);
 			break;
 	}
 }

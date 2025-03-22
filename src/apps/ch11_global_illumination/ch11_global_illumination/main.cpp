@@ -15,6 +15,9 @@
 // * Merge back serializeTexture()
 // * Histogram computation for textures content (compute shaders)
 // * Depth texture linearization for display
+// * Render SSAO pass without rendering geometry (with the position buffer instead)
+// * Bilateralize the filter
+// * Attempt to accept larger noise textures
 
 int main(int argc, const char* argv[])
 {

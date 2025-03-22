@@ -28,13 +28,13 @@ namespace ad {
 
 // TODO: merge back to graphics
 template <class T_Pixel>
-void serializeTexture(const graphics::Texture & aTexture,
+void serializeTexture(const graphics::Texture& aTexture,
                       GLint aLevel,
                       GLenum aPixelFormat,
                       arte::ImageFormat aFormat,
-                      std::ostream & aOut)
+                      std::ostream& aOut)
 {
-    graphics::ScopedBind boundTexture{aTexture};
+    graphics::ScopedBind boundTexture{ aTexture };
 
     math::Size<2, GLint> size;
     glGetTexLevelParameteriv(aTexture.mTarget,
@@ -61,22 +61,22 @@ void serializeTexture(const graphics::Texture & aTexture,
     // (even when it gives the same results than 4-bytes alignment)
     auto packAlignmentGuard = graphics::scopePackAlignment(1);
 
-    std::unique_ptr<unsigned char[]> raster = 
+    std::unique_ptr<unsigned char[]> raster =
         std::make_unique<unsigned char[]>(sizeof(T_Pixel) * size.area());
 
     glGetTexImage(aTexture.mTarget,
                   aLevel,
-                  aPixelFormat, 
+                  aPixelFormat,
                   graphics::MappedPixelComponentType_v<T_Pixel>,
                   raster.get());
 
-    arte::Image<T_Pixel> result{size, std::move(raster)};
+    arte::Image<T_Pixel> result{ size, std::move(raster) };
     result.write(aFormat, aOut);
 }
 
 
-void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
-                  const graphics::UniformBufferObject & aBuffer,
+void loadToBuffer(const renderer::EntitiesBlock_glsl& aData,
+                  const graphics::UniformBufferObject& aBuffer,
                   graphics::BufferHint aUsageHint)
 {
     graphics::load(aBuffer, std::span{ aData.mEntities }, aUsageHint);
@@ -96,8 +96,8 @@ constexpr float gModelScale = 0.1f;
 
 // TODO: on framebuffer resize, inform the framegraph
 Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImgui) :
-    mSurfaceProgram{mGraph.mEngine.loadProgram(renderer::ReferencePath{gSurfaceProgramPath})},
-    mLightProgram{mGraph.mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
+    mSurfaceProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gSurfaceProgramPath}) },
+    mLightProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath}) },
     mGraph(aAppInterface.getFramebufferSize()),
     mSceneTree{ scenic::loadModel(mGraph.mEngine.mLoader.mFinder.pathFor(gModelPath),
                                   mGraph.mEngine.mContext,
@@ -112,13 +112,13 @@ Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImg
         &aImgui);
 
     // TODO use defines here for binding points
-    graphics::bind(mViewProjectionBuffer, graphics::BindingIndex{0});
+    graphics::bind(mViewProjectionBuffer, graphics::BindingIndex{ 0 });
     glObjectLabel(GL_BUFFER, mViewProjectionBuffer, -1, "ViewProjection");
-    graphics::bind(mEntitiesBlockBuffer, graphics::BindingIndex{1});
+    graphics::bind(mEntitiesBlockBuffer, graphics::BindingIndex{ 1 });
     glObjectLabel(GL_BUFFER, mEntitiesBlockBuffer, -1, "Entities");
-    graphics::bind(mMaterialsBlockBuffer, graphics::BindingIndex{2});
+    graphics::bind(mMaterialsBlockBuffer, graphics::BindingIndex{ 2 });
     glObjectLabel(GL_BUFFER, mMaterialsBlockBuffer, -1, "Materials");
-    graphics::bind(mLightsBlockBuffer, graphics::BindingIndex{4});
+    graphics::bind(mLightsBlockBuffer, graphics::BindingIndex{ 4 });
     glObjectLabel(GL_BUFFER, mLightsBlockBuffer, -1, "Lights");
 }
 
@@ -133,7 +133,7 @@ void Scene::loadPrograms()
 }
 
 
-void Scene::step(const graphics::Timer & /*aTimer*/,
+void Scene::step(const graphics::Timer& /*aTimer*/,
                  math::Size<2, int> aWindowResolution)
 {
     mOrbitalCamera.update(aWindowResolution.height());
@@ -147,14 +147,14 @@ renderer::LightsDataCommon transformLightsData(
 {
     for (auto idx = 0; idx != aLightsData.mDirectionalCount; ++idx)
     {
-        renderer::DirectionalLight_glsl & light = aLightsData.mDirectionalLights[idx];
+        renderer::DirectionalLight_glsl& light = aLightsData.mDirectionalLights[idx];
         // might be unecessary to re-normalize, unless the transform scales
         light.mDirection = math::UnitVec<3, GLfloat>{
             light.mDirection * aTransform.getLinear() };
     }
     for (auto idx = 0; idx != aLightsData.mPointCount; ++idx)
     {
-        renderer::PointLight_glsl & light = aLightsData.mPointLights[idx];
+        renderer::PointLight_glsl& light = aLightsData.mPointLights[idx];
         light.mPosition = math::homogeneous::homogenize(
             math::homogeneous::makePosition(light.mPosition) * aTransform).xyz();
     }
@@ -200,7 +200,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Lights
     //
-    auto lights_cam = 
+    auto lights_cam =
         transformLightsData(mLights, mOrbitalCamera.mCamera.getParentToCamera());
     graphics::loadSingle(mLightsBlockBuffer, lights_cam, graphics::BufferHint::StreamDraw);
 
@@ -215,24 +215,31 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Frame rendering
     //
-    mGraph.renderDepth(mSceneTree);
-
-    //
-    // Draw 
-    //
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
+    glClearColor(0.1f, 0.2f, 0.3f, 1.f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    mGraph.renderFrame(mSceneTree, aRenderResolution);
 
     if (mSceneControl.mShowDepth)
     {
         //mGraph.passShowDepth(mOrbitalCamera.mCamera);
         //mGraph.passShowNoise();
-        mGraph.passShowLinearDepth(mOrbitalCamera.mCamera);
+        //mGraph.passShowLinearDepth(mOrbitalCamera.mCamera);
+        mGraph.passShowTexture(mOrbitalCamera.mCamera,
+                               TextureStore::FilteredOcclusion,
+                               TextureStore::RAW_RED_CHANNEL);
     }
     else
     {
-        mGraph.renderSsaoFactor(mSceneTree, aRenderResolution);
+        // Smell: We rely on the knowing last color attachment 
+        glNamedFramebufferReadBuffer(mGraph.mFbo, GL_COLOR_ATTACHMENT0);
+        glBlitNamedFramebuffer(mGraph.mFbo, 0,
+                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
+                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
+                               GL_COLOR_BUFFER_BIT,
+                               GL_NEAREST);
         return;
 
         //
@@ -285,7 +292,7 @@ DESCRIBE(Scene::SceneControl)
 }
 
 
-void Scene::presentUi(bool * aOpen)
+void Scene::presentUi(bool* aOpen)
 {
     ImGui::Begin("Scene", aOpen);
 
@@ -303,10 +310,10 @@ void Scene::presentUi(bool * aOpen)
     }
 
     imguiui::addCombo("Polygon mode",
-        mPipelineControl.mPolygonMode,
-        PipelineControl::gPolygonModes.begin(),
-        PipelineControl::gPolygonModes.end(),
-        [](auto aModeIt){return graphics::to_string(*aModeIt);});
+                      mPipelineControl.mPolygonMode,
+                      PipelineControl::gPolygonModes.begin(),
+                      PipelineControl::gPolygonModes.end(),
+                      [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
     DearImguiWitness witness;
 
@@ -314,7 +321,9 @@ void Scene::presentUi(bool * aOpen)
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("SSAO"))
-    mGraph.appendUi();
+    {
+        mGraph.appendUi();
+    }
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Materials"))
@@ -351,5 +360,4 @@ void Scene::presentUi(bool * aOpen)
     ImGui::End();
 }
 
-
-} // namespace ad
+}

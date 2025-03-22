@@ -28,7 +28,7 @@ uniform float u_SphereRadius;
 uniform bool u_SphereInScreenSpace;
 uniform float u_WeightFactor = 1;
 
-out vec4 out_Color;
+layout(location = 0) out vec4 out_Color;
 
 void main(void)
 {
@@ -130,5 +130,5 @@ void main(void)
 
 #endif
 
-    out_Color = correctGamma(vec4(vec3(accu), 1));
+    out_Color = vec4(vec3(accu), 1);
 }

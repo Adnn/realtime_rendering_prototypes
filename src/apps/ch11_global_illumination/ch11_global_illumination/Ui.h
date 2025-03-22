@@ -32,7 +32,7 @@ public:
 
 private:
     bool mShowDemo = false;
-    bool mShowScene = false;
+    bool mShowScene = true;
 };
 
 
