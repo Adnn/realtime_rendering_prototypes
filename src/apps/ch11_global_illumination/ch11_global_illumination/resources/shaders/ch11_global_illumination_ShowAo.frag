@@ -28,15 +28,11 @@ uniform float u_SphereRadius;
 uniform bool u_SphereInScreenSpace;
 uniform float u_WeightFactor = 1;
 
-uniform bool u_FirstMethod;
+uniform bool u_ScreenSpaceNonLinearDepth = false;
 
 layout(location = 0) out vec4 out_Color;
 
 void main(void)
-{
-
-float fragVisibility = 0;
-if(u_FirstMethod)
 {
 	// UV coordinate of this fragment, mapping window space to [0, 1]^2 
 	const vec2 frag_uv = gl_FragCoord.xy / u_FramebufferSize;
@@ -45,90 +41,16 @@ if(u_FirstMethod)
 	const vec2 noise_uv = gl_FragCoord.xy / textureSize(u_NoiseDirections, 0);
 	vec3 reflectionPlaneNormal = texture(u_NoiseDirections, noise_uv).xyz;
 
+	float fragVisibility = 0;
 	float totalWeight  = 0;
 	for(uint i = 0; i != SSAO_SAMPLE_COUNT; ++i)
 	{
 		vec3 sphereSample = u_SsaoSamples[i];
-
-		if(u_ReflectSamples)
-		{
-			sphereSample = reflect(sphereSample, reflectionPlaneNormal);
-		}
-
-		vec3 offset = u_SphereRadius * sphereSample;
-		// The offset is divided by 2 to match with the uv which 
-		// is already remapped from [-1, 1] to [0, 1]
-		vec2 sample_uv = frag_uv + (offset.xy / 2);
-
-		float weight = 1;
-		if (u_Weighted)
-		{
-			// Taken from iquilez
-			float zd = u_WeightFactor * length(sphereSample);
-			weight = 1 / (1 + zd * zd);
-		}
-
-		//#define NONLINEAR_DEPTH
-		#if defined(NONLINEAR_DEPTH)
-			// Note: Here we sum the fragcoord.z (which is transformed by projection to non-linear depth space)
-			// with a linear offset, which probably introduces a lot of error.
-
-			// The depth map is "left handed", in the sense that higher value means further away.
-			// With a texture compare of GL_LESS,  texture() will return 1 if the value
-			// in the texture is superior or equal to the provided reference value (as coordinate w)
-			// It means it will return 1 if the sample is **NOT** occluded == summing visibility.
-			fragVisibility += texture(u_DepthMap, vec3(sample_uv, gl_FragCoord.z + offset.z + u_DepthBias)) * weight;
-			totalWeight += weight;
-		#else
-			float sampleClosestDepth_view = texture(u_FragPosition_view, sample_uv).z;
-			// If the right handed coordinate, if closest surface is superior to the sample depth
-			// it means the sample is obstructed.
-			if (sampleClosestDepth_view <= (ex_Position_view.z + offset.z + u_DepthBias))
-			{
-				fragVisibility += weight;
-			}
-			totalWeight += weight;
-		#endif
-	}
-	fragVisibility /= totalWeight;
-}
-else
-{
-	// UV coordinate in the noise texture, matching texel to fragment 1:1
-	const vec2 noise_uv = gl_FragCoord.xy / textureSize(u_NoiseDirections, 0);
-	vec3 reflectionPlaneNormal = texture(u_NoiseDirections, noise_uv).xyz;
-
-	// A higher occlusion means the fragment is more occluded
-	float occlusion = 0;
-	float totalWeight  = 0;
-	for(uint i = 0; i != SSAO_SAMPLE_COUNT; ++i)
-	{
-		vec3 sphereSample = u_SsaoSamples[i];
-
 		if (u_ReflectSamples)
 		{
 			sphereSample = reflect(sphereSample, reflectionPlaneNormal);
 		}
-
 		vec3 offset = u_SphereRadius * sphereSample;
-
-		vec3 sample_view = ex_Position_view;
-		// Depending on the value of this uniform, we add the offset before of after projection
-		// and perspective division
-		if(!u_SphereInScreenSpace)
-		{
-			sample_view += offset;
-		}
-
-		// project sample position
-		vec4 sample_clip = ub_projection * vec4(sample_view, 1);
-		vec3 sample_ndc = sample_clip.xyz / sample_clip.w;
-		if(u_SphereInScreenSpace)
-		{
-			sample_ndc += offset;
-			sample_view.z += offset.z;
-		}
-		vec2 sample_screenuv = (sample_ndc.xy + 1) / 2;
 
 		float weight = 1;
 		if(u_Weighted)
@@ -139,18 +61,56 @@ else
 		}
 		totalWeight += weight;
 
-		float sampleClosestDepth_view = texture(u_FragPosition_view, sample_screenuv).z;
-		// If the **right** handed coordinate of view space,
-		// if closest surface is superior to the sample depth it means the sample is obstructed.
-		if (sampleClosestDepth_view > (sample_view.z + u_DepthBias))
+		if(u_SphereInScreenSpace)
 		{
-			occlusion += weight;
-		}
-	}
-	occlusion /= totalWeight;
-	//occlusion /= SSAO_SAMPLE_COUNT;
-	fragVisibility = 1 - occlusion;
-}
+			// The offset is divided by 2 to match with the uv which 
+			// is already remapped from [-1, 1] to [0, 1]
+			vec2 sample_uv = frag_uv + (offset.xy / 2);
 
+			if (u_ScreenSpaceNonLinearDepth)
+			{
+				// Note: Here we sum the fragcoord.z (which has been transformed by projection to non-linear depth space)
+				// with a linear offset, which probably introduces a lot of error.
+
+				// The depth map is "left handed", in the sense that higher value means further away.
+				// With a texture compare of GL_LESS,  texture() will return 1 if the value
+				// in the texture is superior or equal to the provided reference value (as coordinate w)
+				// It means it will return 1 if the sample is **NOT** occluded == summing visibility.
+				// Note: we subtract the offset and bias here (left handed) to match the other comparisons (right handed)
+				fragVisibility += texture(u_DepthMap, vec3(sample_uv, gl_FragCoord.z - offset.z - u_DepthBias)) * weight;
+			}
+			else
+			{
+				float sampleClosestDepth_view = texture(u_FragPosition_view, sample_uv).z;
+				// If the right handed coordinate, if closest surface is superior to the sample depth
+				// it means the sample is obstructed.
+				if (sampleClosestDepth_view <= (ex_Position_view.z + offset.z + u_DepthBias))
+				{
+					fragVisibility += weight;
+				}
+			}
+		}
+		else // Offset the sample in view space (requires transformation and division)
+		{
+			vec3 sample_view = ex_Position_view + offset;
+
+			// project sample position
+			vec4 sample_clip = ub_projection * vec4(sample_view, 1);
+			vec3 sample_ndc = sample_clip.xyz / sample_clip.w;
+			// Remap [-1, 1] to [0, 1]
+			vec2 sample_uv = (sample_ndc.xy + 1) / 2;
+
+			float sampleClosestDepth_view = texture(u_FragPosition_view, sample_uv).z;
+			// If the **right** handed coordinate of view space,
+			// if closest surface is superior to the sample depth it means the sample is obstructed.
+			if (sampleClosestDepth_view <= (sample_view.z + u_DepthBias))
+			{
+				fragVisibility += weight;
+			}
+		}
+
+	}
+
+	fragVisibility /= totalWeight;
     out_Color = vec4(vec3(fragVisibility), 1);
 }

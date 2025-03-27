@@ -63,7 +63,7 @@ DESCRIBE(FrameGraph::SsaoControl)
     GIVE(Weighted);
     GIVE_EX(make_Clamped(aValue.mWeightFactor, { .mMax = 50.0f }), WeightFactor);
     GIVE(SphereInScreenSpace);
-    GIVE(FirstMethod);
+    GIVE(ScreenSpaceNonLinearDepth);
 }
 
 DESCRIBE(FrameGraph::BlurControl)
