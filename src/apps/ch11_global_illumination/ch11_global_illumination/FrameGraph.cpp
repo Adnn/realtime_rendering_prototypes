@@ -25,6 +25,11 @@ namespace ad {
         const std::filesystem::path gShowSsaoProgramPath = "programs/ch11_global_illumination_Ssao.prog";
         const std::filesystem::path gBlurTextureProgramPath = "programs/ch11_global_illumination_Blur.prog";
 
+        // Having the texture on the size of the blurring kernel avoids 
+        // the noise still showing up after filtering
+        //constexpr math::Size<2, int> gNoiseResolution{4, 4};
+        constexpr math::Size<2, int> gNoiseResolution{512, 512};
+
 
         graphics::Texture makeTexture(GLenum aTarget, const char * aDebugName)
         {
@@ -63,6 +68,8 @@ DESCRIBE(FrameGraph::SsaoControl)
 DESCRIBE(FrameGraph::BlurControl)
 {
     GIVE_EX(make_Clamped(aValue.mBlurRadius, {.mMin = 0, .mMax = 32 }), BlurRadius);
+    GIVE_EX(make_Clamped(aValue.mDepthFactor, {.mMin = 0, .mMax = 100 }), DepthFactor);
+    GIVE_EX(make_Clamped(aValue.mNormalFactor, {.mMin = 0, .mMax = 100 }), NormalFactor);
 }
 
 std::string to_string(TextureStore::Name aName)
@@ -72,6 +79,7 @@ std::string to_string(TextureStore::Name aName)
     {
         STR(DepthMap);
         STR(FragPositionView);
+        STR(FragNormalView);
         STR(RawOcclusion);
         STR(FilteredOcclusion);
     }
@@ -109,8 +117,8 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
 }
 
 
-// TODO: this is likely biased toward the corners, make an unbiased distribution.
-std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples(unsigned int aCount, Domain aDomain)
+// TODO: this is likely biased toward the corners, implement some heat map to confirm
+std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_carthesian(unsigned int aCount, Domain aDomain)
 {
     std::vector<math::Vec<3, GLfloat>> result;
     result.reserve(aCount);
@@ -142,6 +150,29 @@ std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples(unsigned int aCount
     return result;
 }
 
+// TODO: this is likely biased toward the poles, implement some heat map to confirm
+std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_spherical(unsigned int aCount, Domain aDomain)
+{
+    std::vector<math::Vec<3, GLfloat>> result;
+    result.reserve(aCount);
+
+    std::uniform_real_distribution<GLfloat> azimuthal{ -math::pi<GLfloat>, math::pi<GLfloat> };
+    std::uniform_real_distribution<GLfloat> polar{ 0, math::pi<GLfloat> };
+    std::uniform_real_distribution<GLfloat> norm{ 0.0f, 1.0f };
+    std::default_random_engine e;
+
+    for (unsigned int idx = 0; idx != aCount; ++idx)
+    {
+        result.push_back(math::Spherical{
+            (aDomain == Domain::Volume) ? norm(e) : 1.0f,
+            math::Radian<GLfloat>{polar(e)},
+            math::Radian<GLfloat>{azimuthal(e)},
+        }.toCartesian().as<math::Vec>());
+    }
+
+    return result;
+}
+
 
 void generateRandomDirections(const graphics::Texture & aDestination, math::Size<2, int> aResolution)
 {
@@ -149,7 +180,7 @@ void generateRandomDirections(const graphics::Texture & aDestination, math::Size
     glTextureStorage2D(aDestination, 1, GL_RGB16F, aResolution.width(), aResolution.height());
     glTextureSubImage2D(aDestination, 0, 0, 0, aResolution.width(), aResolution.height(),
                         GL_RGB, GL_FLOAT,
-                        generateUnitSphereSamples(aResolution.area(), Domain::Surface).data());
+                        generateUnitSphereSamples_spherical(aResolution.area(), Domain::Surface).data());
 }
 
 FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
@@ -161,11 +192,25 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 {}
 
 
+void TextureStore::setupTexture(Name aName, GLenum aInternalFormat, GLenum aWrapMode)
+{
+    auto & texture = mStore.at(aName).mTexture;
+    glTextureStorage2D(texture,
+                       1,
+                       aInternalFormat,
+                       mScreenTextureSize.width(),
+                       mScreenTextureSize.height());
+
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, aWrapMode);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, aWrapMode);
+}
+
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mTextures{
         .mStore = makeVector(
             TextureStore::Data{makeTexture(GL_TEXTURE_2D, "shadow_map"), TextureStore::LINEARIZE_DEPTH,},
             TextureStore::Data{makeTexture(GL_TEXTURE_2D, "frag_position_view"), TextureStore::DEPTH_FROM_POSITION,},
+            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "frag_normal_view"), TextureStore::DIRECTION,},
             TextureStore::Data{makeTexture(GL_TEXTURE_2D, "RawOcclusion"), TextureStore::RAW_RED_CHANNEL,},
             TextureStore::Data{makeTexture(GL_TEXTURE_2D, "FilteredOcclusion"), TextureStore::RAW_RED_CHANNEL,}
         ),
@@ -209,6 +254,8 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+    mTextures.setupTexture(TextureStore::FragNormalView, GL_RGB16F, GL_CLAMP_TO_EDGE);
+
     // 
     //
     //
@@ -248,12 +295,6 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
                              tex(TextureStore::DepthMap),
                              /*mip map level*/0);
 
-        const GLenum attachmentPerLocation[1] = {
-            GL_COLOR_ATTACHMENT0,
-        };
-        assert(std::size(attachmentPerLocation) == 1); // Remove that when we extend
-        glDrawBuffers(std::size(attachmentPerLocation), attachmentPerLocation);
-
         assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
     }
 
@@ -261,7 +302,8 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     // 
     //
     //
-    generateRandomDirections(mNoiseDirections, { 64, 64 });
+
+    generateRandomDirections(mNoiseDirections, gNoiseResolution);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -287,6 +329,10 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
 
     graphics::ScopedBind boundFbo{ mFbo, graphics::FrameBufferTarget::Draw };
     glViewport(0, 0, mTextures.mScreenTextureSize.width(), mTextures.mScreenTextureSize.height());
+    const GLenum attachmentPerLocation[1] = {
+        GL_COLOR_ATTACHMENT0,
+    };
+    glDrawBuffers(std::size(attachmentPerLocation), attachmentPerLocation);
 
     // Pass: produce ambient occlusion factors
     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
@@ -321,9 +367,21 @@ void FrameGraph::renderFragPosition(const scenic::SceneTree& aSceneTree)
                          tex(TextureStore::FragPositionView),
                          0);
 
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
+                         GL_COLOR_ATTACHMENT1,
+                         tex(TextureStore::FragNormalView),
+                         0);
+
+    const GLenum attachmentPerLocation[2] = {
+        GL_COLOR_ATTACHMENT0,
+        GL_COLOR_ATTACHMENT1,
+    };
+    glDrawBuffers(std::size(attachmentPerLocation), attachmentPerLocation);
+
     glViewport(0, 0, mTextures.mScreenTextureSize.width(), mTextures.mScreenTextureSize.height());
     glClear(GL_DEPTH_BUFFER_BIT);
-    glClearTexImage(tex(TextureStore::FragPositionView), 0, GL_RGBA, GL_FLOAT, gLowestBorder.data());
+    glClearTexImage(tex(TextureStore::FragPositionView), 0, GL_RGB, GL_FLOAT, gLowestBorder.data());
+    glClearTexImage(tex(TextureStore::FragNormalView), 0, GL_RGB, GL_FLOAT, gLowestBorder.data());
 
     passFragPosition(aSceneTree);
 }
@@ -389,9 +447,15 @@ void FrameGraph::passFilterAo(math::Size<2, int> aRenderResolution)
 {
     glDisable(GL_DEPTH_TEST);
 
-    const GLint unitIdx = 1;
+    GLint unitIdx = 1;
     glBindTextureUnit(unitIdx, tex(TextureStore::RawOcclusion));
     graphics::setUniform(mPrograms.mBlurTexture, "u_Texture", unitIdx);
+
+    glBindTextureUnit(++unitIdx, tex(TextureStore::FragPositionView));
+    graphics::setUniform(mPrograms.mBlurTexture, "u_FragPosition_view", unitIdx);
+
+    glBindTextureUnit(++unitIdx, tex(TextureStore::FragNormalView));
+    graphics::setUniform(mPrograms.mBlurTexture, "u_FragNormal_view", unitIdx);
 
     // TODO: we actually need the whole viewport, and we could set it once in a uniform buffer
     graphics::setUniform(mPrograms.mBlurTexture, "u_FramebufferSize", aRenderResolution);

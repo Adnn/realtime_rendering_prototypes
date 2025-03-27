@@ -30,7 +30,8 @@ enum class Domain
     Volume,
 };
 
-std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples(unsigned int aCount, Domain aDomain);
+std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_carthesian(unsigned int aCount, Domain aDomain);
+std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_spherical(unsigned int aCount, Domain aDomain);
 
 void generateRandomDirections(const graphics::Texture& aDestination,
                               math::Size<2, int> aResolution);
@@ -42,6 +43,7 @@ struct TextureStore
     enum Name {
         DepthMap,
         FragPositionView,
+        FragNormalView,
         RawOcclusion,
         FilteredOcclusion,
         _End/*keep last*/
@@ -59,6 +61,7 @@ struct TextureStore
     inline static const std::vector<Name> gNames{
         DepthMap,
         FragPositionView,
+        FragNormalView,
         RawOcclusion,
         FilteredOcclusion,
     };
@@ -68,6 +71,8 @@ struct TextureStore
         graphics::Texture mTexture;
         Mode mMode;
     };
+
+    void setupTexture(Name aName, GLenum aInternalFormat, GLenum aWrapMode);
 
     std::vector<Data> mStore;
     math::Size<2, int> mScreenTextureSize;
@@ -91,7 +96,9 @@ struct FrameGraph
     
     struct BlurControl
     {
-        GLint mBlurRadius = 4;
+        GLint mBlurRadius = 8;
+        GLfloat mDepthFactor = 10;
+        GLfloat mNormalFactor = 10;
     };
 
     FrameGraph(math::Size<2, int> aFrameSize);
@@ -141,7 +148,7 @@ struct FrameGraph
     ProgramStore mPrograms;
     graphics::VertexArrayObject mDummyVao;
     std::vector<math::Vec<3, GLfloat>> mSsaoSamples{
-        generateUnitSphereSamples(gSsaoSampleCount, Domain::Volume)};
+        generateUnitSphereSamples_spherical(gSsaoSampleCount, Domain::Volume)};
 
     SsaoControl mSsaoControl;
     BlurControl mBlurControl;
