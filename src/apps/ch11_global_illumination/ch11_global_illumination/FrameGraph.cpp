@@ -63,6 +63,7 @@ DESCRIBE(FrameGraph::SsaoControl)
     GIVE(Weighted);
     GIVE_EX(make_Clamped(aValue.mWeightFactor, { .mMax = 50.0f }), WeightFactor);
     GIVE(SphereInScreenSpace);
+    GIVE(FirstMethod);
 }
 
 DESCRIBE(FrameGraph::BlurControl)
@@ -230,7 +231,7 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
 
     // Set texture comparison mode, allowing to compare the depth component to a reference value
     glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_FUNC, GL_LESS);
 
     glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
@@ -340,11 +341,13 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
                          tex(TextureStore::RawOcclusion),
                          0);
 
-    // TODO: DO NOT CLEAR THE DEPTH BUFFER, once we render the SSAO factor pass without rendering
-    // geometry
     glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
+    // We do not clear the depth buffer, because some AO method can read the closest surface from it.
+    // Since we are currently rendering the geometry, we need to pass the depth test when it is equal.
+    glDepthFunc(GL_EQUAL);
     passSsaoFactor(aSceneTree, aRenderResolution);
+    glDepthFunc(GL_LESS); // Restore default
 
     // Pass: filter AO factors
     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,

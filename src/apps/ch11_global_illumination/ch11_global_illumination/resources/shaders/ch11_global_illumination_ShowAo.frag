@@ -28,11 +28,16 @@ uniform float u_SphereRadius;
 uniform bool u_SphereInScreenSpace;
 uniform float u_WeightFactor = 1;
 
+uniform bool u_FirstMethod;
+
 layout(location = 0) out vec4 out_Color;
 
 void main(void)
 {
-#if defined(FIRST)
+
+float fragVisibility = 0;
+if(u_FirstMethod)
+{
 	// UV coordinate of this fragment, mapping window space to [0, 1]^2 
 	const vec2 frag_uv = gl_FragCoord.xy / u_FramebufferSize;
 
@@ -40,38 +45,55 @@ void main(void)
 	const vec2 noise_uv = gl_FragCoord.xy / textureSize(u_NoiseDirections, 0);
 	vec3 reflectionPlaneNormal = texture(u_NoiseDirections, noise_uv).xyz;
 
-	const float offset_scale = 0.01f;
-	float accu = 0;
-	float w = 0;
+	float totalWeight  = 0;
 	for(uint i = 0; i != SSAO_SAMPLE_COUNT; ++i)
 	{
 		vec3 sphereSample = u_SsaoSamples[i];
 
-		#define REFLECT
-		#if defined(REFLECT)
+		if(u_ReflectSamples)
+		{
 			sphereSample = reflect(sphereSample, reflectionPlaneNormal);
-		#endif
+		}
 
-		vec3 offset = offset_scale * sphereSample;
-		vec2 uv = frag_uv + offset.xy;
+		vec3 offset = u_SphereRadius * sphereSample;
+		// The offset is divided by 2 to match with the uv which 
+		// is already remapped from [-1, 1] to [0, 1]
+		vec2 sample_uv = frag_uv + (offset.xy / 2);
 
-		#define WEIGHT
-		#if defined(WEIGHT)
+		float weight = 1;
+		if (u_Weighted)
+		{
 			// Taken from iquilez
-			float zd = 4 * length(u_SsaoSamples[i]);
-			float weight = 1 / (1 + zd * zd);
+			float zd = u_WeightFactor * length(sphereSample);
+			weight = 1 / (1 + zd * zd);
+		}
+
+		//#define NONLINEAR_DEPTH
+		#if defined(NONLINEAR_DEPTH)
+			// Note: Here we sum the fragcoord.z (which is transformed by projection to non-linear depth space)
+			// with a linear offset, which probably introduces a lot of error.
+
+			// The depth map is "left handed", in the sense that higher value means further away.
+			// With a texture compare of GL_LESS,  texture() will return 1 if the value
+			// in the texture is superior or equal to the provided reference value (as coordinate w)
+			// It means it will return 1 if the sample is **NOT** occluded == summing visibility.
+			fragVisibility += texture(u_DepthMap, vec3(sample_uv, gl_FragCoord.z + offset.z + u_DepthBias)) * weight;
+			totalWeight += weight;
 		#else
-			float weight = 1;
+			float sampleClosestDepth_view = texture(u_FragPosition_view, sample_uv).z;
+			// If the right handed coordinate, if closest surface is superior to the sample depth
+			// it means the sample is obstructed.
+			if (sampleClosestDepth_view <= (ex_Position_view.z + offset.z + u_DepthBias))
+			{
+				fragVisibility += weight;
+			}
+			totalWeight += weight;
 		#endif
-
-		// TODO: I probably cannot sum the fragcoord.z (which is transformed by projection)
-		// with some linear z offset.
-		accu += texture(u_DepthMap, vec3(uv, gl_FragCoord.z + offset.z)) * weight;
-		w += weight;
 	}
-	accu /= w;
-
-#else
+	fragVisibility /= totalWeight;
+}
+else
+{
 	// UV coordinate in the noise texture, matching texel to fragment 1:1
 	const vec2 noise_uv = gl_FragCoord.xy / textureSize(u_NoiseDirections, 0);
 	vec3 reflectionPlaneNormal = texture(u_NoiseDirections, noise_uv).xyz;
@@ -118,8 +140,8 @@ void main(void)
 		totalWeight += weight;
 
 		float sampleClosestDepth_view = texture(u_FragPosition_view, sample_screenuv).z;
-		// If the right handed coordinate, if closest surface is superior to the sample depth
-		// it means the sample is obstructed.
+		// If the **right** handed coordinate of view space,
+		// if closest surface is superior to the sample depth it means the sample is obstructed.
 		if (sampleClosestDepth_view > (sample_view.z + u_DepthBias))
 		{
 			occlusion += weight;
@@ -127,9 +149,8 @@ void main(void)
 	}
 	occlusion /= totalWeight;
 	//occlusion /= SSAO_SAMPLE_COUNT;
-	float accu = 1 - occlusion;
+	fragVisibility = 1 - occlusion;
+}
 
-#endif
-
-    out_Color = vec4(vec3(accu), 1);
+    out_Color = vec4(vec3(fragVisibility), 1);
 }

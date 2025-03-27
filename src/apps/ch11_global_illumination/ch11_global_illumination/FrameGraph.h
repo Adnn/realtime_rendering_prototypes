@@ -92,6 +92,7 @@ struct FrameGraph
         bool mWeighted{ true };
         GLfloat mWeightFactor{ 5 };
         bool mSphereInScreenSpace{ false };
+        bool mFirstMethod{ false };
     };
     
     struct BlurControl
