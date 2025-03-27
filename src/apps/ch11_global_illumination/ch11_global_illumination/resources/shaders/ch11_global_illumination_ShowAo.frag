@@ -104,6 +104,7 @@ void main(void)
 		if(u_SphereInScreenSpace)
 		{
 			sample_ndc += offset;
+			sample_view.z += offset.z;
 		}
 		vec2 sample_screenuv = (sample_ndc.xy + 1) / 2;
 
