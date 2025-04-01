@@ -73,6 +73,7 @@ DESCRIBE(FrameGraph::HemiSsaoControl)
 {
     GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), DepthBias);
     GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), SphereRadius);
+    GIVE(ImportanceSampling);
     GIVE(RotateSamples);
     GIVE(WeightDistance);
     GIVE(WeightCosine);
@@ -217,6 +218,53 @@ std::vector<math::Vec<3, GLfloat>> generateHemisphereSample(unsigned int aCount)
         result.push_back(v);
     }
 
+    return result;
+}
+
+
+std::vector<math::Vec<3, GLfloat>> generateHemisphereSample_importance(unsigned int aCount,
+                                                                       bool aWeightDistance,
+                                                                       bool aWeightCosine,
+                                                                       float aDistanceFactor)
+{
+    aDistanceFactor = std::max(0.001f, aDistanceFactor);
+    const float atanFactor = std::atan(aDistanceFactor);
+
+    std::vector<math::Vec<3, GLfloat>> result;
+    result.reserve(aCount);
+
+    std::uniform_real_distribution<GLfloat> polar{ 0, math::pi<GLfloat>/2.0f };
+    std::uniform_real_distribution<GLfloat> azimuthal{ -math::pi<GLfloat>, math::pi<GLfloat> };
+    std::uniform_real_distribution<GLfloat> uniform{ 0.0f, 1.0f };
+    std::default_random_engine e;
+
+    // Note: For importance sampling:
+    // * the norm probability is proportional to (1 / (1 + (N * x)^2), x in [0, 1]
+    //   * CDF is 1/pi * atan(N * x) + 1/2 -> x = 1/N * tan(u * atan(N))
+    // * the polar angle probability is proportional to cos(x), x in [0, pi/2]
+    //   * CDF is sin(x) -> x = asin(u)
+    // We find the analytical CDF for each, and invert it to get from uniform variable on [0, 1]
+    // to the value.
+    for (unsigned int idx = 0; idx != aCount; ++idx)
+    {
+        math::Vec<3, GLfloat> sample = math::Spherical{
+            aWeightDistance ?
+                std::tan(uniform(e) * atanFactor) / aDistanceFactor
+                : uniform(e),
+            aWeightCosine ?
+                math::Radian<GLfloat>{std::asin(uniform(e))}
+                : math::Radian<GLfloat>{polar(e)},
+            math::Radian<GLfloat>{azimuthal(e)},
+        }.toCartesian().as<math::Vec>();
+        
+        // Rotate the hemisphere to be centered around Z instead of Y
+        auto y = -sample.z();
+        sample.z() = sample.y();
+        sample.y() = y;
+        result.push_back(sample);
+
+        assert(sample.z() >= 0);
+    }
     return result;
 }
 
@@ -488,7 +536,7 @@ void FrameGraph::passSphereSsaoFactor(const scenic::SceneTree& aSceneTree,
 
     {
         UniformSetterWitness setter{ .mProgram = mPrograms.mSphereSsao.mProgram };
-        describe(setter, mSsaoControl);
+        describe(setter, mSphereSsaoControl);
     }
 
     // TODO: load once, in a uniform buffer
@@ -531,12 +579,21 @@ void FrameGraph::passHemisphereSsaoFactor(const scenic::SceneTree& aSceneTree,
         describe(setter, mHemisphereSsaoControl);
     }
 
+    // Regenerate, in case the controls changed
+    mHemisphereSamples_importance = 
+        generateHemisphereSample_importance(gSsaoSampleCount,
+                                            mHemisphereSsaoControl.mWeightDistance,
+                                            mHemisphereSsaoControl.mWeightCosine,
+                                            mHemisphereSsaoControl.mDistanceFactor);
+
     // TODO: load once, in a uniform buffer
     for (unsigned int i = 0; i != gSsaoSampleCount; ++i)
     {
         graphics::setUniform(mPrograms.mHemisphereSsao,
                              "u_SsaoSamples[" + std::to_string(i) + "]",
-                             mHemisphereSamples[i]);
+                             (mHemisphereSsaoControl.mImportanceSampling ?
+                                mHemisphereSamples_importance[i]
+                                : mHemisphereSamples[i]));
     }
     
     drawPass(mPrograms.mHemisphereSsao, aSceneTree);
@@ -671,7 +728,7 @@ void FrameGraph::appendUi()
     switch (mSsaoMethod)
     {
     case FrameGraph::SsaoMethod::Sphere:
-        describe(witness, mSsaoControl);
+        describe(witness, mSphereSsaoControl);
         break;
     case FrameGraph::SsaoMethod::OrientedHemishphere:
         describe(witness, mHemisphereSsaoControl);

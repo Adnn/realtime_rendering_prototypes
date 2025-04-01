@@ -29,6 +29,7 @@ uniform bool u_WeightDistance;
 uniform bool u_WeightCosine;
 uniform float u_SphereRadius;
 uniform float u_DistanceFactor = 1;
+uniform bool u_ImportanceSampling;
 
 layout(location = 0) out vec4 out_Color;
 
@@ -69,13 +70,13 @@ void main(void)
 		vec3 offset_view = tbn * (u_SphereRadius * sphereSample);
 
 		float weight = 1;
-		if(u_WeightDistance)
+		if(u_WeightDistance && !u_ImportanceSampling)
 		{
 			// Weighting factor taken from iquilez
 			float zd = u_DistanceFactor * length(sphereSample);
 			weight = 1 / (1 + zd * zd);
 		}
-		if(u_WeightCosine)
+		if(u_WeightCosine && !u_ImportanceSampling)
 		{
 			weight *= normalize(sphereSample).z;
 		}

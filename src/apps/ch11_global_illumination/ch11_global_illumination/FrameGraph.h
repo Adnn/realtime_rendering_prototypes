@@ -33,11 +33,15 @@ enum class Domain
 std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_carthesian(unsigned int aCount, Domain aDomain);
 std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_spherical(unsigned int aCount, Domain aDomain);
 std::vector<math::Vec<3, GLfloat>> generateHemisphereSample(unsigned int aCount);
+std::vector<math::Vec<3, GLfloat>> generateHemisphereSample_importance(unsigned int aCount,
+                                                                       bool aWeightDistance,
+                                                                       bool aWeightCosine,
+                                                                       float aDistanceFactor);
 
 void generateRandomDirections(const graphics::Texture& aDestination,
                               math::Size<2, int> aResolution);
 
-constexpr unsigned int gSsaoSampleCount = 32;
+constexpr unsigned int gSsaoSampleCount = 128;
 
 struct TextureStore
 {
@@ -100,6 +104,7 @@ struct FrameGraph
     {
         GLfloat mDepthBias = 0.01;
         GLfloat mSphereRadius = 0.15;
+        bool mImportanceSampling{ true };
         bool mRotateSamples{ true };
         bool mWeightDistance{ true };
         bool mWeightCosine{ false };
@@ -108,7 +113,7 @@ struct FrameGraph
 
     struct BlurControl
     {
-        GLint mBlurRadius = 8;
+        GLint mBlurRadius = 2;
         GLfloat mDepthFactor = 10;
         GLfloat mNormalFactor = 10;
     };
@@ -163,10 +168,6 @@ struct FrameGraph
     graphics::Texture mNoiseDirections;
     ProgramStore mPrograms;
     graphics::VertexArrayObject mDummyVao;
-    std::vector<math::Vec<3, GLfloat>> mSphereSamples{
-        generateUnitSphereSamples_spherical(gSsaoSampleCount, Domain::Volume)};
-    std::vector<math::Vec<3, GLfloat>> mHemisphereSamples{
-        generateHemisphereSample(gSsaoSampleCount)};
 
     enum class SsaoMethod
     {
@@ -176,9 +177,19 @@ struct FrameGraph
     };
 
     SsaoMethod mSsaoMethod = SsaoMethod::OrientedHemishphere;
-    SphereSsaoControl mSsaoControl;
+    SphereSsaoControl mSphereSsaoControl;
     HemiSsaoControl mHemisphereSsaoControl;
     BlurControl mBlurControl;
+
+    std::vector<math::Vec<3, GLfloat>> mSphereSamples{
+        generateUnitSphereSamples_spherical(gSsaoSampleCount, Domain::Volume)};
+    std::vector<math::Vec<3, GLfloat>> mHemisphereSamples{
+        generateHemisphereSample(gSsaoSampleCount)};
+    std::vector<math::Vec<3, GLfloat>> mHemisphereSamples_importance{
+        generateHemisphereSample_importance(gSsaoSampleCount,
+                                            mHemisphereSsaoControl.mWeightDistance,
+                                            mHemisphereSsaoControl.mWeightCosine,
+                                            mHemisphereSsaoControl.mDistanceFactor)};
 };
 
 
