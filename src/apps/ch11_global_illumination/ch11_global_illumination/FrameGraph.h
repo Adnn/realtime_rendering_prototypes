@@ -32,6 +32,7 @@ enum class Domain
 
 std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_carthesian(unsigned int aCount, Domain aDomain);
 std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_spherical(unsigned int aCount, Domain aDomain);
+std::vector<math::Vec<3, GLfloat>> generateHemisphereSample(unsigned int aCount);
 
 void generateRandomDirections(const graphics::Texture& aDestination,
                               math::Size<2, int> aResolution);
@@ -110,8 +111,11 @@ struct FrameGraph
     void renderFragPosition(const scenic::SceneTree & aSceneTree);
     void passFragPosition(const scenic::SceneTree & aSceneTree);
 
-    void passSsaoFactor(const scenic::SceneTree& aSceneTree,
-                        math::Size<2, int> aRenderResolution);
+    void passSphereSsaoFactor(const scenic::SceneTree& aSceneTree,
+                              math::Size<2, int> aRenderResolution);
+
+    void passHemisphereSsaoFactor(const scenic::SceneTree& aSceneTree,
+                                 math::Size<2, int> aRenderResolution);
 
     void passFilterAo(math::Size<2, int> aRenderResolution);
 
@@ -137,7 +141,8 @@ struct FrameGraph
 
         renderer::IntrospectProgram mDepth;
         renderer::IntrospectProgram mShowTexture;
-        renderer::IntrospectProgram mShowSsao;
+        renderer::IntrospectProgram mSphereSsao;
+        renderer::IntrospectProgram mHemisphereSsao;
         renderer::IntrospectProgram mBlurTexture;
     };
 
@@ -148,8 +153,10 @@ struct FrameGraph
     graphics::Texture mNoiseDirections;
     ProgramStore mPrograms;
     graphics::VertexArrayObject mDummyVao;
-    std::vector<math::Vec<3, GLfloat>> mSsaoSamples{
+    std::vector<math::Vec<3, GLfloat>> mSphereSamples{
         generateUnitSphereSamples_spherical(gSsaoSampleCount, Domain::Volume)};
+    std::vector<math::Vec<3, GLfloat>> mHemisphereSamples{
+        generateHemisphereSample(gSsaoSampleCount)};
 
     SsaoControl mSsaoControl;
     BlurControl mBlurControl;

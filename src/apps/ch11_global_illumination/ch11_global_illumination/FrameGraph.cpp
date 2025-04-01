@@ -22,13 +22,14 @@ namespace ad {
 
         const std::filesystem::path gDepthProgramPath = "programs/DepthMap.prog";
         const std::filesystem::path gShowTextureProgramPath = "programs/ShowTexture.prog";
-        const std::filesystem::path gShowSsaoProgramPath = "programs/ch11_global_illumination_Ssao.prog";
+        const std::filesystem::path gSphereSsaoProgramPath = "programs/ch11_global_illumination_SphereSsao.prog";
+        const std::filesystem::path gHemisphereSsaoProgramPath = "programs/ch11_global_illumination_HemisphereSsao.prog";
         const std::filesystem::path gBlurTextureProgramPath = "programs/ch11_global_illumination_Blur.prog";
 
         // Having the texture on the size of the blurring kernel avoids 
         // the noise still showing up after filtering
-        //constexpr math::Size<2, int> gNoiseResolution{4, 4};
-        constexpr math::Size<2, int> gNoiseResolution{512, 512};
+        constexpr math::Size<2, int> gNoiseResolution{4, 4};
+        //constexpr math::Size<2, int> gNoiseResolution{256, 256};
 
 
         graphics::Texture makeTexture(GLenum aTarget, const char * aDebugName)
@@ -175,6 +176,37 @@ std::vector<math::Vec<3, GLfloat>> generateUnitSphereSamples_spherical(unsigned 
 }
 
 
+std::vector<math::Vec<3, GLfloat>> generateHemisphereSample(unsigned int aCount)
+{
+    std::vector<math::Vec<3, GLfloat>> result;
+
+    std::uniform_real_distribution<GLfloat> xy{ -1.0f, 1.0f };
+    std::uniform_real_distribution<GLfloat> z{ 0.0f, 1.0f };
+    std::default_random_engine e;
+
+    while(result.size() != aCount)
+    {
+        math::Vec<3, GLfloat> v{
+            xy(e),
+            xy(e),
+            z(e),
+        };
+
+        // Discard the candidates that do not lie inside the unit hemisphere
+        if (v.getNorm() > 1.0f)
+        {
+            continue;
+        }
+
+        // TODO: Implement importance sampling at this level
+
+        result.push_back(v);
+    }
+
+    return result;
+}
+
+
 void generateRandomDirections(const graphics::Texture & aDestination, math::Size<2, int> aResolution)
 {
     // Using floating point texture, to be able to store negative values without remapping.
@@ -184,11 +216,13 @@ void generateRandomDirections(const graphics::Texture & aDestination, math::Size
                         generateUnitSphereSamples_spherical(aResolution.area(), Domain::Surface).data());
 }
 
+
 FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mDepth{ aEngine.loadProgram(renderer::ReferencePath{ gDepthProgramPath },
                                 {"OUTPUT_FRAGMENT_VIEW_POSITION",})},
     mShowTexture{ aEngine.loadProgram(renderer::ReferencePath{ gShowTextureProgramPath }) },
-    mShowSsao{ aEngine.loadProgram(renderer::ReferencePath{ gShowSsaoProgramPath }) },
+    mSphereSsao{ aEngine.loadProgram(renderer::ReferencePath{ gSphereSsaoProgramPath }) },
+    mHemisphereSsao{ aEngine.loadProgram(renderer::ReferencePath{ gHemisphereSsaoProgramPath }) },
     mBlurTexture{ aEngine.loadProgram(renderer::ReferencePath{ gBlurTextureProgramPath }) }
 {}
 
@@ -346,7 +380,7 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     // We do not clear the depth buffer, because some AO method can read the closest surface from it.
     // Since we are currently rendering the geometry, we need to pass the depth test when it is equal.
     glDepthFunc(GL_EQUAL);
-    passSsaoFactor(aSceneTree, aRenderResolution);
+    passHemisphereSsaoFactor(aSceneTree, aRenderResolution);
     glDepthFunc(GL_LESS); // Restore default
 
     // Pass: filter AO factors
@@ -407,7 +441,7 @@ void FrameGraph::passFragPosition(const scenic::SceneTree & aSceneTree)
 
 
 // TODO: we could avoid the vertex processing stage here, everything in the frag position texture
-void FrameGraph::passSsaoFactor(const scenic::SceneTree& aSceneTree,
+void FrameGraph::passSphereSsaoFactor(const scenic::SceneTree& aSceneTree,
                                   math::Size<2, int> aRenderResolution)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -419,33 +453,72 @@ void FrameGraph::passSsaoFactor(const scenic::SceneTree& aSceneTree,
 
     glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
     glBindTextureUnit(unitIdx, tex(TextureStore::DepthMap));
-    graphics::setUniform(mPrograms.mShowSsao, "u_DepthMap", unitIdx);
+    graphics::setUniform(mPrograms.mSphereSsao, "u_DepthMap", unitIdx);
 
     glBindTextureUnit(++unitIdx, tex(TextureStore::FragPositionView));
-    graphics::setUniform(mPrograms.mShowSsao, "u_FragPosition_view", unitIdx);
+    graphics::setUniform(mPrograms.mSphereSsao, "u_FragPosition_view", unitIdx);
 
     glBindTextureUnit(++unitIdx, mNoiseDirections);
-    graphics::setUniform(mPrograms.mShowSsao, "u_NoiseDirections", unitIdx);
+    graphics::setUniform(mPrograms.mSphereSsao, "u_NoiseDirections", unitIdx);
 
     // TODO: we actually need the whole viewport, and we could set it once in a uniform buffer
-    graphics::setUniform(mPrograms.mShowSsao, "u_FramebufferSize", aRenderResolution);
+    graphics::setUniform(mPrograms.mSphereSsao, "u_FramebufferSize", aRenderResolution);
 
     {
-        UniformSetterWitness setter{ .mProgram = mPrograms.mShowSsao.mProgram };
+        UniformSetterWitness setter{ .mProgram = mPrograms.mSphereSsao.mProgram };
         describe(setter, mSsaoControl);
     }
 
     // TODO: load once, in a uniform buffer
     for (unsigned int i = 0; i != gSsaoSampleCount; ++i)
     {
-        graphics::setUniform(mPrograms.mShowSsao,
+        graphics::setUniform(mPrograms.mSphereSsao,
                              "u_SsaoSamples[" + std::to_string(i) + "]",
-                             mSsaoSamples[i]);
+                             mSphereSamples[i]);
     }
     
-    drawPass(mPrograms.mShowSsao, aSceneTree);
+    drawPass(mPrograms.mSphereSsao, aSceneTree);
 }
 
+
+void FrameGraph::passHemisphereSsaoFactor(const scenic::SceneTree& aSceneTree,
+                                         math::Size<2, int> aRenderResolution)
+{
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+
+    GLint unitIdx = 1;
+
+    glBindTextureUnit(++unitIdx, tex(TextureStore::FragPositionView));
+    graphics::setUniform(mPrograms.mHemisphereSsao, "u_FragPosition_view", unitIdx);
+
+    glBindTextureUnit(++unitIdx, tex(TextureStore::FragNormalView));
+    graphics::setUniform(mPrograms.mHemisphereSsao, "u_FragNormal_view", unitIdx);
+
+    // TODO: we should ideally use a noise in the XY plane for this situation
+    glBindTextureUnit(++unitIdx, mNoiseDirections);
+    graphics::setUniform(mPrograms.mHemisphereSsao, "u_NoiseDirections", unitIdx);
+
+    // TODO: we actually need the whole viewport, and we could set it once in a uniform buffer
+    graphics::setUniform(mPrograms.mHemisphereSsao, "u_FramebufferSize", aRenderResolution);
+
+    {
+        UniformSetterWitness setter{ .mProgram = mPrograms.mHemisphereSsao.mProgram };
+        describe(setter, mSsaoControl);
+    }
+
+    // TODO: load once, in a uniform buffer
+    for (unsigned int i = 0; i != gSsaoSampleCount; ++i)
+    {
+        graphics::setUniform(mPrograms.mHemisphereSsao,
+                             "u_SsaoSamples[" + std::to_string(i) + "]",
+                             mHemisphereSamples[i]);
+    }
+    
+    drawPass(mPrograms.mHemisphereSsao, aSceneTree);
+}
 void FrameGraph::passFilterAo(math::Size<2, int> aRenderResolution)
 {
     glDisable(GL_DEPTH_TEST);
