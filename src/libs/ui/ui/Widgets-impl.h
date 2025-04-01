@@ -84,5 +84,42 @@ void addCombo(const char * aLabel,
 }
 
 
+template <auto E_end, class T_enumeration>
+void addComboContinuousEnum(const char * aLabel,
+                            T_enumeration & aValue)
+{
+    // Note: this is intended to make the to_string(GLenum) visible
+    // but is smelly. Can we address that another way?
+    using graphics::to_string;
+
+    static const ImGuiComboFlags flags = 0;
+    // Pass in the preview value visible before opening the combo (it could be anything)
+    const std::string combo_preview_value = to_string(aValue);
+    if (ImGui::BeginCombo(aLabel, combo_preview_value.c_str(), flags))
+    {
+        Guard scopeCombo([]()
+        {
+            ImGui::EndCombo();
+        });
+
+        for (unsigned int n = 0; n < static_cast<unsigned int>(E_end); n++)
+        {
+            T_enumeration candidate = static_cast<T_enumeration>(n);
+            const bool isSelected = (aValue == candidate);
+            if (ImGui::Selectable(to_string(candidate).c_str(), isSelected))
+            {
+                aValue = candidate;
+            }
+
+            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+    }
+}
+
+
 } // namespace imguiui
 } // namespace ad

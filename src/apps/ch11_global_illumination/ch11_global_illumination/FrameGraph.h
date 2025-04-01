@@ -85,7 +85,7 @@ std::string to_string(TextureStore::Name aName);
 
 struct FrameGraph
 {
-    struct SsaoControl
+    struct SphereSsaoControl
     {
         GLfloat mDepthBias = 0.01;
         GLfloat mSphereRadius = 0.15;
@@ -95,7 +95,17 @@ struct FrameGraph
         bool mSphereInScreenSpace{ false };
         bool mScreenSpaceNonLinearDepth{ false };
     };
-    
+
+    struct HemiSsaoControl
+    {
+        GLfloat mDepthBias = 0.01;
+        GLfloat mSphereRadius = 0.15;
+        bool mRotateSamples{ true };
+        bool mWeightDistance{ true };
+        bool mWeightCosine{ false };
+        GLfloat mDistanceFactor{ 5 };
+    };
+
     struct BlurControl
     {
         GLint mBlurRadius = 8;
@@ -158,9 +168,30 @@ struct FrameGraph
     std::vector<math::Vec<3, GLfloat>> mHemisphereSamples{
         generateHemisphereSample(gSsaoSampleCount)};
 
-    SsaoControl mSsaoControl;
+    enum class SsaoMethod
+    {
+        Sphere,
+        OrientedHemishphere,
+        _End/* Keep last */
+    };
+
+    SsaoMethod mSsaoMethod = SsaoMethod::OrientedHemishphere;
+    SphereSsaoControl mSsaoControl;
+    HemiSsaoControl mHemisphereSsaoControl;
     BlurControl mBlurControl;
 };
+
+
+inline std::string to_string(FrameGraph::SsaoMethod aMethod)
+{
+    switch (aMethod)
+    {
+    case FrameGraph::SsaoMethod::Sphere:
+        return "Sphere";
+    case FrameGraph::SsaoMethod::OrientedHemishphere:
+        return "OrientedHemishphere";
+    }
+}
 
 
 } // namespace ad

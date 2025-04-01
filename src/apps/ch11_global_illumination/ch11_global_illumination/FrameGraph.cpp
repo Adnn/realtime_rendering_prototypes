@@ -12,6 +12,8 @@
 
 #include <scenic/Camera.h>
 
+#include <ui/Widgets-impl.h>
+
 #include <random>
 
 
@@ -56,7 +58,7 @@ namespace ad {
     } // unnamed namespace
 
 
-DESCRIBE(FrameGraph::SsaoControl)
+DESCRIBE(FrameGraph::SphereSsaoControl)
 {
     GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), DepthBias);
     GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), SphereRadius);
@@ -65,6 +67,16 @@ DESCRIBE(FrameGraph::SsaoControl)
     GIVE_EX(make_Clamped(aValue.mWeightFactor, { .mMax = 50.0f }), WeightFactor);
     GIVE(SphereInScreenSpace);
     GIVE(ScreenSpaceNonLinearDepth);
+}
+
+DESCRIBE(FrameGraph::HemiSsaoControl)
+{
+    GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), DepthBias);
+    GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), SphereRadius);
+    GIVE(RotateSamples);
+    GIVE(WeightDistance);
+    GIVE(WeightCosine);
+    GIVE_EX(make_Clamped(aValue.mDistanceFactor, { .mMax = 50.0f }), DistanceFactor);
 }
 
 DESCRIBE(FrameGraph::BlurControl)
@@ -84,6 +96,8 @@ std::string to_string(TextureStore::Name aName)
         STR(FragNormalView);
         STR(RawOcclusion);
         STR(FilteredOcclusion);
+    default:
+        throw std::logic_error{ "Unhandled TextureStore::Name." };
     }
 #undef STR
 }
@@ -380,7 +394,15 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     // We do not clear the depth buffer, because some AO method can read the closest surface from it.
     // Since we are currently rendering the geometry, we need to pass the depth test when it is equal.
     glDepthFunc(GL_EQUAL);
-    passHemisphereSsaoFactor(aSceneTree, aRenderResolution);
+    switch (mSsaoMethod)
+    {
+    case FrameGraph::SsaoMethod::Sphere:
+        passSphereSsaoFactor(aSceneTree, aRenderResolution);
+        break;
+    case FrameGraph::SsaoMethod::OrientedHemishphere:
+        passHemisphereSsaoFactor(aSceneTree, aRenderResolution);
+        break;
+    }
     glDepthFunc(GL_LESS); // Restore default
 
     // Pass: filter AO factors
@@ -506,7 +528,7 @@ void FrameGraph::passHemisphereSsaoFactor(const scenic::SceneTree& aSceneTree,
 
     {
         UniformSetterWitness setter{ .mProgram = mPrograms.mHemisphereSsao.mProgram };
-        describe(setter, mSsaoControl);
+        describe(setter, mHemisphereSsaoControl);
     }
 
     // TODO: load once, in a uniform buffer
@@ -643,7 +665,20 @@ void FrameGraph::passShowTexture(const scenic::Camera & aCamera,
 void FrameGraph::appendUi()
 {
     DearImguiWitness witness;
-    describe(witness, mSsaoControl);
+
+    imguiui::addComboContinuousEnum<SsaoMethod::_End>("SSAO Method", mSsaoMethod);
+
+    switch (mSsaoMethod)
+    {
+    case FrameGraph::SsaoMethod::Sphere:
+        describe(witness, mSsaoControl);
+        break;
+    case FrameGraph::SsaoMethod::OrientedHemishphere:
+        describe(witness, mHemisphereSsaoControl);
+        break;
+    }
+
+    ImGui::Spacing();
     describe(witness, mBlurControl);
 }
 

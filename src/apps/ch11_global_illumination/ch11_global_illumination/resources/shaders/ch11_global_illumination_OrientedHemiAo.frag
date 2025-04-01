@@ -24,10 +24,11 @@ uniform vec3 u_SsaoSamples[SSAO_SAMPLE_COUNT];
 // Controls
 uniform float u_DepthBias;
 // TODO: rename to match the semantic of rotation here
-uniform bool u_ReflectSamples;
-uniform bool u_Weighted;
+uniform bool u_RotateSamples;
+uniform bool u_WeightDistance;
+uniform bool u_WeightCosine;
 uniform float u_SphereRadius;
-uniform float u_WeightFactor = 1;
+uniform float u_DistanceFactor = 1;
 
 layout(location = 0) out vec4 out_Color;
 
@@ -54,7 +55,7 @@ void main(void)
 	const vec2 noise_uv = gl_FragCoord.xy / textureSize(u_NoiseDirections, 0);
 	// TODO: use an already normalized vector in XY plane
 
-	vec3 tangentApprox_view = u_ReflectSamples ?
+	vec3 tangentApprox_view = u_RotateSamples ?
 		normalize(vec3(texture(u_NoiseDirections, noise_uv).xy, 0))
 		: vec3(1, 0, 0);
 	// Construct TBN basis
@@ -68,11 +69,15 @@ void main(void)
 		vec3 offset_view = tbn * (u_SphereRadius * sphereSample);
 
 		float weight = 1;
-		if(u_Weighted)
+		if(u_WeightDistance)
 		{
 			// Weighting factor taken from iquilez
-			float zd = u_WeightFactor * length(sphereSample);
+			float zd = u_DistanceFactor * length(sphereSample);
 			weight = 1 / (1 + zd * zd);
+		}
+		if(u_WeightCosine)
+		{
+			weight *= normalize(sphereSample).z;
 		}
 		totalWeight += weight;
 

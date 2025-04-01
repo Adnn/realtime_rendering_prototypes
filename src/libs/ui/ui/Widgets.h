@@ -45,5 +45,13 @@ void addCombo(const char * aLabel,
 }
 
 
+/// @brief Implement a combo over a **continous** enumeration, from [0, E_end[.
+/// @tparam E_end The end enumerator (usually named "_End", and kept last),
+/// or alternatively the size of the enum.
+template <auto E_end, class T_enumeration>
+void addComboContinuousEnum(const char* aLabel,
+                            T_enumeration& aValue);
+
+
 } // namespace imguiui
 } // namespace ad
