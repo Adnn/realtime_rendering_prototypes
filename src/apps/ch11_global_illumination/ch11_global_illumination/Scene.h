@@ -39,19 +39,9 @@ namespace imguiui {
 
 struct Scene
 {
-    struct PipelineControl
-    {
-       inline static constexpr std::array<GLenum, 3> gPolygonModes{
-            GL_POINT,
-            GL_LINE,
-            GL_FILL,
-        }; 
-
-       decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
-    };
-
     struct SceneControl
     {
+        bool mShowPunctualLights = true;
         bool mShowTexture = false;
         TextureStore::Name mTexture = TextureStore::RawOcclusion;
     };
@@ -124,7 +114,6 @@ struct Scene
          },
     };
 
-    PipelineControl mPipelineControl;
     SceneControl mSceneControl;
 };
 

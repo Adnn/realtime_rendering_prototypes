@@ -89,6 +89,19 @@ std::string to_string(TextureStore::Name aName);
 
 struct FrameGraph
 {
+
+    struct PipelineControl
+    {
+       inline static constexpr std::array<GLenum, 3> gPolygonModes{
+            GL_POINT,
+            GL_LINE,
+            GL_FILL,
+        }; 
+
+       decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+       bool mApplyAo{ true };
+    };
+
     struct SphereSsaoControl
     {
         GLfloat mDepthBias = 0.01;
@@ -134,9 +147,10 @@ struct FrameGraph
 
     void passFilterAo(math::Size<2, int> aRenderResolution);
 
-    void passShowDepth(const scenic::Camera & aCamera);
+    void passForwardPbr(const scenic::SceneTree& aSceneTree,
+                        math::Size<2, int> aRenderResolution);
+
     void passShowNoise();
-    void passShowLinearDepth(const scenic::Camera & aCamera);
 
     void passShowTexture(const scenic::Camera& aCamera,
                          TextureStore::Name aName);
@@ -159,15 +173,8 @@ struct FrameGraph
         renderer::IntrospectProgram mSphereSsao;
         renderer::IntrospectProgram mHemisphereSsao;
         renderer::IntrospectProgram mBlurTexture;
+        renderer::IntrospectProgram mForwardPbr;
     };
-
-    Engine mEngine;
-    graphics::FrameBuffer mFbo;
-    TextureStore mTextures;
-    // TODO: move to texture store
-    graphics::Texture mNoiseDirections;
-    ProgramStore mPrograms;
-    graphics::VertexArrayObject mDummyVao;
 
     enum class SsaoMethod
     {
@@ -176,10 +183,21 @@ struct FrameGraph
         _End/* Keep last */
     };
 
+    Engine mEngine;
+    graphics::FrameBuffer mFbo;
+    TextureStore mTextures;
+    // TODO: move to texture store
+    graphics::Texture mNoiseDirections;
+    // TODO: we could render directly to the default framebuffer, but currently we blit
+    graphics::Texture mFinalFrame;
+    ProgramStore mPrograms;
+    graphics::VertexArrayObject mDummyVao;
+
     SsaoMethod mSsaoMethod = SsaoMethod::OrientedHemishphere;
     SphereSsaoControl mSphereSsaoControl;
     HemiSsaoControl mHemisphereSsaoControl;
     BlurControl mBlurControl;
+    PipelineControl mPipelineControl;
 
     std::vector<math::Vec<3, GLfloat>> mSphereSamples{
         generateUnitSphereSamples_spherical(gSsaoSampleCount, Domain::Volume)};

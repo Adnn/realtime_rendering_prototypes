@@ -27,6 +27,7 @@ namespace ad {
         const std::filesystem::path gSphereSsaoProgramPath = "programs/ch11_global_illumination_SphereSsao.prog";
         const std::filesystem::path gHemisphereSsaoProgramPath = "programs/ch11_global_illumination_HemisphereSsao.prog";
         const std::filesystem::path gBlurTextureProgramPath = "programs/ch11_global_illumination_Blur.prog";
+        const std::filesystem::path gForwardPbrProgramPath = "programs/ch11_global_illumination_Pbr.prog";
 
         // Having the texture on the size of the blurring kernel avoids 
         // the noise still showing up after filtering
@@ -285,7 +286,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mShowTexture{ aEngine.loadProgram(renderer::ReferencePath{ gShowTextureProgramPath }) },
     mSphereSsao{ aEngine.loadProgram(renderer::ReferencePath{ gSphereSsaoProgramPath }) },
     mHemisphereSsao{ aEngine.loadProgram(renderer::ReferencePath{ gHemisphereSsaoProgramPath }) },
-    mBlurTexture{ aEngine.loadProgram(renderer::ReferencePath{ gBlurTextureProgramPath }) }
+    mBlurTexture{ aEngine.loadProgram(renderer::ReferencePath{ gBlurTextureProgramPath }) },
+    mForwardPbr{ aEngine.loadProgram(renderer::ReferencePath{ gForwardPbrProgramPath }) }
 {}
 
 
@@ -314,6 +316,7 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
         .mScreenTextureSize{ aFrameSize },
     },
     mNoiseDirections{makeTexture(GL_TEXTURE_2D, "noise_directions")},
+    mFinalFrame{makeTexture(GL_TEXTURE_2D, "final_frame")},
     mPrograms{mEngine}
 {
     //
@@ -399,12 +402,17 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     // 
     //
     //
-
     generateRandomDirections(mNoiseDirections, gNoiseResolution);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    
+    //
+    //
+    //
+    glTextureStorage2D(mFinalFrame, 1, GL_RGB8, aFrameSize.width(), aFrameSize.height());
 
     // Dummy VAO
     graphics::ScopedBind{ mDummyVao };
@@ -462,6 +470,15 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     passFilterAo(aRenderResolution);
+
+    // Forward PBR pass
+    glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
+                         GL_COLOR_ATTACHMENT0,
+                         mFinalFrame,
+                         0);
+    glClearColor(0.1f, 0.2f, 0.3f, 1.f); 
+    glClear(GL_COLOR_BUFFER_BIT);
+    passForwardPbr(aSceneTree, aRenderResolution);
 }
 
 
@@ -598,6 +615,7 @@ void FrameGraph::passHemisphereSsaoFactor(const scenic::SceneTree& aSceneTree,
     
     drawPass(mPrograms.mHemisphereSsao, aSceneTree);
 }
+
 void FrameGraph::passFilterAo(math::Size<2, int> aRenderResolution)
 {
     glDisable(GL_DEPTH_TEST);
@@ -626,53 +644,43 @@ void FrameGraph::passFilterAo(math::Size<2, int> aRenderResolution)
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-
-
-#define MODE_LINEARIZE_DEPTH 1u
-#define MODE_DIRECTION 2u
-#define MODE_DEPTH_FROM_POSITION 3u
-
-void FrameGraph::passShowDepth(const scenic::Camera & aCamera)
+void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
+                                math::Size<2, int> aRenderResolution)
 {
-    glDisable(GL_DEPTH_TEST);
+    // When rendering the point or wireframe, we have to discard the existing depth buffer
+    // because users do not expect "filled-faces occlusion" in such situtations.
+    if (*mPipelineControl.mPolygonMode != GL_FILL)
+    {
+        glDepthFunc(GL_LESS);
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
+    // When rendering filled triangles, we can reuse the existing depth buffer, and discard
+    // every fragment that does not exactly match.
+    else
+    {
+        glDepthFunc(GL_EQUAL);
+    }
 
-    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_LINEARIZE_DEPTH);
+    glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
 
-    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_MODE, GL_NONE);
-    const GLint unitIdx = 1;
-    glBindTextureUnit(unitIdx, tex(TextureStore::DepthMap));
-    graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
+    const auto& program = mPrograms.mForwardPbr;
 
-    auto [near, far] = scenic::getNearFarPlanes(aCamera);
-    graphics::setUniform(mPrograms.mShowTexture, "u_NearDistance", near);
-    graphics::setUniform(mPrograms.mShowTexture, "u_FarDistance", far);
-    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_LINEARIZE_DEPTH);
+    GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, tex(TextureStore::FilteredOcclusion));
+    graphics::setUniform(program, "u_AmbientOcclusion", unitIdx);
 
-    glUseProgram(mPrograms.mShowTexture);
-    glBindVertexArray(mDummyVao);
+    // TODO: we actually need the whole viewport, and we could set it once in a uniform buffer
+    graphics::setUniform(program, "u_FramebufferSize", aRenderResolution);
 
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-}
+    graphics::setUniform(program, "u_ApplyAo", mPipelineControl.mApplyAo);
 
+    drawPass(program, aSceneTree);
 
-void FrameGraph::passShowLinearDepth(const scenic::Camera & aCamera)
-{
-    glDisable(GL_DEPTH_TEST);
-
-    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_DEPTH_FROM_POSITION);
-
-    const GLint unitIdx = 1;
-    glBindTextureUnit(unitIdx, tex(TextureStore::FragPositionView));
-    graphics::setUniform(mPrograms.mShowTexture, "u_Texture", unitIdx);
-
-    auto [near, far] = scenic::getNearFarPlanes(aCamera);
-    graphics::setUniform(mPrograms.mShowTexture, "u_NearDistance", near);
-    graphics::setUniform(mPrograms.mShowTexture, "u_FarDistance", far);
-
-    glUseProgram(mPrograms.mShowTexture);
-    glBindVertexArray(mDummyVao);
-
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDepthFunc(GL_LESS); // Restore default
 }
 
 
@@ -680,7 +688,7 @@ void FrameGraph::passShowNoise()
 {
     glDisable(GL_DEPTH_TEST);
 
-    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", MODE_DIRECTION);
+    graphics::setUniform(mPrograms.mShowTexture, "u_Mode", TextureStore::Mode::DIRECTION);
 
     const GLint unitIdx = 1;
     glBindTextureUnit(unitIdx, mNoiseDirections);
@@ -718,10 +726,17 @@ void FrameGraph::passShowTexture(const scenic::Camera & aCamera,
 }
 
 
-
 void FrameGraph::appendUi()
 {
     DearImguiWitness witness;
+
+    imguiui::addCombo("Polygon mode",
+                      mPipelineControl.mPolygonMode,
+                      PipelineControl::gPolygonModes.begin(),
+                      PipelineControl::gPolygonModes.end(),
+                      [](auto aModeIt) {return graphics::to_string(*aModeIt); });
+
+    ImGui::Checkbox("Apply AO", &mPipelineControl.mApplyAo);
 
     imguiui::addComboContinuousEnum<SsaoMethod::_End>("SSAO Method", mSsaoMethod);
 

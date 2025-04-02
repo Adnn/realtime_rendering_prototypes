@@ -14,7 +14,10 @@ in vec3 ex_Position_view;
 
 out vec4 out_Color;
 
-uniform sampler2DShadow u_DepthMap;
+uniform sampler2D u_AmbientOcclusion;
+
+uniform ivec2 u_FramebufferSize;
+uniform bool u_ApplyAo;
 
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
@@ -181,6 +184,13 @@ void main(void)
     vec3 ambient =  ub_AmbientColor.rgb * material.ambientColor.rgb * pbrParameters.diffuseColor;
     vec3 diffuse  = diffuseAccum        ;//* material.diffuseColor.rgb;
     vec3 specular = specularAccum       ;//* material.specularColor.rgb;
+
+    if(u_ApplyAo)
+    {
+		vec2 frag_screenuv = gl_FragCoord.xy / u_FramebufferSize;
+		float aoFactor = texture(u_AmbientOcclusion, frag_screenuv).r;
+		ambient *= aoFactor;
+	}
 
     vec3 fragmentColor = diffuse + ambient + specular;
 

@@ -224,62 +224,47 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
     if (mSceneControl.mShowTexture)
     {
-        //mGraph.passShowDepth(mOrbitalCamera.mCamera);
-        //mGraph.passShowNoise();
-        //mGraph.passShowLinearDepth(mOrbitalCamera.mCamera);
         mGraph.passShowTexture(mOrbitalCamera.mCamera,
                                mSceneControl.mTexture);
     }
     else
     {
         // Smell: We rely on the knowing last color attachment 
+        // In a production setup, it is likely that the framegraph would render the final
+        // frame to a provided framebuffer.
         glNamedFramebufferReadBuffer(mGraph.mFbo, GL_COLOR_ATTACHMENT0);
         glBlitNamedFramebuffer(mGraph.mFbo, 0,
                                0, 0, aRenderResolution.width(), aRenderResolution.height(),
                                0, 0, aRenderResolution.width(), aRenderResolution.height(),
                                GL_COLOR_BUFFER_BIT,
                                GL_NEAREST);
-        return;
-
-        //
-        // Draw objects
-        //
-        glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glEnable(GL_DEPTH_TEST);
-
-        glTextureParameteri(mGraph.tex(TextureStore::DepthMap),
-                            GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-        GLint unitIdx = 1;
-        glBindTextureUnit(unitIdx, mGraph.tex(TextureStore::DepthMap));
-        graphics::setUniform(mSurfaceProgram, "u_DepthMap", unitIdx);
-
-        drawPass(mSurfaceProgram, mSceneTree);
 
         //
         // Draw lights
         //
-        glUseProgram(mLightProgram);
-
-        for (const scenic::MeshPart_Naive& part : mSphere.mParts)
+        if (mSceneControl.mShowPunctualLights)
         {
-            graphics::VertexArrayObject vao = prepareVAO(mLightProgram, part);
-            glBindVertexArray(vao);
+            glUseProgram(mLightProgram);
 
-            if (scenic::useElementIndices(part))
+            for (const scenic::MeshPart_Naive& part : mSphere.mParts)
             {
-                glDrawElementsInstancedBaseInstance(
-                    part.mPrimitiveMode,
-                    part.mIndicesCount,
-                    part.mIndicesType,
-                    (void*)part.mIndexFirst,
-                    mLights.mPointCount, /* instances count */
-                    objectsCount /* base instance, light instances are after objects in UBOs */);
-            }
-            else
-            {
-                throw std::logic_error{ "Who is not using indexed rendering?" };
+                graphics::VertexArrayObject vao = prepareVAO(mLightProgram, part);
+                glBindVertexArray(vao);
+
+                if (scenic::useElementIndices(part))
+                {
+                    glDrawElementsInstancedBaseInstance(
+                        part.mPrimitiveMode,
+                        part.mIndicesCount,
+                        part.mIndicesType,
+                        (void*)part.mIndexFirst,
+                        mLights.mPointCount, /* instances count */
+                        objectsCount /* base instance, light instances are after objects in UBOs */);
+                }
+                else
+                {
+                    throw std::logic_error{ "Who is not using indexed rendering?" };
+                }
             }
         }
     }
@@ -303,13 +288,8 @@ void Scene::presentUi(bool* aOpen)
         }
     }
 
-    imguiui::addCombo("Polygon mode",
-                      mPipelineControl.mPolygonMode,
-                      PipelineControl::gPolygonModes.begin(),
-                      PipelineControl::gPolygonModes.end(),
-                      [](auto aModeIt) {return graphics::to_string(*aModeIt); });
-
     // Scene control
+    ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
     ImGui::Checkbox("Show Texture", &mSceneControl.mShowTexture);
     imguiui::addCombo("Texture",
                       mSceneControl.mTexture,
@@ -318,7 +298,7 @@ void Scene::presentUi(bool* aOpen)
     DearImguiWitness witness;
 
     ImGui::Spacing();
-    if (ImGui::CollapsingHeader("SSAO"))
+    if (ImGui::CollapsingHeader("Frame Graph"))
     {
         mGraph.appendUi();
     }
