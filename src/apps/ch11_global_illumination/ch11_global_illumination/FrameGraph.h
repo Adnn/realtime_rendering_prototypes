@@ -18,6 +18,7 @@ namespace renderer {
 
 namespace scenic {
     class Camera;
+    struct Environment;
 }
 
 void drawPass(const renderer::IntrospectProgram & aProgram,
@@ -99,6 +100,7 @@ struct FrameGraph
         }; 
 
        decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+       bool mApplyEnvironment{ true };
        bool mApplyAo{ true };
     };
 
@@ -133,7 +135,8 @@ struct FrameGraph
 
     FrameGraph(math::Size<2, int> aFrameSize);
 
-    void renderFrame(const scenic::SceneTree& aSceneTree,
+    void renderFrame(const scenic::SceneTree & aSceneTree,
+                     const scenic::Environment & aEnvironment,
                      math::Size<2, int> aRenderResolution);
 
     void renderFragPosition(const scenic::SceneTree & aSceneTree);
@@ -149,6 +152,8 @@ struct FrameGraph
 
     void passForwardPbr(const scenic::SceneTree& aSceneTree,
                         math::Size<2, int> aRenderResolution);
+
+    void passSkybox(const scenic::Environment & aEnvironment);
 
     void passShowNoise();
 
@@ -174,6 +179,7 @@ struct FrameGraph
         renderer::IntrospectProgram mHemisphereSsao;
         renderer::IntrospectProgram mBlurTexture;
         renderer::IntrospectProgram mForwardPbr;
+        renderer::IntrospectProgram mSkybox;
     };
 
     enum class SsaoMethod

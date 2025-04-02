@@ -90,6 +90,8 @@ const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor
 const std::filesystem::path gModelPath = "models/Mat/meetmat_2.glb";
 constexpr float gModelScale = 0.1f;
 
+const std::filesystem::path gEnvMapPath = "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds";
+
 //const std::filesystem::path gModelPath = "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl";
 //constexpr float gModelScale = 0.01f;
 
@@ -101,7 +103,8 @@ Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImg
     mGraph(aAppInterface.getFramebufferSize()),
     mSceneTree{ scenic::loadModel(mGraph.mEngine.mLoader.mFinder.pathFor(gModelPath),
                                   mGraph.mEngine.mContext,
-                                  gModelScale) }
+                                  gModelScale) },
+    mEnvironment{ scenic::prepareEnvironment(mGraph.mEngine.exposeFinder().pathFor(gEnvMapPath)) }
 {
     // Register the camera system with glfw inputs 
     graphics::registerGlfwCallbacks(
@@ -220,7 +223,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     glClearColor(0.1f, 0.2f, 0.3f, 1.f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    mGraph.renderFrame(mSceneTree, aRenderResolution);
+    mGraph.renderFrame(mSceneTree, mEnvironment, aRenderResolution);
 
     if (mSceneControl.mShowTexture)
     {
@@ -237,6 +240,12 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                                0, 0, aRenderResolution.width(), aRenderResolution.height(),
                                0, 0, aRenderResolution.width(), aRenderResolution.height(),
                                GL_COLOR_BUFFER_BIT,
+                               GL_NEAREST);
+        // Depth must also be copied for lights occlusion
+        glBlitNamedFramebuffer(mGraph.mFbo, 0,
+                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
+                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
+                               GL_DEPTH_BUFFER_BIT,
                                GL_NEAREST);
 
         //

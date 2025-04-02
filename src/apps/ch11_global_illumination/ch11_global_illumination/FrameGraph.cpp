@@ -12,6 +12,8 @@
 
 #include <scenic/Camera.h>
 
+#include <scenic/environment/Environment.h>
+
 #include <ui/Widgets-impl.h>
 
 #include <random>
@@ -28,6 +30,7 @@ namespace ad {
         const std::filesystem::path gHemisphereSsaoProgramPath = "programs/ch11_global_illumination_HemisphereSsao.prog";
         const std::filesystem::path gBlurTextureProgramPath = "programs/ch11_global_illumination_Blur.prog";
         const std::filesystem::path gForwardPbrProgramPath = "programs/ch11_global_illumination_Pbr.prog";
+        const std::filesystem::path gSkyboxProgramPath = "programs/Skybox.prog";
 
         // Having the texture on the size of the blurring kernel avoids 
         // the noise still showing up after filtering
@@ -287,7 +290,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mSphereSsao{ aEngine.loadProgram(renderer::ReferencePath{ gSphereSsaoProgramPath }) },
     mHemisphereSsao{ aEngine.loadProgram(renderer::ReferencePath{ gHemisphereSsaoProgramPath }) },
     mBlurTexture{ aEngine.loadProgram(renderer::ReferencePath{ gBlurTextureProgramPath }) },
-    mForwardPbr{ aEngine.loadProgram(renderer::ReferencePath{ gForwardPbrProgramPath }) }
+    mForwardPbr{ aEngine.loadProgram(renderer::ReferencePath{ gForwardPbrProgramPath }) },
+    mSkybox{ aEngine.loadProgram(renderer::ReferencePath{ gSkyboxProgramPath }) }
 {}
 
 
@@ -427,6 +431,7 @@ void FrameGraph::loadPrograms()
 
 
 void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
+                             const scenic::Environment & aEnvironment,
                              math::Size<2, int> aRenderResolution)
 {
     // Fragment position pass
@@ -471,14 +476,19 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     glClear(GL_COLOR_BUFFER_BIT);
     passFilterAo(aRenderResolution);
 
-    // Forward PBR pass
+    // Final frame composition
     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
                          GL_COLOR_ATTACHMENT0,
                          mFinalFrame,
                          0);
     glClearColor(0.1f, 0.2f, 0.3f, 1.f); 
     glClear(GL_COLOR_BUFFER_BIT);
+
     passForwardPbr(aSceneTree, aRenderResolution);
+    if (mPipelineControl.mApplyEnvironment)
+    {
+        passSkybox(aEnvironment);
+    }
 }
 
 
@@ -684,6 +694,28 @@ void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
 }
 
 
+void FrameGraph::passSkybox(const scenic::Environment & aEnvironment)
+{
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL); // We set each fragment to max depth, to maximize early-z
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
+    glEnable(GL_CULL_FACE);
+    auto scopedCullFace = graphics::scopeCullFace(GL_FRONT);
+
+    const auto& program = mPrograms.mSkybox;
+
+    GLint unitIdx = 1;
+    glBindTextureUnit(unitIdx, aEnvironment.mEnvMap.mTexture);
+    graphics::setUniform(program, "u_EnvironmentTexture", unitIdx);
+
+    glUseProgram(program);
+    glBindVertexArray(mDummyVao);
+    // The cube hardcoded in Cube.glsl is a triangle strip from 14 indices.
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 14);
+}
+
+
 void FrameGraph::passShowNoise()
 {
     glDisable(GL_DEPTH_TEST);
@@ -736,7 +768,10 @@ void FrameGraph::appendUi()
                       PipelineControl::gPolygonModes.end(),
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
+    ImGui::Checkbox("Apply environment", &mPipelineControl.mApplyEnvironment);
+
     ImGui::Checkbox("Apply AO", &mPipelineControl.mApplyAo);
+
 
     imguiui::addComboContinuousEnum<SsaoMethod::_End>("SSAO Method", mSsaoMethod);
 

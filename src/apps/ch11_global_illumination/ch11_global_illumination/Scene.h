@@ -22,6 +22,8 @@
 #include <scenic/ColorPalettes.h>
 #include <scenic/ShapesAsModel.h>
 
+#include <scenic/environment/Environment.h>
+
 
 namespace ad {
 
@@ -70,6 +72,7 @@ struct Scene
     OrbitalCamera mOrbitalCamera;
     scenic::SceneTree mSceneTree;
     scenic::Object mSphere{ scenic::makeSphere(4) };
+    scenic::Environment mEnvironment;
 
     renderer::EntitiesBlock_glsl mEntities;
     PbrMaterialsBlock_glsl mMaterials{

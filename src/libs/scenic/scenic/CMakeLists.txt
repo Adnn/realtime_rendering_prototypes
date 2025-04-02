@@ -12,6 +12,9 @@ set(${TARGET_NAME}_HEADERS
     ShapesAsModel.h
     VertexStreamUtilities.h
 
+    environment/Environment.h
+    environment/EnvironmentUtilities.h
+
     log/Logging.h
     log/Logging-channels.h
     log/Logging-init.h
@@ -26,6 +29,9 @@ set(${TARGET_NAME}_SOURCES
     Shapes.cpp
     ShapesAsModel.cpp
     VertexStreamUtilities.cpp
+
+    environment/Environment.cpp
+    environment/EnvironmentUtilities.cpp
 
     log/Logging-init.cpp
 )
