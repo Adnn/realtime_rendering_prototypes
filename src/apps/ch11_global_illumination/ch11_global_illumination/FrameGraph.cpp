@@ -12,7 +12,7 @@
 
 #include <scenic/Camera.h>
 
-#include <scenic/environment/Environment.h>
+#include <scenic/environment/Skybox.h>
 
 #include <ui/Widgets-impl.h>
 
@@ -696,23 +696,11 @@ void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
 
 void FrameGraph::passSkybox(const scenic::Environment & aEnvironment)
 {
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL); // We set each fragment to max depth, to maximize early-z
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-
-    glEnable(GL_CULL_FACE);
-    auto scopedCullFace = graphics::scopeCullFace(GL_FRONT);
-
     const auto& program = mPrograms.mSkybox;
-
-    GLint unitIdx = 1;
-    glBindTextureUnit(unitIdx, aEnvironment.mEnvMap.mTexture);
-    graphics::setUniform(program, "u_EnvironmentTexture", unitIdx);
-
-    glUseProgram(program);
-    glBindVertexArray(mDummyVao);
-    // The cube hardcoded in Cube.glsl is a triangle strip from 14 indices.
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 14);
+    return scenic::passSkyboxBase(program,
+                                  aEnvironment.get(mPipelineControl.mSkyboxCategory),
+                                  GL_FRONT, // Rendering from inside the skybox
+                                  *mPipelineControl.mPolygonMode);
 }
 
 
@@ -768,10 +756,11 @@ void FrameGraph::appendUi()
                       PipelineControl::gPolygonModes.end(),
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
-    ImGui::Checkbox("Apply environment", &mPipelineControl.mApplyEnvironment);
-
     ImGui::Checkbox("Apply AO", &mPipelineControl.mApplyAo);
 
+    ImGui::Checkbox("Apply environment", &mPipelineControl.mApplyEnvironment);
+    imguiui::addComboContinuousEnum<scenic::Environment::_End>("Skybox category",
+                                                               mPipelineControl.mSkyboxCategory);
 
     imguiui::addComboContinuousEnum<SsaoMethod::_End>("SSAO Method", mSsaoMethod);
 

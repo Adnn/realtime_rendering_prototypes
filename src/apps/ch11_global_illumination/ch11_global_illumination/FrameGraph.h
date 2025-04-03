@@ -9,6 +9,8 @@
 
 #include <scenic/Model.h>
 
+#include <scenic/environment/Environment.h>
+
 
 namespace ad {
 
@@ -100,8 +102,9 @@ struct FrameGraph
         }; 
 
        decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
-       bool mApplyEnvironment{ true };
        bool mApplyAo{ true };
+       bool mApplyEnvironment{ true };
+       scenic::Environment::Category mSkyboxCategory{ scenic::Environment::EnvMap };
     };
 
     struct SphereSsaoControl

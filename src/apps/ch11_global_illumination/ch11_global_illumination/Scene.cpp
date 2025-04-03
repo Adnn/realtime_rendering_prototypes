@@ -90,7 +90,7 @@ const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor
 const std::filesystem::path gModelPath = "models/Mat/meetmat_2.glb";
 constexpr float gModelScale = 0.1f;
 
-const std::filesystem::path gEnvMapPath = "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds";
+const renderer::ReferencePath gEnvMapPath{ "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds" };
 
 //const std::filesystem::path gModelPath = "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl";
 //constexpr float gModelScale = 0.01f;
@@ -104,7 +104,7 @@ Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImg
     mSceneTree{ scenic::loadModel(mGraph.mEngine.mLoader.mFinder.pathFor(gModelPath),
                                   mGraph.mEngine.mContext,
                                   gModelScale) },
-    mEnvironment{ scenic::prepareEnvironment(mGraph.mEngine.exposeFinder().pathFor(gEnvMapPath)) }
+    mEnvironment{ scenic::prepareEnvironment(gEnvMapPath, mGraph.mEngine.mLoader) }
 {
     // Register the camera system with glfw inputs 
     graphics::registerGlfwCallbacks(

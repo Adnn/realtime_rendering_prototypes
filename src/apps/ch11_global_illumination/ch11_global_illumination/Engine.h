@@ -29,11 +29,6 @@ struct Engine
         return mLoader.loadProgram(aProgFile, aClientDefines);
     }
 
-    const resource::ResourceFinder& exposeFinder()
-    {
-        return mLoader.mFinder;
-    }
-
     renderer::Loader mLoader{ renderer::makeResourceFinder() };
     scenic::Context mContext;
 };

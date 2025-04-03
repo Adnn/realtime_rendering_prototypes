@@ -196,7 +196,6 @@ vec3 specularBrdf_GGX(vec3 aFresnelReflectance,
 #endif
     return aFresnelReflectance * V * D;
 }
-#endif //PBRUTILITIES_GLSL_INCLUDE_GUARD
 
 
 ////
@@ -281,3 +280,5 @@ vec3 specularBrdf_BlinnPhong(vec3 aFresnelReflectance,
     return aFresnelReflectance * V * D;
 }
 
+
+#endif //PBRUTILITIES_GLSL_INCLUDE_GUARD

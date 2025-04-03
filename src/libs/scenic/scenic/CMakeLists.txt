@@ -14,6 +14,7 @@ set(${TARGET_NAME}_HEADERS
 
     environment/Environment.h
     environment/EnvironmentUtilities.h
+    environment/Skybox.h
 
     log/Logging.h
     log/Logging-channels.h
@@ -32,6 +33,7 @@ set(${TARGET_NAME}_SOURCES
 
     environment/Environment.cpp
     environment/EnvironmentUtilities.cpp
+    environment/Skybox.cpp
 
     log/Logging-init.cpp
 )
