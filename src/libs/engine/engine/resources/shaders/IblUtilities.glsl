@@ -469,7 +469,7 @@ vec3 approximateSpecularIbl(vec3 aSpecularColor,
 
     vec2 brdf = texture(aIntegratedBrdf, vec2(NoV, aRoughness)).rg;
     
-    // The F90 term was found in mftpbr eq. (58)
+    // The F90 term was found in mftpbr eq. (58) p64
     return filteredRadiance * (aSpecularColor * brdf.r + /*F90 * */brdf.g);
 }
 

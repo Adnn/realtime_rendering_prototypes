@@ -16,6 +16,7 @@
 	uniform samplerCube u_FilteredIrradianceEnvironmentTexture;
 	uniform sampler2D u_IntegratedEnvironmentBrdf;
 
+    // Control the IBL contributions strenght, good candidates to be part of each environment
     uniform float u_SpecularIblFactor = 1.0;
     uniform float u_DiffuseIblFactor = 1.0;
 #endif //ENVIRONMENT_MAPPING
@@ -121,8 +122,8 @@ void main(void)
     //
 
     // TODO: implement mrao texture
-    float metallic = material.metallicRoughness.x;
-    float roughness = material.metallicRoughness.y;
+    float metallic = material.metallic;
+    float roughness = material.roughness;
 
     // Handle alpha
     // We assume the roughness, not alpha, is provided even in 3rd party assets.
@@ -241,22 +242,31 @@ void main(void)
                                    u_FilteredRadianceEnvironmentTexture,
                                    u_IntegratedEnvironmentBrdf);
 
-		vec3 diffuseIbl = texture(u_FilteredIrradianceEnvironmentTexture, 
-								  worldToCubemap(shadingNormal_world)).rgb
-						  // Diffuse color is the subsurface albedo
-						  * pbrParameters.diffuseColor.rgb;
+		vec3 irradianceIbl = texture(u_FilteredIrradianceEnvironmentTexture, 
+                                     worldToCubemap(shadingNormal_world)).rgb;
 
 		if(u_ApplyAo)
         {
-            // See rtr 4th eq(11.25) p464
-            // There is a 1/Pi factor in the book equation, I suppose it is already conceptually
-            // part of another factor in the equation.
-            diffuseIbl *= aoFactor;
+            // See rtr 4th eq. (11.25) p464
+            // TODO: There is a 1/Pi factor in the book equation. Is it already part of the integrated irradiance
+            irradianceIbl *= aoFactor;
         }
 
-        // TODO: can we Fresnel, as mentionned in the book? It seems there is way to much energy on objects
+
+        // Note: The Fresnel term:
+        //   * is part of the precomputed BRDF of split-sum approximation for specular
+        //   * might be part of the irradiance texture for diffuse (see: prefilterEnvMapDiffuse_LambertianFresnel())
+        // Note: mftpbr does use Fresnel terms in its diffuses brdf (Fr_DisneyDiffuse),
+        //   which is in a term separate from the actual image lighting pre-integration.
+
         fragmentColor += specularIbl * u_SpecularIblFactor;
-        fragmentColor += diffuseIbl * u_DiffuseIblFactor;
+		// For Lambertian surfaces, outgoing radiance is proportional to irradiance.
+        // See rtr 4th eq. (10.2) p379
+        fragmentColor += irradianceIbl
+						  // Diffuse color is the subsurface albedo
+						 * pbrParameters.diffuseColor.rgb
+						 * u_DiffuseIblFactor
+                         ;
     }
     #endif //ENVIRONMENT_MAPPING
 

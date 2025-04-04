@@ -69,7 +69,8 @@ struct alignas(16) PbrMaterial_glsl
 {
     alignas(4 * sizeof(GLfloat)) math::hdr::Rgba_f mAmbientColor = math::hdr::gWhite<float>;
     alignas(4 * sizeof(GLfloat)) math::hdr::Rgba_f mBaseColor = math::hdr::gWhite<float>;
-    alignas(2 * sizeof(GLfloat)) math::Vec<2, GLfloat> mMetallicRoughness{ 0.f, 0.3f };
+    alignas(sizeof(GLfloat)) GLfloat mMetallic = 0.f;
+    alignas(sizeof(GLfloat)) GLfloat mRoughness = 0.3f;
 };
 
 
@@ -77,7 +78,8 @@ DESCRIBE(PbrMaterial_glsl)
 {
     GIVE(AmbientColor);
     GIVE(BaseColor);
-    GIVE(MetallicRoughness);
+    GIVE(Metallic);
+    GIVE_EX((Clamped<GLfloat>{aValue.mRoughness, 0.f, 1.f}), Roughness);
 }
 
 

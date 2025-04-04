@@ -72,6 +72,9 @@ namespace hdr {
     constexpr math::hdr::Rgb_f gCameraFrustumColor = math::hdr::gYellow<float>;
 
     constexpr math::hdr::Rgb<GLfloat> gBrickAlbedo{ 0.262f, 0.095f, 0.061f };
+    // See rtr 4th table 9.2 p323
+    constexpr math::hdr::Rgb<GLfloat> gCopperAlbedo{ 0.955f, 0.638f, 0.538f };
+    constexpr math::hdr::Rgb<GLfloat> gGoldAlbedo{ 1.000f, 0.782f ,0.344f };
 
     // In sRGB color space
     constexpr std::array<math::hdr::Rgb_f, 9> gColorBrewerSet1_srgb {{
