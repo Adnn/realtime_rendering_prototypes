@@ -13,6 +13,7 @@
 #include <scenic/Camera.h>
 
 #include <scenic/environment/Skybox.h>
+#include <scenic/environment/EnvironmentUtilities.h>
 
 #include <ui/Widgets-impl.h>
 
@@ -320,6 +321,7 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
         .mScreenTextureSize{ aFrameSize },
     },
     mNoiseDirections{makeTexture(GL_TEXTURE_2D, "noise_directions")},
+    mIntegratedGgxBrdf{ scenic::integrateEnvironmentBrdf(scenic::gIntegratedBrdfSide, mEngine.mLoader) },
     mFinalFrame{makeTexture(GL_TEXTURE_2D, "final_frame")},
     mPrograms{mEngine}
 {
@@ -484,8 +486,8 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     glClearColor(0.1f, 0.2f, 0.3f, 1.f); 
     glClear(GL_COLOR_BUFFER_BIT);
 
-    passForwardPbr(aSceneTree, aRenderResolution);
-    if (mPipelineControl.mApplyEnvironment)
+    passForwardPbr(aSceneTree, aEnvironment, aRenderResolution);
+    if (mFrameControl.mApplyEnvironment)
     {
         passSkybox(aEnvironment);
     }
@@ -655,11 +657,12 @@ void FrameGraph::passFilterAo(math::Size<2, int> aRenderResolution)
 }
 
 void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
+                                const scenic::Environment & aEnvironment,
                                 math::Size<2, int> aRenderResolution)
 {
     // When rendering the point or wireframe, we have to discard the existing depth buffer
     // because users do not expect "filled-faces occlusion" in such situtations.
-    if (*mPipelineControl.mPolygonMode != GL_FILL)
+    if (*mFrameControl.mPolygonMode != GL_FILL)
     {
         glDepthFunc(GL_LESS);
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -671,7 +674,7 @@ void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
         glDepthFunc(GL_EQUAL);
     }
 
-    glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
+    glPolygonMode(GL_FRONT_AND_BACK, *mFrameControl.mPolygonMode);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
@@ -683,10 +686,26 @@ void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
     glBindTextureUnit(unitIdx, tex(TextureStore::FilteredOcclusion));
     graphics::setUniform(program, "u_AmbientOcclusion", unitIdx);
 
+    ++unitIdx;
+    glBindTextureUnit(unitIdx, aEnvironment.mIrradianceMap.mTexture);
+    graphics::setUniform(program, "u_FilteredIrradianceEnvironmentTexture", unitIdx);
+
+    ++unitIdx;
+    glBindTextureUnit(unitIdx, aEnvironment.mGgxRadianceMap.mTexture);
+    graphics::setUniform(program, "u_FilteredRadianceEnvironmentTexture", unitIdx);
+
+    ++unitIdx;
+    glBindTextureUnit(unitIdx, mIntegratedGgxBrdf);
+    graphics::setUniform(program, "u_IntegratedEnvironmentBrdf", unitIdx);
+
     // TODO: we actually need the whole viewport, and we could set it once in a uniform buffer
     graphics::setUniform(program, "u_FramebufferSize", aRenderResolution);
 
-    graphics::setUniform(program, "u_ApplyAo", mPipelineControl.mApplyAo);
+    graphics::setUniform(program, "u_ApplyAo", mFrameControl.mApplyAo);
+    graphics::setUniform(program, "u_ApplyEnvironment", mFrameControl.mApplyEnvironment);
+
+    graphics::setUniform(program, "u_SpecularIblFactor", mFrameControl.mSpecularIblFactor);
+    graphics::setUniform(program, "u_DiffuseIblFactor", mFrameControl.mDiffuseIblFactor);
 
     drawPass(program, aSceneTree);
 
@@ -697,10 +716,11 @@ void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
 void FrameGraph::passSkybox(const scenic::Environment & aEnvironment)
 {
     const auto& program = mPrograms.mSkybox;
+    graphics::setUniform(program, "u_LodBias", mFrameControl.mSkyboxLodBias);
     return scenic::passSkyboxBase(program,
-                                  aEnvironment.get(mPipelineControl.mSkyboxCategory),
+                                  aEnvironment.get(mFrameControl.mSkyboxCategory),
                                   GL_FRONT, // Rendering from inside the skybox
-                                  *mPipelineControl.mPolygonMode);
+                                  *mFrameControl.mPolygonMode);
 }
 
 
@@ -751,17 +771,23 @@ void FrameGraph::appendUi()
     DearImguiWitness witness;
 
     imguiui::addCombo("Polygon mode",
-                      mPipelineControl.mPolygonMode,
-                      PipelineControl::gPolygonModes.begin(),
-                      PipelineControl::gPolygonModes.end(),
+                      mFrameControl.mPolygonMode,
+                      FrameControl::gPolygonModes.begin(),
+                      FrameControl::gPolygonModes.end(),
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
-    ImGui::Checkbox("Apply AO", &mPipelineControl.mApplyAo);
+    ImGui::Checkbox("Apply AO", &mFrameControl.mApplyAo);
 
-    ImGui::Checkbox("Apply environment", &mPipelineControl.mApplyEnvironment);
+    ImGui::Checkbox("Apply environment", &mFrameControl.mApplyEnvironment);
     imguiui::addComboContinuousEnum<scenic::Environment::_End>("Skybox category",
-                                                               mPipelineControl.mSkyboxCategory);
+                                                               mFrameControl.mSkyboxCategory);
+    // TODO: we might query the currently selected texture max LOD for the upper limit
+    ImGui::SliderFloat("Skybox bias", &mFrameControl.mSkyboxLodBias, 0.f, 8.f);
 
+    ImGui::SliderFloat("SpecularIblFactor", &mFrameControl.mSpecularIblFactor, 0.f, 2.f);
+    ImGui::SliderFloat("DiffuseIblFactor", &mFrameControl.mDiffuseIblFactor, 0.f, 2.f);
+
+    ImGui::SeparatorText("SSAO");
     imguiui::addComboContinuousEnum<SsaoMethod::_End>("SSAO Method", mSsaoMethod);
 
     switch (mSsaoMethod)
@@ -774,7 +800,7 @@ void FrameGraph::appendUi()
         break;
     }
 
-    ImGui::Spacing();
+    ImGui::SeparatorText("AO Blur");
     describe(witness, mBlurControl);
 }
 

@@ -16,6 +16,11 @@
 namespace ad::scenic {
 
 
+inline const GLint gFilteredRadianceSide = 512;
+inline const GLint gIntegratedBrdfSide = 512;
+inline const GLint gFilteredIrradianceSide = 128;
+
+
 struct EnvironmentMap
 {
     enum class Type {
@@ -33,6 +38,7 @@ struct Environment
     {
         EnvMap,
         Irradiance,
+        GgxRadiance,
         _End/* keep last */
     };
 
@@ -40,16 +46,22 @@ struct Environment
     {
         switch (aCategory)
         {
+        default:
+            throw std::logic_error{ "Unhandled Environment::Category." };
         case EnvMap:
             return mEnvMap;
         case Irradiance:
             return mIrradianceMap;
+        case GgxRadiance:
+            return mGgxRadianceMap;
         }
     }
 
     // The "perfect mirror" map, often called environment map.
     EnvironmentMap mEnvMap;
     EnvironmentMap mIrradianceMap;
+    // Outgoing radiance for a GGX specular lobe (roughness mapped to mipmap level)
+    EnvironmentMap mGgxRadianceMap; 
 };
 
 

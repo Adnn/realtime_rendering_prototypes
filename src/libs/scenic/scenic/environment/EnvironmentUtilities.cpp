@@ -14,6 +14,7 @@
 #include <renderer/BufferLoad.h>
 #include <renderer/FrameBuffer.h>
 #include <renderer/UniformBuffer.h>
+#include <renderer/Uniforms.h>
 
 #include <cassert>
 
@@ -183,6 +184,116 @@ graphics::Texture filterEnvironmentMapDiffuse(const EnvironmentMap& aEnvMap,
 
     glObjectLabel(GL_TEXTURE, filteredCubemap, -1, "filtered_irradiance_diffuse_env");
     return filteredCubemap;
+}
+
+
+graphics::Texture filterEnvironmentMapGgxSpecular(const EnvironmentMap& aEnvMap,
+                                               GLsizei aOutputSideLength,
+                                               renderer::Loader & aLoader)
+{
+    PROFILER_SCOPE_SINGLESHOT_SECTION(gRenderProfiler, "filter env: specular radiance", CpuTime, GpuTime);
+
+    // Texture level 0 (maximum) size
+    const math::Size<2, GLsizei> size{aOutputSideLength, aOutputSideLength};
+    const GLint textureLevels = graphics::countCompleteMipmaps(size);
+    assert(textureLevels > 1); // otherwise there is just one value for roughness (zero), which is likely wrong
+    graphics::Texture filteredCubemap = prepareCubemap(aEnvMap, size, textureLevels);
+
+    graphics::FrameBuffer framebuffer;
+    graphics::ScopedBind boundFbo{framebuffer, graphics::FrameBufferTarget::Draw};
+
+    // TODO: #resources we should not have to recompile on each invocation
+    // The question is wether we want to rely on a general caching system (that should be low-level enough)
+    // or if we go the way of making this a member function, and hosting a copy in the data members.
+    renderer::IntrospectProgram program =
+        aLoader.loadProgram(renderer::ReferencePath{ "programs/PrefilterCubemap.prog" },
+                            { "SPECULAR_RADIANCE", });
+
+    math::Size<2, GLsizei> levelSize = size;
+    for(GLint level = 0; level != textureLevels; ++level)
+    {
+        glViewport(0, 0, levelSize.width(), levelSize.height());
+
+        // Roughness zero seems wasteful (I suppose it should be identical to the unfiltered cubemap)
+        // but probably more correct to allow mip-levels interpolation.
+        float roughness = (float)level / (textureLevels - 1); // Note: we asserted that textueLevels is more than 1
+        // TODO: find a more dynamic way to bind those plain uniforms
+        graphics::setUniform(program, "u_Roughness", roughness);
+
+        renderCubemapFaces(program, aEnvMap, filteredCubemap, level);
+
+        // This is the mipmap size derivation described in: 
+        // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexStorage2D.xhtml
+        levelSize = max((levelSize / 2), {1, 1});
+    }
+    
+    // TODO #bug: Despite the skybox being rendered as SEAMLESS_CUBEMAP (see passSkyboxBase),
+    // the seems are visible at transitions between LODs. 
+    // Since mipmap filtering is set to linear, I suppose this means there is a discontinuity
+    // in the computed LOD at skybox edges.
+    // Note: I could confirm that the filtered mipmaps do not have seems by sampling with textureLod()
+    glTextureParameteri(filteredCubemap, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(filteredCubemap, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Probably useless since we select the LOD explicitly based on roughness
+    //glTextureParameterf(filteredCubemap, GL_TEXTURE_MAX_ANISOTROPY, 16.f);
+
+    glObjectLabel(GL_TEXTURE, filteredCubemap, -1, "filtered_radiance_specular_env");
+    return filteredCubemap;
+}
+
+
+graphics::Texture integrateEnvironmentBrdf(GLsizei aOutputSideLength,
+                                           renderer::Loader& aLoader)
+{
+    PROFILER_SCOPE_SINGLESHOT_SECTION(gRenderProfiler, "integrate environment brdf", CpuTime, GpuTime);
+
+    const math::Size<2, GLsizei> size{aOutputSideLength, aOutputSideLength};
+
+    graphics::Texture result{GL_TEXTURE_2D};
+    graphics::allocateStorage(result,
+                              // Note: the paper recommended 16bit floats for precision
+                              GL_RG32F, // This is the commonly used internal format around these functions
+                              size.width(), size.height(),
+                              1);
+
+    graphics::FrameBuffer framebuffer;
+    graphics::ScopedBind boundFbo{framebuffer, graphics::FrameBufferTarget::Draw};
+
+    // We attach the current texture level 0 to the Framebuffer's draw color buffer attachment 1 
+    // (it could be zero since we do not attach to another color buffer, this is just to be fancy)
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,
+                            GL_COLOR_ATTACHMENT1,
+                            GL_TEXTURE_2D,
+                            result, 
+                            0);
+
+    // Map output fragment color at location 2 to the draw buffer at color attachment 1
+    // (once again, just to be fancy, we could use the default mapping 
+    //  of fragment color at location 0 to the draw buffer at color attachment 0)
+    static const std::array<GLenum, 3> drawBuffers{GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT1};
+    glDrawBuffers((GLsizei)drawBuffers.size(), drawBuffers.data());
+
+    glViewport(0, 0, size.width(), size.height());
+
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    renderer::IntrospectProgram program =
+        aLoader.loadProgram(renderer::ReferencePath{ "programs/IntegrateEnvironmentBrdf.prog" });
+    graphics::ScopedBind boundProgram(program);
+
+    graphics::VertexArrayObject dummyVao;
+    graphics::ScopedBind boundVao{ dummyVao };
+    // Draw the fullscreen quad (which will invoke the FS for each ouptut pixel of the viewport)
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glTextureParameteri(result, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(result, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTextureParameteri(result, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(result, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glObjectLabel(GL_TEXTURE, result, -1, "integrated_env_brdf");
+    return result;
 }
 
 

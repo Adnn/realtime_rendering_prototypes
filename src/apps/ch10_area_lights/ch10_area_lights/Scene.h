@@ -80,7 +80,7 @@ struct Scene
         GLint mMaxTessGenLevel;
     };
 
-    struct PipelineControl
+    struct FrameControl
     {
        inline static constexpr std::array<GLenum, 3> gPolygonModes{
             GL_POINT,
@@ -169,7 +169,7 @@ struct Scene
     OrbitalCamera mOrbitalCamera;
 
     TessellationControl mTessControl;
-    PipelineControl mPipelineControl;
+    FrameControl mFrameControl;
 };
 
 

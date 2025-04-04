@@ -232,7 +232,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Pipeline state
     // 
-    glPolygonMode(GL_FRONT_AND_BACK, *mPipelineControl.mPolygonMode);
+    glPolygonMode(GL_FRONT_AND_BACK, *mFrameControl.mPolygonMode);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
@@ -295,9 +295,9 @@ void Scene::presentUi(bool * aOpen)
     }
 
     imguiui::addCombo("Polygon mode",
-        mPipelineControl.mPolygonMode,
-        PipelineControl::gPolygonModes.begin(),
-        PipelineControl::gPolygonModes.end(),
+        mFrameControl.mPolygonMode,
+        FrameControl::gPolygonModes.begin(),
+        FrameControl::gPolygonModes.end(),
         [](auto aModeIt){return graphics::to_string(*aModeIt);});
 
     DearImguiWitness witness;

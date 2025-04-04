@@ -1,7 +1,7 @@
 #version 430
 
 
-#include "HelpersIbl.glsl"
+#include "IblUtilities.glsl"
 #include "PbrUtilities.glsl"
 
 

@@ -93,18 +93,22 @@ std::string to_string(TextureStore::Name aName);
 struct FrameGraph
 {
 
-    struct PipelineControl
+    struct FrameControl
     {
-       inline static constexpr std::array<GLenum, 3> gPolygonModes{
-            GL_POINT,
-            GL_LINE,
-            GL_FILL,
-        }; 
+        inline static constexpr std::array<GLenum, 3> gPolygonModes{
+             GL_POINT,
+             GL_LINE,
+             GL_FILL,
+         }; 
 
-       decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
-       bool mApplyAo{ true };
-       bool mApplyEnvironment{ true };
-       scenic::Environment::Category mSkyboxCategory{ scenic::Environment::EnvMap };
+        decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+        bool mApplyAo{ true };
+        bool mApplyEnvironment{ true };
+        scenic::Environment::Category mSkyboxCategory{ scenic::Environment::EnvMap };
+        GLfloat mSkyboxLodBias = 0.f;
+
+        GLfloat mSpecularIblFactor = 1.f;
+        GLfloat mDiffuseIblFactor = 1.f;
     };
 
     struct SphereSsaoControl
@@ -154,6 +158,7 @@ struct FrameGraph
     void passFilterAo(math::Size<2, int> aRenderResolution);
 
     void passForwardPbr(const scenic::SceneTree& aSceneTree,
+                        const scenic::Environment & aEnvironment,
                         math::Size<2, int> aRenderResolution);
 
     void passSkybox(const scenic::Environment & aEnvironment);
@@ -197,6 +202,8 @@ struct FrameGraph
     TextureStore mTextures;
     // TODO: move to texture store
     graphics::Texture mNoiseDirections;
+    // The second part of the split integral approximation for IBL
+    graphics::Texture mIntegratedGgxBrdf;
     // TODO: we could render directly to the default framebuffer, but currently we blit
     graphics::Texture mFinalFrame;
     ProgramStore mPrograms;
@@ -206,7 +213,7 @@ struct FrameGraph
     SphereSsaoControl mSphereSsaoControl;
     HemiSsaoControl mHemisphereSsaoControl;
     BlurControl mBlurControl;
-    PipelineControl mPipelineControl;
+    FrameControl mFrameControl;
 
     std::vector<math::Vec<3, GLfloat>> mSphereSamples{
         generateUnitSphereSamples_spherical(gSsaoSampleCount, Domain::Volume)};

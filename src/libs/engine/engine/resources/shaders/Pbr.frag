@@ -2,10 +2,23 @@
 
 #include "Gamma.glsl"
 #include "Helpers.glsl"
+#include "IblUtilities.glsl"
 #include "LightsBlock.glsl"
 #include "LightUtilities.glsl"
 #include "MaterialPbrBlock.glsl"
 #include "PbrUtilities.glsl"
+#include "ViewProjectionBlock.glsl"
+
+
+#if defined(ENVIRONMENT_MAPPING)
+	uniform samplerCube u_EnvironmentTexture;
+	uniform samplerCube u_FilteredRadianceEnvironmentTexture;
+	uniform samplerCube u_FilteredIrradianceEnvironmentTexture;
+	uniform sampler2D u_IntegratedEnvironmentBrdf;
+
+    uniform float u_SpecularIblFactor = 1.0;
+    uniform float u_DiffuseIblFactor = 1.0;
+#endif //ENVIRONMENT_MAPPING
 
 
 in vec4 ex_Color;
@@ -13,6 +26,12 @@ in vec3 ex_Normal_view;
 in vec3 ex_Position_view;
 
 out vec4 out_Color;
+
+uniform sampler2D u_AmbientOcclusion;
+
+uniform ivec2 u_FramebufferSize;
+uniform bool u_ApplyAo;
+uniform bool u_ApplyEnvironment;
 
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
@@ -180,11 +199,66 @@ void main(void)
     vec3 diffuse  = diffuseAccum        ;//* material.diffuseColor.rgb;
     vec3 specular = specularAccum       ;//* material.specularColor.rgb;
 
+    //
+    // Ambient Occlusion
+    //
+
+	float aoFactor;
+    if(u_ApplyAo)
+    {
+		vec2 frag_screenuv = gl_FragCoord.xy / u_FramebufferSize;
+		aoFactor = texture(u_AmbientOcclusion, frag_screenuv).r;
+		ambient *= aoFactor;
+	}
+
     vec3 fragmentColor = diffuse + ambient + specular;
 
     // DEBUG SECTION
     //fragmentColor = specular;
     //fragmentColor = highlightAberrations(fragmentColor);
+
+
+    //
+    // IBL
+    //
+	#if defined(ENVIRONMENT_MAPPING)
+    if(u_ApplyEnvironment)
+    {
+        // The directions that will be used to sample into the cubemap need to be in 
+        // world-space, where the cubemaps are defined.
+		// Note: No need to normalize as long as it is only used to sample a cubemap.
+		vec3 reflected_world = mat3(ub_cameraToWorld) * reflect(-viewDir_view, shadingNormal_view);
+		vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
+
+		vec3 specularIbl = 
+            approximateSpecularIbl(pbrParameters.f0,
+		                           reflected_world,
+                                   shadingNormal_world,
+                                   // Note should be reused from previous computation
+                                   // (but is currently calculated inside a function)
+                                   dotPlus(shadingNormal_view, viewDir_view),
+                                   roughness,
+                                   u_FilteredRadianceEnvironmentTexture,
+                                   u_IntegratedEnvironmentBrdf);
+
+		vec3 diffuseIbl = texture(u_FilteredIrradianceEnvironmentTexture, 
+								  worldToCubemap(shadingNormal_world)).rgb
+						  // Diffuse color is the subsurface albedo
+						  * pbrParameters.diffuseColor.rgb;
+
+		if(u_ApplyAo)
+        {
+            // See rtr 4th eq(11.25) p464
+            // There is a 1/Pi factor in the book equation, I suppose it is already conceptually
+            // part of another factor in the equation.
+            diffuseIbl *= aoFactor;
+        }
+
+        // TODO: can we Fresnel, as mentionned in the book? It seems there is way to much energy on objects
+        fragmentColor += specularIbl * u_SpecularIblFactor;
+        fragmentColor += diffuseIbl * u_DiffuseIblFactor;
+    }
+    #endif //ENVIRONMENT_MAPPING
 
     //
     // Output

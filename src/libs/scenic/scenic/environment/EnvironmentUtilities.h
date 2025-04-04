@@ -21,4 +21,18 @@ graphics::Texture filterEnvironmentMapDiffuse(const EnvironmentMap & aEnvMap,
                                               GLsizei aOutputSideLength,
                                               renderer::Loader & aLoader);
 
+
+/// @brief Implement the 1st part of the split-sum approximation
+/// @return An environment map representing the radiance along an outgoing direction
+/// corresponding to the sampled principal incoming direction.
+/// (principal incoming direction might just be view reflection, or a skew of it.)
+graphics::Texture filterEnvironmentMapGgxSpecular(const EnvironmentMap& aEnvMap,
+                                                  GLsizei aOutputSideLength,
+                                                  renderer::Loader & aLoader);
+
+
+/// @brief Implement the 2nd part (scale & bias to F0) of the split-sum approximation
+graphics::Texture integrateEnvironmentBrdf(GLsizei aOutputSideLength,
+                                           renderer::Loader & aLoader);
+
 } // namespce ad::scenic

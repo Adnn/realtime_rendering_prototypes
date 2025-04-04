@@ -1,4 +1,5 @@
 {
     "vertex": "shaders/FullTransform.vert",
-    "fragment": "shaders/ch11_global_illumination_Pbr.frag"
+    "fragment": "shaders/Pbr.frag",
+    "defines": ["ENVIRONMENT_MAPPING"]
 }

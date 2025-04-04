@@ -4,13 +4,6 @@
 
 namespace ad::scenic {
 
-//
-// Setup the filtered environment textures
-//
-const GLint gFilteredRadianceSide = 512;
-const GLint gIntegratedBrdfSide = 512;
-const GLint gFilteredIrradianceSide = 128;
-
 
 Environment prepareEnvironment(const renderer::ReferencePath & aEnvironmentMapPath,
                                renderer::Loader & aLoader)
@@ -28,9 +21,16 @@ Environment prepareEnvironment(const renderer::ReferencePath & aEnvironmentMapPa
                                                 aLoader),
     };
 
+    EnvironmentMap radianceMap{
+        .mTexture = filterEnvironmentMapGgxSpecular(envMap,
+                                                    gFilteredRadianceSide,
+                                                    aLoader),
+    };
+
     return{
         .mEnvMap = std::move(envMap),
         .mIrradianceMap = std::move(irradianceMap),
+        .mGgxRadianceMap = std::move(radianceMap),
     };
 }
 
@@ -44,6 +44,7 @@ std::string to_string(Environment::Category aCategory)
             throw std::logic_error{ "Unhandled Environment::Category." };
         STR(EnvMap);
         STR(Irradiance);
+        STR(GgxRadiance);
     }
 #undef STR
 }
