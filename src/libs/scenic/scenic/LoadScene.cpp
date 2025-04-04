@@ -395,10 +395,8 @@ namespace {
 
 } // anonymous namespace
 
-SceneTree loadModel(const std::filesystem::path& aModelFile, Context& aContext, float aGlobalScale)
+void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelFile, Context& aContext, float aGlobalScale)
 {
-    SceneTree result;
-
 #if defined(VERBOSE_ASSIMP)
     // Comment out to get verbose output from the importer, to stdout.
     Assimp::DefaultLogger::create("", Assimp::Logger::VERBOSE, aiDefaultLogStream_STDOUT);
@@ -451,7 +449,6 @@ SceneTree loadModel(const std::filesystem::path& aModelFile, Context& aContext, 
     if(!scene)
     {
         ADLOG(critical)(importer.GetErrorString());
-        return result;
     }
 
     // Uncomment to get a list of all metadata keys and their type
@@ -491,9 +488,7 @@ SceneTree loadModel(const std::filesystem::path& aModelFile, Context& aContext, 
     assert(nodeResult == countVerticesDirect(scene->mRootNode, scene));
 
     MeshMap meshMap;
-    recurseNodes(scene->mRootNode, scene, result, meshMap, Node::gInvalidIndex);
-
-    return result;
+    recurseNodes(scene->mRootNode, scene, aAppendedScene, meshMap, Node::gInvalidIndex);
 }
 
 

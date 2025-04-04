@@ -15,7 +15,7 @@ struct Context
 };
 
 
-SceneTree loadModel(const std::filesystem::path & aModelFile, Context& aContext, float aGlobalScale = 1.0f);
+void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelFile, Context& aContext, float aGlobalScale = 1.0f);
 
 
 } // namespce ad::scenic

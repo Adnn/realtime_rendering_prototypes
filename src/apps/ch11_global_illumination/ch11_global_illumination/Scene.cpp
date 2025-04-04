@@ -87,13 +87,34 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl& aData,
 const std::filesystem::path gSurfaceProgramPath = "programs/ch11_global_illumination_Pbr.prog";
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
-const std::filesystem::path gModelPath = "models/Mat/meetmat_2.glb";
+const std::filesystem::path gModelPaths[] = { "models/Mat/meetmat_2.glb" };
 constexpr float gModelScale = 0.1f;
+
+//const std::filesystem::path gModelPaths[] = {
+//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl",
+//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body.stl",
+//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-1.stl",
+//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl",
+//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-l.stl",
+//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-r.stl",
+//};
+//constexpr float gModelScale = 0.01f;
 
 const renderer::ReferencePath gEnvMapPath{ "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds" };
 
-//const std::filesystem::path gModelPath = "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl";
-//constexpr float gModelScale = 0.01f;
+
+scenic::SceneTree prepareSceneTree(Engine & aEngine)
+{
+    scenic::SceneTree result;
+    for (const auto & path : gModelPaths)
+    {
+        scenic::loadModel(result,
+                          aEngine.mLoader.mFinder.pathFor(path),
+                          aEngine.mContext,
+                          gModelScale);
+    }
+    return result;
+}
 
 
 // TODO: on framebuffer resize, inform the framegraph
@@ -101,9 +122,7 @@ Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImg
     mSurfaceProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gSurfaceProgramPath}) },
     mLightProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath}) },
     mGraph(aAppInterface.getFramebufferSize()),
-    mSceneTree{ scenic::loadModel(mGraph.mEngine.mLoader.mFinder.pathFor(gModelPath),
-                                  mGraph.mEngine.mContext,
-                                  gModelScale) },
+    mSceneTree{prepareSceneTree(mGraph.mEngine)},
     mEnvironment{ scenic::prepareEnvironment(gEnvMapPath, mGraph.mEngine.mLoader) }
 {
     // Register the camera system with glfw inputs 
