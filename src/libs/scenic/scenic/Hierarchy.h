@@ -18,19 +18,36 @@ struct Node
     using Index = std::size_t;
     static constexpr Index gInvalidIndex = std::numeric_limits<Index>::max();
 
-    Index mParent      = gInvalidIndex;
+    bool operator==(const Node &) const = default;
+
+    Index mParent      = gInvalidIndex; // Invalid index parent means root node
     Index mFirstChild  = gInvalidIndex;
     Index mNextSibling = gInvalidIndex;
-    Index mLastSibling = gInvalidIndex; // WARNING: this is an inconsistent internal value, not an invariant.
+    // WARNING: this is an inconsistent internal value, not an invariant.
+    // We maintain it only for the first children
+    Index mLastSibling = gInvalidIndex;
     unsigned int mLevel = 0;
 };
+
 
 
 template <class T_pose>
 struct NodeTree
 {
+    std::size_t size() const;
+
     /// @param aParent if set to gInvalidIndex, the call adds a root node.
     Node::Index addNode(Node::Index aParent, T_pose aLocalPose);
+
+    /// @brief Insert provided subtree into this NodeTree.
+    /// @param aSubtree 
+    /// @param aInsertionParent The parent for the inserted subtree.
+    ///        The subtree is root if the value is gInvalidIndex.
+    /// @return The offset applied to indices in the subtree hierarchy.
+    Node::Index insert(const NodeTree & aSubtree,
+                       Node::Index aInsertionParent = Node::gInvalidIndex);
+
+    bool operator==(const NodeTree &) const = default;
 
     std::vector<Node> mHierarchy;
     std::vector<T_pose> mLocalPose;
@@ -40,6 +57,15 @@ struct NodeTree
     Node::Index mFirstRoot = Node::gInvalidIndex;
 };
 
+
+
+template <class T_pose>
+std::size_t NodeTree<T_pose>::size() const
+{
+    assert(mHierarchy.size() == mLocalPose.size()
+           && mHierarchy.size() == mGlobalPose.size());
+    return mHierarchy.size();
+}
 
 
 template <class T_pose>
@@ -107,6 +133,85 @@ Node::Index NodeTree<T_pose>::addNode(Node::Index aParent, T_pose aLocalPose)
     }
 
     return thisIndex;
+}
+
+// TODO: ideally would not be exposed to clients, or moved to a generic header
+namespace utils {
+
+    template <class T_element>
+    std::vector<T_element> & append(std::vector<T_element> & aReceiver,
+                                    const std::vector<T_element> aAppended)
+    {
+        aReceiver.reserve(aReceiver.size() + aAppended.size());
+        aReceiver.insert(aReceiver.end(), aAppended.begin(), aAppended.end());
+        return aReceiver;
+    }
+
+
+    inline void shiftNode(Node & aNode, Node::Index aOffset, unsigned int aLevelOffset)
+    {
+#define SHIFT(member) if(aNode.##member != Node::gInvalidIndex) aNode.##member += aOffset
+
+        SHIFT(mParent);
+        SHIFT(mFirstChild);
+        SHIFT(mNextSibling);
+        SHIFT(mLastSibling);
+        aNode.mLevel += aLevelOffset;
+
+#undef SHIFT
+    }
+
+
+}; // namespace utils
+
+
+template <class T_pose>
+Node::Index NodeTree<T_pose>::insert(const NodeTree & aSubtree,
+                                     Node::Index aInsertionParent)
+{
+    auto initialSize = size();
+    // If this NodeTree is empty, copy the subtree over
+    if (mFirstRoot == Node::gInvalidIndex)
+    {
+        assert(initialSize == 0);
+        *this = aSubtree;
+        return 0;
+    }
+
+    unsigned int insertionLevel = 0;
+    if (aInsertionParent != Node::gInvalidIndex)
+    {
+        // Sanity check: insertion must be under a Node available in this
+        assert(aInsertionParent < initialSize);
+        insertionLevel = mHierarchy[aInsertionParent].mLevel + 1;
+    }
+
+    // Append the inserted data after this data
+    utils::append(mHierarchy, aSubtree.mHierarchy);
+    // Re-index inserted nodes
+    for (Node::Index idx = initialSize; idx != mHierarchy.size(); ++idx)
+    {
+        utils::shiftNode(mHierarchy[idx], initialSize, insertionLevel);
+    }
+
+    utils::append(mLocalPose, aSubtree.mLocalPose);
+
+    if (aInsertionParent != Node::gInvalidIndex)
+    {
+        // TODO #scenegraph: Recalculate global poses
+        assert(false);
+    }
+    else // Insert the subtree as a root node
+    {
+        utils::append(mGlobalPose, aSubtree.mGlobalPose);
+
+        auto & lastRoot = mHierarchy[mFirstRoot].mLastSibling;
+        assert(mHierarchy[lastRoot].mNextSibling == Node::gInvalidIndex);
+        mHierarchy[lastRoot].mNextSibling = aSubtree.mFirstRoot + initialSize;
+        lastRoot = aSubtree.mHierarchy[aSubtree.mFirstRoot].mLastSibling + initialSize;
+    }
+
+    return initialSize;
 }
 
 

@@ -26,6 +26,8 @@ struct Pose
 
     explicit operator math::AffineMatrix<4, float> () const;
 
+    bool operator==(const Pose &) const = default;
+
     // Position is modeled as a Vec, because in a graph it can be seen as relative displacements. 
     math::Vec<3, float> mPosition;
     // TODO #scaling #skew Should we allow non-uniform (3D) scaling? 

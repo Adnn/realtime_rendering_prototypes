@@ -236,7 +236,6 @@ namespace {
             aOutScene.mTree.addNode(aParent, decompose(extractAffinePart(aNode)));
 
         // NOTE Ad 2024/02/28: This is not a hard requirement (code should work without it)
-        //   but this situation would exacerbate a design flaw (see note #flaw_593)
         assert(aNode->mNumMeshes == 0 || aNode->mNumChildren == 0);
 
         // Create an Object containing the Meshes of this node
@@ -386,11 +385,6 @@ namespace {
         //aWriter.forward(result.mAabb);
 
         return result;
-    }
-
-    Handle<const VertexStream> prepareBuffers(const NodeResult& aCounts)
-    {
-        
     }
 
 } // anonymous namespace

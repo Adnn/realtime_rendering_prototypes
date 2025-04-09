@@ -231,6 +231,8 @@ inline std::string to_string(FrameGraph::SsaoMethod aMethod)
 {
     switch (aMethod)
     {
+    default:
+        throw std::logic_error{ "Unhandled FrameGraph::SsaoMethod." };
     case FrameGraph::SsaoMethod::Sphere:
         return "Sphere";
     case FrameGraph::SsaoMethod::OrientedHemishphere:

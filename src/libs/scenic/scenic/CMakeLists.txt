@@ -16,6 +16,9 @@ set(${TARGET_NAME}_HEADERS
     environment/EnvironmentUtilities.h
     environment/Skybox.h
 
+    files/Archives.h
+    files/Serializer.h
+
     log/Logging.h
     log/Logging-channels.h
     log/Logging-init.h
@@ -34,6 +37,9 @@ set(${TARGET_NAME}_SOURCES
     environment/Environment.cpp
     environment/EnvironmentUtilities.cpp
     environment/Skybox.cpp
+
+    files/Archives.cpp
+    files/Serializer.cpp
 
     log/Logging-init.cpp
 )

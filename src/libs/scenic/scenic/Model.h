@@ -112,7 +112,10 @@ struct MeshPart_Naive
     struct Accessor_Naive
     {
         graphics::BufferAny mBuffer;
-        graphics::ClientAttribute mClientDataFormat;
+        graphics::ClientAttribute mClientDataFormat{
+            // Note: Make Accessor_Naive default ctible, for serialization
+            .mDimension = {0},
+        };
     };
 
     std::unordered_map<renderer::Semantic, Accessor_Naive> mSemanticToAttribute;
@@ -158,6 +161,11 @@ struct SceneTree
     // std::vector<AABB> mAABBs
     std::unordered_map<Node::Index, Object> mObjectsMap;
 };
+
+
+SceneTree & mergeScenes(SceneTree & aBaseTree,
+                        SceneTree & aMerged,
+                        Node::Index aParent = Node::gInvalidIndex);
 
 
 struct ModelStorage

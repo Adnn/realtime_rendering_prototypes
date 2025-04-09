@@ -18,9 +18,14 @@
 #include <scenic/ColorPalettes.h>
 #include <scenic/LoadScene.h>
 
+#include <scenic/files/Archives.h>
+#include <scenic/files/Serializer.h>
+
 #include <ui/ImguiUi.h>
 #include <ui/Widgets.h>
 #include <ui/Widgets-impl.h>
+
+#include <fmt/std.h>
 
 
 namespace ad {
@@ -87,33 +92,64 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl& aData,
 const std::filesystem::path gSurfaceProgramPath = "programs/ch11_global_illumination_Pbr.prog";
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
-const std::filesystem::path gModelPaths[] = { "models/Mat/meetmat_2.glb" };
-constexpr float gModelScale = 0.1f;
+//const std::filesystem::path gModelPaths[] = { "models/Mat/meetmat_2.glb" };
+//constexpr float gModelScale = 0.1f;
 
-//const std::filesystem::path gModelPaths[] = {
-//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl",
-//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body.stl",
-//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-1.stl",
-//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl",
-//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-l.stl",
-//    "models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-r.stl",
-//};
-//constexpr float gModelScale = 0.01f;
+const renderer::ReferencePath gModelPaths[] = {
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl"},
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body.stl"},
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body-horn-l.stl"},
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body-horn-r.stl"},
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-1.stl"},
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-l.stl"},
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-r.stl"},
+};
+constexpr float gModelScale = 0.01f;
 
 const renderer::ReferencePath gEnvMapPath{ "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds" };
 
 
+std::filesystem::path getCacheModel(renderer::ReferencePath aModel)
+{
+        aModel.mPath.replace_extension(".seum");
+        return "se_cache" / aModel.mPath;
+}
+
+
 scenic::SceneTree prepareSceneTree(Engine & aEngine)
 {
-    scenic::SceneTree result;
-    for (const auto & path : gModelPaths)
+    scenic::SceneTree scene;
+    for (const auto & reference : gModelPaths)
     {
-        scenic::loadModel(result,
-                          aEngine.mLoader.mFinder.pathFor(path),
-                          aEngine.mContext,
-                          gModelScale);
+        scenic::SceneTree modelScene;
+
+        std::filesystem::path cacheCandidate = getCacheModel(reference);
+        if (std::filesystem::is_regular_file(cacheCandidate))
+        {
+            ADLOG(info)("Loading model from runtime archive for '{}'.", reference.mPath);
+            scenic::Serializer serializer;
+            scenic::FileInput archive{ cacheCandidate };
+            serializer.serial(archive, modelScene);
+        }
+        else
+        {
+            ADLOG(warn)("Runtime archive absent for '{}', loading and serializing.", reference.mPath);
+            auto fullPath = aEngine.mLoader.mFinder.pathFor(reference.mPath);
+            scenic::loadModel(modelScene,
+                              fullPath,
+                              aEngine.mContext,
+                              gModelScale);
+
+            std::filesystem::create_directories(cacheCandidate.parent_path());
+            scenic::FileOutput archive{cacheCandidate};
+            scenic::Serializer serializer;
+            serializer.serial(archive, modelScene);
+        }
+        scenic::mergeScenes(scene, modelScene);
     }
-    return result;
+
+    return scene;
 }
 
 
