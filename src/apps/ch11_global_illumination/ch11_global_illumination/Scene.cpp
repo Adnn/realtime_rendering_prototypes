@@ -15,6 +15,8 @@
 #include <renderer/BufferLoad.h>
 #include <renderer/Uniforms.h>
 
+#include <scenic/CameraGui.h>
+
 #include <scenic/ColorPalettes.h>
 #include <scenic/LoadScene.h>
 
@@ -161,6 +163,8 @@ Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImg
     mSceneTree{prepareSceneTree(mGraph.mEngine)},
     mEnvironment{ scenic::prepareEnvironment(gEnvMapPath, mGraph.mEngine.mLoader) }
 {
+    mOrbitalCamera.reset(math::getRatio<GLfloat>(aAppInterface.getWindowSize()));
+
     // Register the camera system with glfw inputs 
     graphics::registerGlfwCallbacks(
         aAppInterface,
@@ -265,7 +269,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Camera
     //
-    mOrbitalCamera.setRatio(math::getRatio<GLfloat>(aRenderResolution));
+    changeAspectRatio(mOrbitalCamera.mCamera, math::getRatio<GLfloat>(aRenderResolution));
     graphics::loadSingle(mViewProjectionBuffer,
                          mOrbitalCamera.getViewProjectionBlock(),
                          graphics::BufferHint::StreamDraw);
@@ -377,6 +381,12 @@ void Scene::presentUi(bool* aOpen)
     if (ImGui::CollapsingHeader("Lights"))
     {
         describe(witness, mLights);
+    }
+
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Camera"))
+    {
+        scenic::appendUi(mOrbitalCamera);
     }
 
     if (ImGui::Button("Dump depth map"))

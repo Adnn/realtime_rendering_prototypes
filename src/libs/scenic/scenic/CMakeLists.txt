@@ -3,6 +3,8 @@ set(TARGET_NAME scenic)
 set(${TARGET_NAME}_HEADERS
     AssimpUtils.h
     Camera.h
+    CameraGui.h
+    CameraSystem.h
     ColorPalettes.h
     Hierarchy.h
     LoadScene.h
@@ -26,6 +28,8 @@ set(${TARGET_NAME}_HEADERS
 
 set(${TARGET_NAME}_SOURCES
     Camera.cpp
+    CameraGui.cpp
+    CameraSystem.cpp
     Hierarchy.cpp
     LoadScene.cpp
     Model.cpp

@@ -1,7 +1,7 @@
 #include "CameraSystem.h"
 
 
-namespace ad {
+namespace ad::scenic {
 
 
 void OrbitalCamera::update(int aWindowHeight)
@@ -10,7 +10,7 @@ void OrbitalCamera::update(int aWindowHeight)
 }
 
 
-void OrbitalCamera::setRatio(float aAspectRatio)
+void OrbitalCamera::reset(float aAspectRatio)
 {
     //mCamera.setupOrthographicProjection({
     //    .mAspectRatio = aAspectRatio,
@@ -22,7 +22,7 @@ void OrbitalCamera::setRatio(float aAspectRatio)
         .mAspectRatio = aAspectRatio,
         .mVerticalFov = math::Radian{math::pi<float>/2.f},
         .mNearZ = -0.1f,
-        .mFarZ = -20.f }
+        .mFarZ = -100.f }
     );
 }
 
@@ -34,4 +34,4 @@ scenic::GpuViewProjectionBlock OrbitalCamera::getViewProjectionBlock()
 }
 
 
-} // namespace ad
+} // namespace ad::scenic

@@ -4,13 +4,14 @@
 #include <scenic/Camera.h>
 
 
-namespace ad {
+namespace ad::scenic {
+
 
 struct OrbitalCamera
 {
     void update(int aWindowHeight);
 
-    void setRatio(float aAspectRatio);
+    void reset(float aAspectRatio);
 
     scenic::GpuViewProjectionBlock getViewProjectionBlock();
 
@@ -19,4 +20,5 @@ struct OrbitalCamera
     scenic::OrbitalControl mOrbitalControl{ scenic::Orbital{2.f} };
 };
 
-} // namespace ad
+
+} // namespace ad::scenic

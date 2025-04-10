@@ -1,7 +1,6 @@
 set(TARGET_NAME ch11_global_illumination)
 
 set(${TARGET_NAME}_HEADERS
-    CameraSystem.h
     Engine.h
     FrameGraph.h
     Material.h
@@ -17,7 +16,6 @@ set(${TARGET_NAME}_HEADERS
 )
 
 set(${TARGET_NAME}_SOURCES
-    CameraSystem.cpp
     FrameGraph.cpp
     main.cpp
     Scene.cpp

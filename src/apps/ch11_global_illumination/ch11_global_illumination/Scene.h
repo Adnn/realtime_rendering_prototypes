@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include "CameraSystem.h"
 #include "Engine.h"
 #include "FrameGraph.h"
 #include "Material.h"
@@ -19,6 +18,7 @@
 #include <renderer/VertexSpecification.h>
 #include <renderer/Drawing.h>
 
+#include <scenic/CameraSystem.h>
 #include <scenic/ColorPalettes.h>
 #include <scenic/ShapesAsModel.h>
 
@@ -69,7 +69,7 @@ struct Scene
     renderer::IntrospectProgram mSurfaceProgram;
     renderer::IntrospectProgram mLightProgram;
 
-    OrbitalCamera mOrbitalCamera;
+    scenic::OrbitalCamera mOrbitalCamera;
     scenic::SceneTree mSceneTree;
     scenic::Object mSphere{ scenic::makeSphere(4) };
     scenic::Environment mEnvironment;
@@ -80,6 +80,8 @@ struct Scene
         .mMaterials = {
             PbrMaterial_glsl{
                 .mBaseColor{scenic::hdr::gBrickAlbedo},
+                //.mBaseColor{scenic::hdr::gGoldAlbedo},
+                //.mMetallic = 1.f,
             },
         },
     };

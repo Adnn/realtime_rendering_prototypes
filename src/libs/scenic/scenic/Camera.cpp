@@ -26,6 +26,41 @@ void Camera::setupPerspectiveProjection(PerspectiveParameters aParams)
 }
 
 
+Camera::Projection Camera::switchProjection(Projection aSelected, float aStablePlaneDistance)
+{
+    Camera::Projection initialProjection = identifyProjection();
+    if (aSelected != initialProjection)
+    {
+        switch(aSelected)
+        {
+            case Camera::Orthographic:
+            {
+                assert(initialProjection == Perspective);
+                // Was perspective
+                graphics::PerspectiveParameters perspective =
+                    std::get<graphics::PerspectiveParameters>(mProjectionParameters);
+                setupOrthographicProjection(toOrthographic(
+                    perspective,
+                    graphics::computePlaneHeight(aStablePlaneDistance, perspective.mVerticalFov)));
+                break;
+            }
+            case Camera::Perspective:
+            {
+                assert(initialProjection == Orthographic);
+                // Was orthograhic
+                graphics::OrthographicParameters ortho = 
+                    std::get<graphics::OrthographicParameters>(mProjectionParameters);
+                setupPerspectiveProjection(toPerspective(
+                    ortho,
+                    graphics::computeVerticalFov(aStablePlaneDistance, ortho.mViewHeight)));
+                break;
+            }
+        }
+    }
+    return initialProjection;
+}
+
+
 void changeOrthographicViewportHeight(Camera & aCamera, float aNewHeight)
 {
     Camera::OrthographicParameters orthoParams = std::visit(
@@ -45,6 +80,19 @@ void changeOrthographicViewportHeight(Camera & aCamera, float aNewHeight)
         aCamera.getProjectionParameters());
 
     aCamera.setupOrthographicProjection(orthoParams);
+}
+
+
+void changeAspectRatio(Camera & aCamera, float aNewRatio)
+{
+    std::visit(
+        // aParams by copy, we modify the value before assigning it back
+        [&aCamera, aNewRatio](auto aParams)
+        {
+            aParams.mAspectRatio = aNewRatio;
+            aCamera.setupProjection(aParams);
+        },
+        aCamera.getProjectionParameters());
 }
 
 
