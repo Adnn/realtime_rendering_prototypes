@@ -1,5 +1,6 @@
 #version 430
 
+#include "Constants.glsl"
 #include "Gamma.glsl"
 #include "Helpers.glsl"
 
@@ -20,42 +21,27 @@ layout(location = 1) out vec3 out_LinearHdr;
 void main()
 {
 #if defined(EQUIRECTANGULAR)
-    // For the conversion procedure, see: rtr 4th p407
-    // (the book does metion +z is up, but does not define the complete basis.
-    // I suppose it is the physic basis from: 
-    // https://en.wikipedia.org/wiki/Spherical_coordinate_system,
-    // so x becomes y, y becomes z, z becomes x).
-    vec3 view_world = normalize(ex_FragmentPosition_world);
+    vec3 envColor = texture(u_EnvironmentTexture, worldToEquirectangular(ex_FragmentPosition_world), u_LodBias).rgb;
 
-    // This formula show the middle of the equirectangle with default camera looking down -Z (in world).
-    // The value is mirrored on the range [0, 1]:
-    // an increasing azimuth (counterclockwise) has to lead to a decreasing u to avoid mirroring.
-    float u = 1 - atan(view_world.x, view_world.z) / (2 * M_PI);
-    // Which give the same result as:
-    //float u = atan(-view_world.x, view_world.z) / (2 * M_PI);
-
-    // Polar angle increase in the opposite direction compared to v coordinate
-    float v = 1 - acos(view_world.y) / M_PI;
-
-    vec3 envColor = texture(u_EnvironmentTexture, vec2(u,v), u_LodBias).rgb;
-#else
+#else // Cubemap
     // Cubemap coordinate system is left handed, but the cube texture coords is given
     // in right handed world space, so negate Z. 
     // Note: the individual images in the cubemap texture are loaded "upside-down" compared to usual OpenGL textures
     // in order for this to work (you can see they are upside down in Nsight Graphics)
+    vec3 sampleDir = worldToCubemap(ex_FragmentPosition_world);
+
 //#define MANUAL_LOD
 #if defined(MANUAL_LOD)
     // TODO: we do not get the approach results, investigate
     // LOD formula as provided in GL 4.6 spec, formulas 8.7 (p256), 8.10 (p257) and 8.11 (p258)
-    vec3 uv = worldToCubemap(ex_FragmentPosition_world)
-              * vec3(textureSize(u_EnvironmentTexture, 0), 0);
+    vec3 uv = sampleDir * vec3(textureSize(u_EnvironmentTexture, 0), 0);
 	float lod = log2(max( sqrt(dot(dFdx(uv), dFdx(uv))),
                           sqrt(dot(dFdy(uv), dFdy(uv))) ));
-    vec3 envColor = textureLod(u_EnvironmentTexture, worldToCubemap(ex_FragmentPosition_world), lod + u_LodBias).rgb;
+    vec3 envColor = textureLod(u_EnvironmentTexture, sampleDir, lod + u_LodBias).rgb;
 	float debugQueryLod = lod;
 #else
-    vec3 envColor = texture(u_EnvironmentTexture, worldToCubemap(ex_FragmentPosition_world), u_LodBias).rgb;
-	float debugQueryLod = textureQueryLod(u_EnvironmentTexture, worldToCubemap(ex_FragmentPosition_world)).x;
+    vec3 envColor = texture(u_EnvironmentTexture, sampleDir, u_LodBias).rgb;
+	float debugQueryLod = textureQueryLod(u_EnvironmentTexture, sampleDir).x;
 #endif // MANUAL_LOD
 
 //#define DEBUG_LOD
@@ -65,7 +51,8 @@ void main()
 	}
 #endif // DEBUG_LOD
 
-#endif
+#endif // EQUIRECTANGULAR
+
     out_Color = correctGamma(vec4(envColor, 1.0));
     out_LinearHdr = envColor;
 }

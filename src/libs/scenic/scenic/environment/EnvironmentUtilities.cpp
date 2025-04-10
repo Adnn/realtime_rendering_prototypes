@@ -13,6 +13,7 @@
 
 #include <renderer/BufferLoad.h>
 #include <renderer/FrameBuffer.h>
+#include <renderer/TextureUtilities.h>
 #include <renderer/UniformBuffer.h>
 #include <renderer/Uniforms.h>
 
@@ -51,17 +52,13 @@ namespace {
 
     graphics::Texture prepareCubemap(const EnvironmentMap & aEnvironment, math::Size<2, GLsizei> aSize, GLsizei aLevelsCount)
     {
-        // We could actually hande equirectangular, but it will also require extension of the filtering shader
-        assert(aEnvironment.mType == EnvironmentMap::Type::Cubemap);
-        
         // Get the internal format of the provided environment texture
         GLint environmentInternalFormat = 0;
         {
-            graphics::ScopedBind boundEnvironment{aEnvironment.mTexture};
-            glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-                                     0,
-                                     GL_TEXTURE_INTERNAL_FORMAT,
-                                     &environmentInternalFormat);
+            glGetTextureLevelParameteriv(aEnvironment.mTexture, 
+                                         0,
+                                         GL_TEXTURE_INTERNAL_FORMAT,
+                                         &environmentInternalFormat);
             
             // Special care has to be taken if the internal format is compressed
             switch(environmentInternalFormat)
@@ -69,7 +66,7 @@ namespace {
                 default:
                 {
                     GLint isCompressed = GL_TRUE;
-                    glGetInternalformativ(aEnvironment.mTexture, environmentInternalFormat, 
+                    glGetInternalformativ(aEnvironment.mTexture.mTarget, environmentInternalFormat, 
                                           GL_TEXTURE_COMPRESSED, 1, &isCompressed);
                     if(isCompressed)
                     {
@@ -144,12 +141,41 @@ namespace {
 } // unnamed namespace
 
 
-graphics::Texture loadCubemapFromDds(filesystem::path aDds)
+graphics::Texture loadCubemapFromDds(std::filesystem::path aDds)
 {
     graphics::Texture cubemap = renderer::loadDds(aDds);
     assert(cubemap.mTarget == GL_TEXTURE_CUBE_MAP);
     setupCubeFiltering(cubemap);
     return cubemap;
+}
+
+
+graphics::Texture loadEquirectangular(std::filesystem::path aEquirectangularMap)
+{
+    arte::Image<math::hdr::Rgb_f> hdrMap =
+        arte::Image<math::hdr::Rgb_f>::LoadFile(aEquirectangularMap,
+                                                arte::ImageOrientation::InvertVerticalAxis);
+
+    // Mipmapping causes a lot of issues with equirectangular maps:
+    // * There is a discontinuity on the sampled v coordinate, at the azimuthal wrap-around
+    // * It tends to picks a way to blurry mipmap levels wrt to the actual framebuffer resolution
+    //   * TODO: understand why that is the case?
+    const GLint mipmapLevels = 1; // 1 means no mipmapping
+
+    graphics::Texture equirectMap{GL_TEXTURE_2D};
+    graphics::loadImage(equirectMap, hdrMap, mipmapLevels);
+
+    glTextureParameteri(equirectMap, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(equirectMap, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(equirectMap, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(equirectMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    if(mipmapLevels > 1)
+    {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    return equirectMap;
 }
 
 
@@ -170,9 +196,14 @@ graphics::Texture filterEnvironmentMapDiffuse(const EnvironmentMap& aEnvMap,
     // TODO: #resources we should not have to recompile on each invocation
     // The question is wether we want to rely on a general caching system (that should be low-level enough)
     // or if we go the way of making this a member function, and hosting a copy in the data members.
+    std::vector<graphics::MacroDefine> defines{ "DIFFUSE_IRRADIANCE", };
+    if (aEnvMap.mType == EnvironmentMap::Type::Equirectangular)
+    {
+        defines.push_back("EQUIRECTANGULAR");
+    }
     renderer::IntrospectProgram program =
         aLoader.loadProgram(renderer::ReferencePath{ "programs/PrefilterCubemap.prog" },
-                            { "DIFFUSE_IRRADIANCE", });
+                            std::move(defines));
 
     glViewport(0, 0, size.width(), size.height());
 
@@ -205,9 +236,14 @@ graphics::Texture filterEnvironmentMapGgxSpecular(const EnvironmentMap& aEnvMap,
     // TODO: #resources we should not have to recompile on each invocation
     // The question is wether we want to rely on a general caching system (that should be low-level enough)
     // or if we go the way of making this a member function, and hosting a copy in the data members.
+    std::vector<graphics::MacroDefine> defines{ "SPECULAR_RADIANCE", };
+    if (aEnvMap.mType == EnvironmentMap::Type::Equirectangular)
+    {
+        defines.push_back("EQUIRECTANGULAR");
+    }
     renderer::IntrospectProgram program =
         aLoader.loadProgram(renderer::ReferencePath{ "programs/PrefilterCubemap.prog" },
-                            { "SPECULAR_RADIANCE", });
+                            std::move(defines));
 
     math::Size<2, GLsizei> levelSize = size;
     for(GLint level = 0; level != textureLevels; ++level)

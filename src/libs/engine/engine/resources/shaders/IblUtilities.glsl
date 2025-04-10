@@ -155,8 +155,14 @@ float computeLodUniformTerm(ivec2 aEnvSize, uint aNumSamples)
 }
 
 
-// Use the environment mipmaps when prefiltering, which immensely helps with aliasing
-#define PREFILTER_LEVERAGE_LOD
+// At the moment, equirectangular maps do not have mipmaps
+#if defined(EQUIRECTANGULAR)
+	#define ENV_SAMPLER_TYPE sampler2D
+#else
+	// Use the environment mipmaps when prefiltering, which immensely helps with aliasing
+	#define PREFILTER_LEVERAGE_LOD
+	#define ENV_SAMPLER_TYPE samplerCube
+#endif // EQUIRECTANGULAR
 
 /// @brief Specular contribution of Image Based Lighting from a cube environment map.
 /// 
@@ -212,7 +218,7 @@ vec3 specularIBL(vec3 aSpecularColor, float aAlphaSquared, vec3 N, vec3 V, sampl
 
 /// @param R the \b normalized reflection direction in world basis
 /// (i.e. the direciton that would be sampled in the filtered map)
-vec3 prefilterEnvMapSpecular(float aAlphaSquared, vec3 R, samplerCube aEnvMap)
+vec3 prefilterEnvMapSpecular(float aAlphaSquared, vec3 R, ENV_SAMPLER_TYPE aEnvMap)
 {
     const uint NumSamples = 1024;
 
@@ -237,11 +243,15 @@ vec3 prefilterEnvMapSpecular(float aAlphaSquared, vec3 R, samplerCube aEnvMap)
         float nDotL = dotPlus(N, L);
         if(nDotL > 0)
         {
-            vec3 sampleDir = worldToCubemap(L);
+            #if defined(EQUIRECTANGULAR)
+				vec2 sampleDir = worldToEquirectangular(L);
+            #else
+				vec3 sampleDir = worldToCubemap(L);
+            #endif // EQUIRECTANGULAR;
             
 #if defined(PREFILTER_LEVERAGE_LOD)
             vec3 sampled;
-            // Improtant: Distribution_GGX does not handle alpha == 0 (the theoretical result is +inf)
+            // Important: Distribution_GGX does not handle alpha == 0 (the theoretical result is +inf)
             // Anyway, we should probably always sample the mipmap level matching pixel coverage 
             // (only one sample direction should be possible when alpha == 0)
             if(aAlphaSquared != 0.)
@@ -288,7 +298,7 @@ vec3 prefilterEnvMapSpecular(float aAlphaSquared, vec3 R, samplerCube aEnvMap)
 /// @brief Integrate the environment map convolved with a cosine lobe center on the normal N.
 /// @param R the \b normalized normal direction in world basis
 /// (i.e. the direciton that would be sampled in the filtered map)
-vec3 prefilterEnvMapDiffuse(vec3 N, samplerCube aEnvMap)
+vec3 prefilterEnvMapDiffuse(vec3 N, ENV_SAMPLER_TYPE aEnvMap)
 {
     const uint NumSamples = 1024;
 
@@ -306,7 +316,11 @@ vec3 prefilterEnvMapDiffuse(vec3 N, samplerCube aEnvMap)
         float nDotL = dot(N, L);
         if(nDotL > 0)
         {
-            vec3 sampleDir = worldToCubemap(L);
+            #if defined(EQUIRECTANGULAR)
+				vec2 sampleDir = worldToEquirectangular(L);
+            #else
+				vec3 sampleDir = worldToCubemap(L);
+            #endif // EQUIRECTANGULAR;
             
             // see: mftpbr p67
             // pdf = (n.l) / Pi, for a sample distribution following a Cosine lobe
@@ -333,7 +347,7 @@ vec3 prefilterEnvMapDiffuse(vec3 N, samplerCube aEnvMap)
 /// based on the Lambertian model for a flat mirror.
 /// @note: using e.q. (9.62), for flat mirrors instead of microfacet BRDF
 /// because (9.63) depends upon view direction (to get H).
-vec3 prefilterEnvMapDiffuse_LambertianFresnel(vec3 N, vec3 F0, samplerCube aEnvMap)
+vec3 prefilterEnvMapDiffuse_LambertianFresnel(vec3 N, vec3 F0, ENV_SAMPLER_TYPE aEnvMap)
 {
     const uint NumSamples = 1024;
 
@@ -344,6 +358,7 @@ vec3 prefilterEnvMapDiffuse_LambertianFresnel(vec3 N, vec3 F0, samplerCube aEnvM
 
     // The accumulator
     vec3 prefilteredColor = vec3(0);
+    uint count = 0;
     for(uint i = 0; i < NumSamples; i++)
     {
         vec2 Xi = hammersley(i, NumSamples);
@@ -351,7 +366,11 @@ vec3 prefilterEnvMapDiffuse_LambertianFresnel(vec3 N, vec3 F0, samplerCube aEnvM
         float nDotL = dot(N, L);
         if(nDotL > 0)
         {
-            vec3 sampleDir = worldToCubemap(L);
+            #if defined(EQUIRECTANGULAR)
+				vec2 sampleDir = worldToEquirectangular(L);
+            #else
+				vec3 sampleDir = worldToCubemap(L);
+            #endif // EQUIRECTANGULAR;
             
             // We want to integrate the diffuse part of the reflectance equation:
             //    f_{diff}(l) * L_i(l) * (n . l), over the hemisphere centered on n.
@@ -371,10 +390,11 @@ vec3 prefilterEnvMapDiffuse_LambertianFresnel(vec3 N, vec3 F0, samplerCube aEnvM
 
             vec3 F = schlickFresnelReflectance(nDotL, gF0_dielec, vec3(1., 1., 1.));
             prefilteredColor += max(vec3(0.), (1 - F)) * sampled;
+            ++count;
         }
     }
 
-    return prefilteredColor / NumSamples;
+    return prefilteredColor / count;
 }
 
 
@@ -519,7 +539,7 @@ vec3 approximateSpecularIbl_live(vec3 aSpecularColor,
                                  float NoV,
                                  float aAlphaSquared,
                                  float aRoughness,
-                                 samplerCube aEnvMap)
+                                 ENV_SAMPLER_TYPE aEnvMap)
 {
     vec3 prefilteredColor = prefilterEnvMapSpecular(aAlphaSquared, aReflection, aEnvMap);
     vec2 envBRDF = integrateBRDF(aAlphaSquared, max(0.00001, NoV));

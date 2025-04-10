@@ -9,11 +9,24 @@ Environment prepareEnvironment(const renderer::ReferencePath & aEnvironmentMapPa
                                renderer::Loader & aLoader)
 {
     // TODO: extend to handle filtered maps, and support other kind of inputs
-    // (equirectangular, non-DDS, ...)
-    assert(aEnvironmentMapPath.mPath.extension() == ".dds");
-    EnvironmentMap envMap{
-        .mTexture = loadCubemapFromDds(aLoader.mFinder.pathFor(aEnvironmentMapPath.mPath)),
-    };
+    EnvironmentMap envMap = [&]()
+        {
+            if (aEnvironmentMapPath.mPath.extension() == ".dds")
+            {
+                return EnvironmentMap{
+                    .mTexture = loadCubemapFromDds(aLoader.mFinder.pathFor(aEnvironmentMapPath.mPath)),
+                };
+            }
+            else
+            {
+                // We assume that if the input is not DDS, it is an equirectangular hdr image.
+                assert(aEnvironmentMapPath.mPath.extension() == ".hdr");
+                return EnvironmentMap{
+                    .mType = EnvironmentMap::Type::Equirectangular,
+                    .mTexture = loadEquirectangular(aLoader.mFinder.pathFor(aEnvironmentMapPath.mPath)),
+                };
+            }
+        }();
 
     EnvironmentMap irradianceMap{
         .mTexture = filterEnvironmentMapDiffuse(envMap,

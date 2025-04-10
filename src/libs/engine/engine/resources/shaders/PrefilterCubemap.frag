@@ -7,7 +7,11 @@
 
 in vec3 ex_FragmentPosition_world;
 
+#if defined(EQUIRECTANGULAR)
+uniform sampler2D u_EnvironmentTexture;
+#else
 uniform samplerCube u_EnvironmentTexture;
+#endif // EQUIRECTANGULAR
 
 uniform float u_Roughness;
 

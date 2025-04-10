@@ -35,27 +35,30 @@ namespace ad {
 
 // TODO: merge back to graphics
 template <class T_Pixel>
-void serializeTexture(const graphics::Texture& aTexture,
+void serializeTexture(const graphics::Texture & aTexture,
                       GLint aLevel,
                       GLenum aPixelFormat,
                       arte::ImageFormat aFormat,
-                      std::ostream& aOut)
+                      std::ostream & aOut)
 {
     graphics::ScopedBind boundTexture{ aTexture };
 
+    GLenum target = (aTexture.mTarget == GL_TEXTURE_CUBE_MAP) ?
+        GL_TEXTURE_CUBE_MAP_POSITIVE_X : aTexture.mTarget;
+
     math::Size<2, GLint> size;
-    glGetTexLevelParameteriv(aTexture.mTarget,
+    glGetTexLevelParameteriv(target,
                              aLevel,
                              GL_TEXTURE_WIDTH,
                              &size.width());
-    glGetTexLevelParameteriv(aTexture.mTarget,
+    glGetTexLevelParameteriv(target,
                              aLevel,
                              GL_TEXTURE_HEIGHT,
                              &size.height());
 
     // TODO: retrieve the texture internal format, and assert T_Pixel compatibility
     //GLenum internalFormat;
-    //glGetTexLevelParameteriv(aTexture.mTarget,
+    //glGetTexLevelParameteriv(target,
     //                         aLevel,
     //                         GL_TEXTURE_INTERNAL_FORMAT,
     //                         static_cast<GLint *>(&internalFormat));
@@ -71,7 +74,7 @@ void serializeTexture(const graphics::Texture& aTexture,
     std::unique_ptr<unsigned char[]> raster =
         std::make_unique<unsigned char[]>(sizeof(T_Pixel) * size.area());
 
-    glGetTexImage(aTexture.mTarget,
+    glGetTexImage(target,
                   aLevel,
                   aPixelFormat,
                   graphics::MappedPixelComponentType_v<T_Pixel>,
@@ -82,8 +85,8 @@ void serializeTexture(const graphics::Texture& aTexture,
 }
 
 
-void loadToBuffer(const renderer::EntitiesBlock_glsl& aData,
-                  const graphics::UniformBufferObject& aBuffer,
+void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
+                  const graphics::UniformBufferObject & aBuffer,
                   graphics::BufferHint aUsageHint)
 {
     graphics::load(aBuffer, std::span{ aData.mEntities }, aUsageHint);
@@ -109,13 +112,15 @@ const renderer::ReferencePath gModelPaths[] = {
 };
 constexpr float gModelScale = 0.01f;
 
-const renderer::ReferencePath gEnvMapPath{ "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds" };
+//const renderer::ReferencePath gEnvMapPath{ "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds" };
+const renderer::ReferencePath gEnvMapPath{ "envmaps/winter_evening/winter_evening_8k.hdr" };
+
 
 
 std::filesystem::path getCacheModel(renderer::ReferencePath aModel)
 {
-        aModel.mPath.replace_extension(".seum");
-        return "se_cache" / aModel.mPath;
+    aModel.mPath.replace_extension(".seum");
+    return "se_cache" / aModel.mPath;
 }
 
 
@@ -144,7 +149,7 @@ scenic::SceneTree prepareSceneTree(Engine & aEngine)
                               gModelScale);
 
             std::filesystem::create_directories(cacheCandidate.parent_path());
-            scenic::FileOutput archive{cacheCandidate};
+            scenic::FileOutput archive{ cacheCandidate };
             scenic::Serializer serializer;
             serializer.serial(archive, modelScene);
         }
@@ -156,11 +161,11 @@ scenic::SceneTree prepareSceneTree(Engine & aEngine)
 
 
 // TODO: on framebuffer resize, inform the framegraph
-Scene::Scene(graphics::AppInterface& aAppInterface, const imguiui::ImguiUi& aImgui) :
+Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
     mSurfaceProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gSurfaceProgramPath}) },
     mLightProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath}) },
     mGraph(aAppInterface.getFramebufferSize()),
-    mSceneTree{prepareSceneTree(mGraph.mEngine)},
+    mSceneTree{ prepareSceneTree(mGraph.mEngine) },
     mEnvironment{ scenic::prepareEnvironment(gEnvMapPath, mGraph.mEngine.mLoader) }
 {
     mOrbitalCamera.reset(math::getRatio<GLfloat>(aAppInterface.getWindowSize()));
@@ -195,7 +200,7 @@ void Scene::loadPrograms()
 }
 
 
-void Scene::step(const graphics::Timer& /*aTimer*/,
+void Scene::step(const graphics::Timer & /*aTimer*/,
                  math::Size<2, int> aWindowResolution)
 {
     mOrbitalCamera.update(aWindowResolution.height());
@@ -205,18 +210,18 @@ void Scene::step(const graphics::Timer& /*aTimer*/,
 // TODO: move to a generic header
 renderer::LightsDataCommon transformLightsData(
     renderer::LightsDataCommon aLightsData, // by value, as we need a copy
-    const math::AffineMatrix<4, float>& aTransform)
+    const math::AffineMatrix<4, float> & aTransform)
 {
     for (auto idx = 0; idx != aLightsData.mDirectionalCount; ++idx)
     {
-        renderer::DirectionalLight_glsl& light = aLightsData.mDirectionalLights[idx];
+        renderer::DirectionalLight_glsl & light = aLightsData.mDirectionalLights[idx];
         // might be unecessary to re-normalize, unless the transform scales
         light.mDirection = math::UnitVec<3, GLfloat>{
             light.mDirection * aTransform.getLinear() };
     }
     for (auto idx = 0; idx != aLightsData.mPointCount; ++idx)
     {
-        renderer::PointLight_glsl& light = aLightsData.mPointLights[idx];
+        renderer::PointLight_glsl & light = aLightsData.mPointLights[idx];
         light.mPosition = math::homogeneous::homogenize(
             math::homogeneous::makePosition(light.mPosition) * aTransform).xyz();
     }
@@ -235,9 +240,9 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     mEntities.mEntities.resize(objectsCount + mLights.mPointCount);
 
     std::size_t objectIdx = 0;
-    for (const auto& [nodeIdx, object] : mSceneTree.mObjectsMap)
+    for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
     {
-        auto& entity = mEntities.mEntities[objectIdx];
+        auto & entity = mEntities.mEntities[objectIdx];
         entity.mLocalToWorld = static_cast<math::AffineMatrix<4, GLfloat>>(
             mSceneTree.mTree.mGlobalPose[nodeIdx]);
         ++objectIdx;
@@ -245,8 +250,8 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
     for (std::size_t lightIdx = 0; lightIdx != mLights.mPointCount; ++lightIdx)
     {
-        const auto& light = mLights.mPointLights[lightIdx];
-        auto& entity = mEntities.mEntities[objectsCount + lightIdx];
+        const auto & light = mLights.mPointLights[lightIdx];
+        auto & entity = mEntities.mEntities[objectsCount + lightIdx];
         entity.mLocalToWorld =
             math::trans3d::scaleUniform(light.mRadius.mMin)
             * math::trans3d::translate(light.mPosition.as<math::Vec>());
@@ -279,7 +284,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
-    glClearColor(0.1f, 0.2f, 0.3f, 1.f); 
+    glClearColor(0.1f, 0.2f, 0.3f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     mGraph.renderFrame(mSceneTree, mEnvironment, aRenderResolution);
@@ -314,7 +319,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         {
             glUseProgram(mLightProgram);
 
-            for (const scenic::MeshPart_Naive& part : mSphere.mParts)
+            for (const scenic::MeshPart_Naive & part : mSphere.mParts)
             {
                 graphics::VertexArrayObject vao = prepareVAO(mLightProgram, part);
                 glBindVertexArray(vao);
@@ -325,7 +330,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                         part.mPrimitiveMode,
                         part.mIndicesCount,
                         part.mIndicesType,
-                        (void*)part.mIndexFirst,
+                        (void *)part.mIndexFirst,
                         mLights.mPointCount, /* instances count */
                         objectsCount /* base instance, light instances are after objects in UBOs */);
                 }
@@ -339,7 +344,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 }
 
 
-void Scene::presentUi(bool* aOpen)
+void Scene::presentUi(bool * aOpen)
 {
     ImGui::Begin("Scene", aOpen);
 
@@ -349,7 +354,7 @@ void Scene::presentUi(bool* aOpen)
         {
             loadPrograms();
         }
-        catch (const std::exception& aException)
+        catch (const std::exception & aException)
         {
             ADLOG(error)("Exception thrown while compiling technique:\n{}",
                          aException.what());
@@ -412,4 +417,4 @@ void Scene::presentUi(bool* aOpen)
     ImGui::End();
 }
 
-}
+} // namespace ad

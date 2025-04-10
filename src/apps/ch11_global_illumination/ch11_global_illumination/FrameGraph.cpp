@@ -292,7 +292,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mHemisphereSsao{ aEngine.loadProgram(renderer::ReferencePath{ gHemisphereSsaoProgramPath }) },
     mBlurTexture{ aEngine.loadProgram(renderer::ReferencePath{ gBlurTextureProgramPath }) },
     mForwardPbr{ aEngine.loadProgram(renderer::ReferencePath{ gForwardPbrProgramPath }) },
-    mSkybox{ aEngine.loadProgram(renderer::ReferencePath{ gSkyboxProgramPath }) }
+    mSkyboxCubemap{ aEngine.loadProgram(renderer::ReferencePath{ gSkyboxProgramPath }) },
+    mSkyboxEquirectangular{ aEngine.loadProgram(renderer::ReferencePath{ gSkyboxProgramPath }, {"EQUIRECTANGULAR",}) }
 {}
 
 
@@ -715,10 +716,14 @@ void FrameGraph::passForwardPbr(const scenic::SceneTree & aSceneTree,
 
 void FrameGraph::passSkybox(const scenic::Environment & aEnvironment)
 {
-    const auto& program = mPrograms.mSkybox;
+    const scenic::EnvironmentMap & shownEnv = aEnvironment.get(mFrameControl.mSkyboxCategory);
+
+    const auto & program = shownEnv.isCubemap() ?
+        mPrograms.mSkyboxCubemap : mPrograms.mSkyboxEquirectangular;
+
     graphics::setUniform(program, "u_LodBias", mFrameControl.mSkyboxLodBias);
     return scenic::passSkyboxBase(program,
-                                  aEnvironment.get(mFrameControl.mSkyboxCategory),
+                                  shownEnv,
                                   GL_FRONT, // Rendering from inside the skybox
                                   *mFrameControl.mPolygonMode);
 }

@@ -11,7 +11,9 @@
 namespace ad::scenic {
 
 
-graphics::Texture loadCubemapFromDds(filesystem::path aDds);
+graphics::Texture loadCubemapFromDds(std::filesystem::path aDds);
+
+graphics::Texture loadEquirectangular(std::filesystem::path aEquirectangularMap);
 
 /// @brief Cosine-lobe filtering of the hemisphere around a given normal.
 /// @see rtr 4th 10.6 p424

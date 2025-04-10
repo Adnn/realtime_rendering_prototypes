@@ -25,7 +25,14 @@ struct EnvironmentMap
 {
     enum class Type {
         Cubemap,
+        Equirectangular,
     };
+
+
+    bool isCubemap() const
+    {
+        return mType == Type::Cubemap;
+    }
 
     // We might want to extend to support equirectangular
     Type mType{ Type::Cubemap };

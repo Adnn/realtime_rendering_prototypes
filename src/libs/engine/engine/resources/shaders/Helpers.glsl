@@ -2,6 +2,9 @@
 #define HELPERS_GLSL_INCLUDE_GUARD
 
 
+#include "Constants.glsl"
+
+
 float dotPlus(vec3 a, vec3 b)
 {
     return max(0.f, dot(a, b));
@@ -58,12 +61,35 @@ vec3 highlightAberrations(vec3 aColor)
 }
 
 
-/// @param aWorldDirection direction in world space, expected in the usual right-handed world basis.
-vec3 worldToCubemap(vec3 aWorldDirection)
+/// @param aWorldRay direction in world space, expected in the usual right-handed world basis.
+vec3 worldToCubemap(vec3 aWorldRay)
 {
     // The cubemap basis is left-handed
     // see: https://www.khronos.org/opengl/wiki/Cubemap_Texture
-    return vec3(aWorldDirection.xy, -aWorldDirection.z);
+    return vec3(aWorldRay.xy, -aWorldRay.z);
+}
+
+
+vec2 worldToEquirectangular(vec3 aWorldRay)
+{
+    // For the conversion procedure, see: rtr 4th p407
+    // (the book does metion +z is up, but does not define the complete basis.
+    // I suppose it is the physic basis from: 
+    // https://en.wikipedia.org/wiki/Spherical_coordinate_system,
+    // so x becomes y, y becomes z, z becomes x).
+    vec3 sampleDir = normalize(aWorldRay);
+
+    // This formula show the middle of the equirectangle with default camera looking down -Z (in world).
+    // The value is mirrored on the range [0, 1]:
+    // an increasing azimuth (counterclockwise) has to lead to a decreasing u to avoid mirroring.
+    float u = 1 - atan(sampleDir.x, sampleDir.z) / (2 * M_PI);
+    // Which give the same result as:
+    //float u = atan(-sampleDir.x, sampleDir.z) / (2 * M_PI);
+
+    // Polar angle increase in the opposite direction compared to v coordinate
+    float v = 1 - acos(sampleDir.y) / M_PI;
+
+    return vec2(u, v);
 }
 
 

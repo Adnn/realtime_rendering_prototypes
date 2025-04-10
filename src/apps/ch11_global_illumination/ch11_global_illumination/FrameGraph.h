@@ -187,7 +187,8 @@ struct FrameGraph
         renderer::IntrospectProgram mHemisphereSsao;
         renderer::IntrospectProgram mBlurTexture;
         renderer::IntrospectProgram mForwardPbr;
-        renderer::IntrospectProgram mSkybox;
+        renderer::IntrospectProgram mSkyboxCubemap;
+        renderer::IntrospectProgram mSkyboxEquirectangular;
     };
 
     enum class SsaoMethod
