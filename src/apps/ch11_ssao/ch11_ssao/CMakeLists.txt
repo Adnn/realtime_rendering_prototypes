@@ -1,4 +1,4 @@
-set(TARGET_NAME ch11_global_illumination)
+set(TARGET_NAME ch11_ssao)
 
 set(${TARGET_NAME}_HEADERS
     Engine.h

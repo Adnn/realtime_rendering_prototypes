@@ -27,7 +27,7 @@ int main(int argc, const char* argv[])
         spdlog::set_level(spdlog::level::debug);
 
         glfwWindowHint(GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET);
-        ad::graphics::ApplicationGlfw application("ch11_global_illumination", 1080, 600,
+        ad::graphics::ApplicationGlfw application("ch11_ssao", 1080, 600,
                                                   ad::graphics::ApplicationFlag::None,
                                                   4, 6,
                                                   { {GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET} });
@@ -69,7 +69,7 @@ int main(int argc, const char* argv[])
 
             // If an error occurs, such as infinite loop in a shader causing the driver to timeout
             // it seems to only be catched at this point, not immediately after the triggering drawcall.
-            // TODO: Avoid terminate(). The problem is that stack unwinding calls destructors, 
+            // TODO: Avoid terminate(). The problem is that stack unwinding calls destructors,
             // and some try to destruct GL objects thus failing if the context is not valid.
             GLenum resetStatus = glGetGraphicsResetStatus();
             if (resetStatus != GL_NO_ERROR)
