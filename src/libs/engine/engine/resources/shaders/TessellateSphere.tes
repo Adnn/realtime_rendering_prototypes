@@ -1,0 +1,49 @@
+#version 460
+
+#include "ViewProjectionBlock.glsl"
+
+//layout(triangles, fractional_odd_spacing) in;
+layout(triangles, equal_spacing) in;
+
+// Input from tessellation control shader or vertex shader
+in vec4 vColor[];
+in flat uint vEntityIdx[];
+in vec3 vPosition[];
+
+// Output interpolated for fragment shader
+out vec4 ex_Color;
+out vec3 ex_Normal_view;
+out vec3 ex_Position_view;
+
+#define ENTITY_IDX_ATTRIBUTE vEntityIdx[0]
+#include "EntitiesBlock.glsl"
+
+void main() 
+{
+	// Barycentric coordinates of the tessellated vertex
+	float u = gl_TessCoord.x;
+	float v = gl_TessCoord.y;
+	float w = gl_TessCoord.z;
+
+	// Interpolate positions from the patch
+	vec3 pos = vPosition[0] * u + vPosition[1] * v + vPosition[2] * w;
+
+	// Project onto the unit sphere
+	vec3 position_local = normalize(pos);
+	//vec3 position_local = pos;
+	vec4 position_world = getModelTransform() * vec4(position_local, 1.);
+
+	// Interpolate color
+	ex_Color = vColor[0] * u + vColor[1] * v + vColor[2] * w;
+
+	// Compute normal
+	// Note: the on a unit sphere, the local position is the local normal
+	vec4 normal_local = vec4(position_local, 0.);
+	ex_Normal_view = vec3(worldToCamera * getModelTransform() * normal_local);
+
+	// Transform the tessellated vertex position to clip space
+	vec4 position_view = worldToCamera * position_world;
+	//ex_Position = position_view.xyz / position_view.w; // Note: I suppose this is useless, w should only be changed by projection
+	ex_Position_view = position_view.xyz;
+	gl_Position = projection * position_view;
+}

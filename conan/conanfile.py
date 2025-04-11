@@ -30,6 +30,12 @@ class GraphicsConan(ConanFile):
 
     def requirements(self):
         self.requires("graphics/0.1.0@adnn/develop", transitive_headers=True)
+        self.requires("handy/cb47135273@adnn/develop", transitive_headers=True)
+        self.requires("math/d4042f8521@adnn/develop", transitive_headers=True)
+
+        self.requires("imgui/1.91.5-docking", transitive_headers=True)
+        # Note: we do not want spdlog to be a public dependency
+        self.requires("spdlog/1.15.0", transitive_headers=False)
 
 
     # There exist automatic alternatives.
@@ -79,6 +85,18 @@ class GraphicsConan(ConanFile):
 
 
     def generate(self):
+        # the imgui package is designed this way: consumer has to import desired backends.
+        # see: https://blog.conan.io/2019/06/26/An-introduction-to-the-Dear-ImGui-library.html
+        # imports() has been removed from Conan 2 (and the blog post above is updated accordingly)
+        # see: https://docs.conan.io/en/1.66/migrating_to_2.0/recipes.html#removed-imports-method
+        imgui_package = os.path.join(self.dependencies["imgui"].package_folder, "res", "bindings")
+        destination = os.path.join(self.build_folder, "conan_imports", "imgui_bindings")
+        copy(self, "imgui_impl_glfw.h",           src=imgui_package, dst=destination)
+        copy(self, "imgui_impl_glfw.cpp",         src=imgui_package, dst=destination)
+        copy(self, "imgui_impl_opengl3.h",        src=imgui_package, dst=destination)
+        copy(self, "imgui_impl_opengl3.cpp",      src=imgui_package, dst=destination)
+        copy(self, "imgui_impl_opengl3_loader.h", src=imgui_package, dst=destination)
+
         deps = CMakeDeps(self)
         # Detect component name problem as soon as find_package()
         deps.check_components_exist = True

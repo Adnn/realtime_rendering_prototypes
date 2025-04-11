@@ -1,1 +1,1 @@
-@find_package@(Math CONFIG @REQUIRED@ COMPONENTS math)
+@find_package@(graphics CONFIG @REQUIRED@ COMPONENTS ad::graphics)

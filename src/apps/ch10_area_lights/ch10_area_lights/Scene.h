@@ -1,19 +1,40 @@
 #pragma once
 
 
-#include "shaders.h"
+#include "CameraSystem.h"
+#include "Engine.h"
+#include "Material.h"
 
-#include <scenic/Shapes.h>
+#include <engine/Entities.h>
+#include <engine/IntrospectProgram.h>
+#include <engine/Lights.h>
 
 #include <graphics/Timer.h>
-#include <renderer/Drawing.h>
-#include <renderer/VertexSpecification.h>
 
 #include <math/Color.h>
 #include <math/Vector.h>
 
+#include <renderer/UniformBuffer.h>
+#include <renderer/VertexSpecification.h>
+#include <renderer/Drawing.h>
+
+#include <scenic/Shapes.h>
+
 
 namespace ad {
+
+
+constexpr math::hdr::Rgb<GLfloat> gBrickAlbedo{ 0.262f, 0.095f, 0.061f };
+
+
+namespace graphics {
+    class AppInterface;
+} // namespace graphics
+
+
+namespace imguiui {
+    class ImguiUi;
+} // namespace imguiui
 
 
 constexpr graphics::AttributeDescriptionList gVertexDescription{
@@ -23,76 +44,133 @@ constexpr graphics::AttributeDescriptionList gVertexDescription{
 
 struct Instance
 {
-    math::hdr::Rgb_f mColor = math::hdr::gGreen<float>;
+    GLuint mEntityIdx;
 };
 
 constexpr graphics::AttributeDescriptionList gInstanceDescription{
-    {1, 3, offsetof(Instance, mColor), graphics::MappedGL<GLfloat>::enumerator},
+    {   graphics::ShaderParameter{1, graphics::ShaderParameter::Access::Integer},
+        1, offsetof(Instance, mEntityIdx), graphics::MappedGL<GLuint>::enumerator },
 };
 
 
-static std::array<Instance, 1> gInstances{};
+// For the moment, each instance maps to a distinct entity
+// and we store all entity data in a UBO
+//static std::array<Instance, 2> gInstances{
+//    0,
+//    1,
+//};
 
 
 struct Scene
 {
-    Scene();
+    struct TessellationControl
+    {
+        TessellationControl()
+        {
+            glGetIntegerv(GL_MAX_PATCH_VERTICES, &mMaxPatchVertices);
+            glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &mMaxTessGenLevel);
+        }
 
-    void step(const graphics::Timer & aTimer);
-    void render();
+        static constexpr GLfloat gLevel = 1;
+        GLuint mPatchVertices = 3;
+        math::Vec<4, GLfloat> mOuterLevel{ gLevel, gLevel, gLevel, 1.f };
+        math::Vec<2, GLfloat> mInnerLevel{ gLevel, 1.f };
+
+        GLint mMaxPatchVertices;
+        GLint mMaxTessGenLevel;
+    };
+
+    struct PipelineControl
+    {
+       inline static constexpr std::array<GLenum, 3> gPolygonModes{
+            GL_POINT,
+            GL_LINE,
+            GL_FILL,
+        }; 
+
+       decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+    };
+
+    Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
+
+    void loadPrograms();
+
+    void step(
+        const graphics::Timer & aTimer,
+        math::Size<2, int> aWindowResolution);
+
+    void render(math::Size<2, int> aRenderResolution);
+
+    void presentUi(bool * aOpen = nullptr);
+
+    Engine mEngine;
+
+    scenic::geodesic::Sphere mSphere{ 4 };
+    GLsizei mIndicesCount{ (GLsizei)mSphere.mIndices.size() };
 
     graphics::VertexSpecification mVertexSpecification;
     graphics::IndexBufferObject mIndexBuffer;
-    graphics::Program mProgram;
+    graphics::UniformBufferObject mEntitiesBlockBuffer;
+    graphics::UniformBufferObject mViewProjectionBuffer;
+    graphics::UniformBufferObject mMaterialsBlockBuffer;
+    graphics::UniformBufferObject mLightsBlockBuffer;
+    renderer::IntrospectProgram mSurfaceProgram;
+    renderer::IntrospectProgram mLightProgram;
+
+    renderer::EntitiesBlock_glsl mEntities{
+        .mEntities = {
+            renderer::EntityData_glsl{
+                .mLocalToWorld = math::AffineMatrix<4, GLfloat>::Identity(),
+                .mColorFactor = math::hdr::gWhite<float>,
+            },
+        },
+    };
+    PbrMaterialsBlock_glsl mMaterials{
+        .mCount = 1,
+        .mMaterials = {
+            PbrMaterial_glsl{
+                .mBaseColor{gBrickAlbedo},
+            },
+        },
+    };
+    renderer::LightsDataCommon mLights{
+        .mDirectionalCount = 0,
+        .mPointCount = 2,
+        // We decode a sRGB 10% white (which is also perceptually ~10%)
+        // to linear space for computation.
+        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.1f),
+        .mDirectionalLights = {
+            renderer::DirectionalLight_glsl{
+                .mDirection = math::UnitVec<3, float>{ {0.5f, 0.f, -0.5f} },
+                // TODO: decode the srgb value to have it show correctly in Imgui
+                // (and have it perceptually proportional to the factor)
+                .mColors = renderer::LightColors_glsl{} * 0.2,
+            },
+         },
+        .mPointLights = {
+            renderer::PointLight_glsl{
+                .mPosition = {-2.f, 3.f, 0.f},
+                .mRadius{
+                    .mMin = 0.2f,
+                    .mMax = 5.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 30.f,
+            },
+            renderer::PointLight_glsl{
+                .mPosition = {+2.f, 3.f, 0.f},
+                .mRadius{
+                    .mMin = 0.2f,
+                    .mMax = 5.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 30.f,
+            },
+         },
+    };
+    OrbitalCamera mOrbitalCamera;
+
+    TessellationControl mTessControl;
+    PipelineControl mPipelineControl;
 };
-
-
-inline Scene::Scene() :
-    mVertexSpecification{},
-    mIndexBuffer{
-        graphics::loadIndexBuffer(mVertexSpecification.mVertexArray,
-                                  std::span{scenic::icosahedron::gIndices},
-                                  graphics::BufferHint::StaticDraw)},
-    mProgram{graphics::makeLinkedProgram({
-              {GL_VERTEX_SHADER,   gVertexShader},
-              {GL_FRAGMENT_SHADER, gFragmentShader},
-    })}
-{
-    graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
-
-    graphics::appendToVertexSpecification(
-        mVertexSpecification,
-        gVertexDescription,
-        std::span{scenic::icosahedron::gPositions},
-        graphics::BufferHint::StaticDraw);
-
-    graphics::appendToVertexSpecification(
-        mVertexSpecification,
-        gInstanceDescription,
-        std::span{gInstances},
-        graphics::BufferHint::StaticDraw,
-        1);
-}
-
-
-inline void Scene::step(const graphics::Timer & /*aTimer*/)
-{}
-
-
-inline void Scene::render()
-{
-    glBindVertexArray(mVertexSpecification.mVertexArray);
-    glUseProgram(mProgram);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glDrawElementsInstanced(
-        GL_TRIANGLES,
-        static_cast<GLsizei>(std::size(scenic::icosahedron::gIndices)),
-        graphics::MappedGL_v<std::remove_cvref_t<
-            decltype(*scenic::icosahedron::gIndices)>>,
-        0,
-        static_cast<GLsizei>(std::size(gInstances)));
-}
 
 
 } // namespace ad
