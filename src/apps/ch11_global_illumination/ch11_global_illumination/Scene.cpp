@@ -43,18 +43,22 @@ void serializeTexture(const graphics::Texture & aTexture,
 {
     graphics::ScopedBind boundTexture{ aTexture };
 
-    GLenum target = (aTexture.mTarget == GL_TEXTURE_CUBE_MAP) ?
-        GL_TEXTURE_CUBE_MAP_POSITIVE_X : aTexture.mTarget;
+    const bool isCubemap = aTexture.mTarget == GL_TEXTURE_CUBE_MAP;
+    GLenum target = isCubemap ? GL_TEXTURE_CUBE_MAP_POSITIVE_X : aTexture.mTarget;
+    GLint faceCount = isCubemap ? 6 : 1;
 
-    math::Size<2, GLint> size;
+    math::Size<2, GLint> faceSize;
     glGetTexLevelParameteriv(target,
                              aLevel,
                              GL_TEXTURE_WIDTH,
-                             &size.width());
+                             &faceSize.width());
     glGetTexLevelParameteriv(target,
                              aLevel,
                              GL_TEXTURE_HEIGHT,
-                             &size.height());
+                             &faceSize.height());
+
+    // For a cubemap, dump the 6 faces as an horizontal strip
+    math::Size<2, GLint> resultSize = faceSize.cwMul({ faceCount, 1 });
 
     // TODO: retrieve the texture internal format, and assert T_Pixel compatibility
     //GLenum internalFormat;
@@ -62,6 +66,8 @@ void serializeTexture(const graphics::Texture & aTexture,
     //                         aLevel,
     //                         GL_TEXTURE_INTERNAL_FORMAT,
     //                         static_cast<GLint *>(&internalFormat));
+    std::unique_ptr<unsigned char[]> raster =
+        std::make_unique<unsigned char[]>(sizeof(T_Pixel) * resultSize.area());
 
     // Note: All image format we can write to accept 1-byte alignment for rows,
     // and STBI_writer only allow to control the stride for PNG.
@@ -69,18 +75,22 @@ void serializeTexture(const graphics::Texture & aTexture,
     // for < 4 components image with a width that is not a multiple of 4.
     // The easy solution is to always require 1-byte alignment 
     // (even when it gives the same results than 4-bytes alignment)
-    auto packAlignmentGuard = graphics::scopePackAlignment(1);
+    auto scopePackAlignment = graphics::scopePackAlignment(1);
+    // For cubemap strip, we have to define the number of pixels in each row to the total strip width
+    auto scopedRowLength = graphics::scopePixelStorageMode(GL_PACK_ROW_LENGTH, 
+                                                           isCubemap ? resultSize.width() : 0);
 
-    std::unique_ptr<unsigned char[]> raster =
-        std::make_unique<unsigned char[]>(sizeof(T_Pixel) * size.area());
+    // For non-cubemap, the loop body will execute only once, with offset == 0
+    for (unsigned int offset = 0; offset != faceCount; ++offset)
+    {
+        glGetTexImage(target + offset,
+                      aLevel,
+                      aPixelFormat,
+                      graphics::MappedPixelComponentType_v<T_Pixel>,
+                      raster.get() + (offset * faceSize.width() * sizeof(T_Pixel)));
+    }
 
-    glGetTexImage(target,
-                  aLevel,
-                  aPixelFormat,
-                  graphics::MappedPixelComponentType_v<T_Pixel>,
-                  raster.get());
-
-    arte::Image<T_Pixel> result{ size, std::move(raster) };
+    arte::Image<T_Pixel> result{ resultSize, std::move(raster) };
     result.write(aFormat, aOut);
 }
 
@@ -113,7 +123,9 @@ const renderer::ReferencePath gModelPaths[] = {
 constexpr float gModelScale = 0.01f;
 
 //const renderer::ReferencePath gEnvMapPath{ "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds" };
-const renderer::ReferencePath gEnvMapPath{ "envmaps/winter_evening/winter_evening_8k.hdr" };
+//const renderer::ReferencePath gEnvMapPath{ "envmaps/winter_evening/winter_evening_8k.hdr" };
+//const renderer::ReferencePath gEnvMapPath{ "envmaps/rogland_clear_night/rogland_clear_night_8k.hdr" };
+const renderer::ReferencePath gEnvMapPath{ "envmaps/rostock_arches/rostock_arches_8k.dds" };
 
 
 
@@ -413,6 +425,16 @@ void Scene::presentUi(bool * aOpen)
         }
         ad::serializeTexture<math::sdr::Rgb>(mGraph.tex(TextureStore::FragPositionView), 0, GL_RGB,
                                              arte::ImageFormat::Png, outFile);
+    }
+    if (ImGui::Button("Dump cube map"))
+    {
+        std::ofstream outFile{ "rtr_11-envmap-strip.hdr", std::ios::binary };
+        if (!outFile.good())
+        {
+            throw std::runtime_error{ "Cannot open output file." };
+        }
+        ad::serializeTexture<math::hdr::Rgb_f>(mEnvironment.mEnvMap.mTexture, 0, GL_RGB,
+                                             arte::ImageFormat::Hdr, outFile);
     }
     ImGui::End();
 }

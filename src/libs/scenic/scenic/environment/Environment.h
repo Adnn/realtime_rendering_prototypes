@@ -19,6 +19,7 @@ namespace ad::scenic {
 inline const GLint gFilteredRadianceSide = 512;
 inline const GLint gIntegratedBrdfSide = 512;
 inline const GLint gFilteredIrradianceSide = 128;
+inline const GLint gEnvmapTargetSide = 2048;
 
 
 struct EnvironmentMap

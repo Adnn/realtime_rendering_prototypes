@@ -21,12 +21,24 @@ Environment prepareEnvironment(const renderer::ReferencePath & aEnvironmentMapPa
             {
                 // We assume that if the input is not DDS, it is an equirectangular hdr image.
                 assert(aEnvironmentMapPath.mPath.extension() == ".hdr");
-                return EnvironmentMap{
+                EnvironmentMap equirect{
                     .mType = EnvironmentMap::Type::Equirectangular,
                     .mTexture = loadEquirectangular(aLoader.mFinder.pathFor(aEnvironmentMapPath.mPath)),
                 };
+
+                // We convert the equirectangular map to a cubemap,
+                // even though the rest of the pipeline can work with an equirectangular envmap
+                // (in degraded quality, because of missing mipmaps)
+                return EnvironmentMap{
+                    .mTexture =
+                        renderToCubemap(equirect,
+                                        gEnvmapTargetSide,
+                                        graphics::countCompleteMipmaps({ gEnvmapTargetSide, gEnvmapTargetSide }),
+                                        aLoader),
+                };
             }
         }();
+    glObjectLabel(GL_TEXTURE, envMap.mTexture, -1, "environment_map");
 
     EnvironmentMap irradianceMap{
         .mTexture = filterEnvironmentMapDiffuse(envMap,

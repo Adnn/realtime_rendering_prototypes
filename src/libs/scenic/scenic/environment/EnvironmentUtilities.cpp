@@ -119,9 +119,11 @@ namespace {
                                    aTargetCubemap, 
                                    aLevel);
 
-            // Map output fragment color at location 0 to the draw buffer at color attachment 1
+            // Map output fragment color at location 1 to the draw buffer at color attachment 1
             // (this color attachment was set to the output texture face just above)
-            glDrawBuffer(GL_COLOR_ATTACHMENT1);
+            // The fragment color location 1 is the linear output (0 is gamma corrected)
+            GLenum drawBuffers[] = { GL_NONE, GL_COLOR_ATTACHMENT1 };
+            glDrawBuffers(std::size(drawBuffers), drawBuffers);
 
             // Set the appropriate camera pose for this face's pass
             // BUGFIXED: It is required to write the destination cubemap images as having top-left origin
@@ -176,6 +178,39 @@ graphics::Texture loadEquirectangular(std::filesystem::path aEquirectangularMap)
     }
 
     return equirectMap;
+}
+
+
+graphics::Texture renderToCubemap(const EnvironmentMap & aEnvMap,
+                                  GLsizei aOutputSideLength,
+                                  GLint aTextureLevels,
+                                  renderer::Loader & aLoader)
+{
+    PROFILER_SCOPE_SINGLESHOT_SECTION(gRenderProfiler, "render env to cubemap", CpuTime, GpuTime);
+
+    assert(aEnvMap.mType == EnvironmentMap::Type::Equirectangular);
+
+    const math::Size<2, GLsizei> size{aOutputSideLength, aOutputSideLength};
+    graphics::Texture cubemap = prepareCubemap(aEnvMap, size, aTextureLevels);
+
+    graphics::FrameBuffer framebuffer;
+    graphics::ScopedBind boundFbo{framebuffer, graphics::FrameBufferTarget::Draw};
+
+    // TODO: #resources we should not have to recompile on each invocation
+    // The question is wether we want to rely on a general caching system (that should be low-level enough)
+    // or if we go the way of making this a member function, and hosting a copy in the data members.
+    renderer::IntrospectProgram program =
+        aLoader.loadProgram(renderer::ReferencePath{ "programs/Skybox.prog" },
+                            { "EQUIRECTANGULAR", });
+
+    glViewport(0, 0, size.width(), size.height());
+
+    constexpr GLint level = 0;
+    renderCubemapFaces(program, aEnvMap, cubemap, level);
+    glGenerateTextureMipmap(cubemap);
+    setupCubeFiltering(cubemap);
+
+    return cubemap;
 }
 
 

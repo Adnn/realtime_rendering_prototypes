@@ -15,6 +15,13 @@ graphics::Texture loadCubemapFromDds(std::filesystem::path aDds);
 
 graphics::Texture loadEquirectangular(std::filesystem::path aEquirectangularMap);
 
+
+/// @brief Notably useful to transform an equirectangular map to a cubemap
+graphics::Texture renderToCubemap(const EnvironmentMap & aEnvMap,
+                                  GLsizei aOutputSideLength,
+                                  GLint aTextureLevels,
+                                  renderer::Loader & aLoader);
+
 /// @brief Cosine-lobe filtering of the hemisphere around a given normal.
 /// @see rtr 4th 10.6 p424
 /// @return A cubemap containing the irradiance for each direction on the sphere.
