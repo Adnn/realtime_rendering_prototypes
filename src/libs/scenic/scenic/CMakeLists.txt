@@ -2,6 +2,7 @@ set(TARGET_NAME scenic)
 
 set(${TARGET_NAME}_HEADERS
     Camera.h
+    ColorPalettes.h
     Shapes.h
 )
 

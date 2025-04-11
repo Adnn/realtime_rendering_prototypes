@@ -87,7 +87,11 @@ struct GpuViewProjectionBlock
         mWorldToCamera{aWorldToCamera},
         mCameraToWorld{aWorldToCamera.inverse()},
         mProjection{aProjection},
-        mViewingProjection{aWorldToCamera * aProjection}
+        mViewingProjection{aWorldToCamera * aProjection},
+        mCameraPosition_world{
+            // Note: this is equivalent to {0, 0, 0, 1} * mCameraToWorld.
+            math::homogeneous::makePosition(
+                mCameraToWorld.getAffine().as<math::Position>())}
     {}
 
     GpuViewProjectionBlock(const Camera & aCamera) :
@@ -98,6 +102,7 @@ struct GpuViewProjectionBlock
     math::AffineMatrix<4, GLfloat> mCameraToWorld; 
     math::Matrix<4, 4, GLfloat> mProjection; 
     math::Matrix<4, 4, GLfloat> mViewingProjection;
+    math::Position<4, GLfloat> mCameraPosition_world;
 };
 
 

@@ -1,8 +1,9 @@
 set(TARGET_NAME reflect)
 
 set(${TARGET_NAME}_HEADERS
-    ReflectHelpers.h
     DearImguiWitness.h
+    DescribeMath.h
+    ReflectHelpers.h
 )
 
 set(${TARGET_NAME}_SOURCES

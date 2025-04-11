@@ -117,9 +117,29 @@ inline void give(DearImguiWitness & aV, float  & aFloat, const char * aName)
 }
 
 
+
+
+inline void give(DearImguiWitness & aV, math::Size<2, float> & aSize, const char * aName)
+{
+    ImGui::InputFloat2(aName, aSize.data());
+}
+
+
+inline void give(DearImguiWitness & aV, math::Position<2, float> & aPos, const char * aName)
+{
+    ImGui::InputFloat2(aName, aPos.data());
+}
+
+
 inline void give(DearImguiWitness & aV, math::Position<3, float> & aPos, const char * aName)
 {
     ImGui::InputFloat3(aName, aPos.data());
+}
+
+
+inline void give(DearImguiWitness & aV, math::Position<4, float> & aPos, const char * aName)
+{
+    ImGui::InputFloat4(aName, aPos.data());
 }
 
 

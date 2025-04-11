@@ -3,6 +3,8 @@
 
 #include "../IntrospectProgram.h"
 
+#include <renderer/Texture.h>
+
 #include <resource/ResourceFinder.h> 
 
 #include <filesystem>
@@ -24,8 +26,14 @@ struct ReferencePath
 };
 
 
+// TODO: Move to a lower-level library (e.g. renderer/DdsGL.h)
+graphics::Texture loadDds(const std::filesystem::path & aDds);
+
+
 struct Loader
 {
+    graphics::Texture loadDds(const ReferencePath & aDdsFile);
+
     /// @brief Load a `.prog` file as an IntrospectProgram.
     IntrospectProgram loadProgram(const ReferencePath & aProgFile,
                                   std::vector<graphics::MacroDefine> aDefines = {}) const;

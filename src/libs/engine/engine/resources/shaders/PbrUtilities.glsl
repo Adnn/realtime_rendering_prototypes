@@ -60,9 +60,9 @@ float alphaFromRoughness(float aRoughness)
 // (because the correct formulas usually have a Pi in the denominator).
 
 
-//
+////
 // Diffuse BRDF
-//
+////
 
 /// @brief Lambertian BRDF, weighted by (1-F) as to represent the energy trade-off.
 /// @attention Already mutiplied by Pi
@@ -199,9 +199,9 @@ vec3 specularBrdf_GGX(vec3 aFresnelReflectance,
 #endif //PBRUTILITIES_GLSL_INCLUDE_GUARD
 
 
-//
+////
 // Beckmann & Blinn-Phong models
-//
+////
 
 /// @param aAlpha_beckmann Alpha value according to Bekcmann model.
 ///        **Attention**: must not be zero, has to be strictly positive.

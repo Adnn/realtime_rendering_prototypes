@@ -2,6 +2,8 @@
 #define CONSTANTS_GLSL_INCLUDE_GUARD
 
 
+const float PI = 3.141592653589793;
+
 #define INVALID_INDEX uint(-1)
 
 ////
