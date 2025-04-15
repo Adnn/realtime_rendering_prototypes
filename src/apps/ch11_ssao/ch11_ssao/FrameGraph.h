@@ -48,6 +48,8 @@ constexpr unsigned int gSsaoSampleCount = 128;
 
 struct TextureStore
 {
+    TextureStore(math::Size<2, int> aFrameSize);
+
     enum Name {
         DepthMap,
         FragPositionView,
@@ -141,6 +143,8 @@ struct FrameGraph
     };
 
     FrameGraph(math::Size<2, int> aFrameSize);
+
+    void resizeFrame(math::Size<2, int> aRenderResolution);
 
     void renderFrame(const scenic::SceneTree & aSceneTree,
                      const scenic::Environment & aEnvironment);

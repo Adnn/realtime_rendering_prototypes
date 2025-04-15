@@ -9,6 +9,7 @@
 #include <engine/IntrospectProgram.h>
 #include <engine/Lights.h>
 
+#include <graphics/AppInterface.h>
 #include <graphics/Timer.h>
 
 #include <math/Color.h>
@@ -29,11 +30,6 @@ namespace ad {
 
 
 
-namespace graphics {
-    class AppInterface;
-} // namespace graphics
-
-
 namespace imguiui {
     class ImguiUi;
 } // namespace imguiui
@@ -50,6 +46,8 @@ struct Scene
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
 
+    void onFramebufferResize(math::Size<2, int> aNewSize);
+
     void loadPrograms();
 
     void step(
@@ -61,6 +59,7 @@ struct Scene
     void presentUi(bool * aOpen = nullptr);
 
     FrameGraph mGraph;
+    std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
 
     graphics::UniformBufferObject mEntitiesBlockBuffer;
     graphics::UniformBufferObject mViewProjectionBuffer;

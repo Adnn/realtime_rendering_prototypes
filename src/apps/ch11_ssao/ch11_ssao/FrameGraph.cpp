@@ -296,6 +296,30 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mSkyboxEquirectangular{ aEngine.loadProgram(renderer::ReferencePath{ gSkyboxProgramPath }, {"EQUIRECTANGULAR",}) }
 {}
 
+TextureStore::TextureStore(math::Size<2, int> aFrameSize) :
+    mStore{ makeVector(
+        Data{makeTexture(GL_TEXTURE_2D, "shadow_map"), LINEARIZE_DEPTH,},
+        Data{makeTexture(GL_TEXTURE_2D, "frag_position_view"), DEPTH_FROM_POSITION,},
+        Data{makeTexture(GL_TEXTURE_2D, "frag_normal_view"), DIRECTION,},
+        Data{makeTexture(GL_TEXTURE_2D, "RawOcclusion"), RAW_RED_CHANNEL,},
+        Data{makeTexture(GL_TEXTURE_2D, "FilteredOcclusion"), RAW_RED_CHANNEL,}
+    ) },
+    mScreenTextureSize{ aFrameSize }
+{
+    setupTexture(DepthMap, GL_DEPTH_COMPONENT24, GL_CLAMP_TO_BORDER);
+    glTextureParameterfv(mStore[DepthMap].mTexture, GL_TEXTURE_BORDER_COLOR,
+                         math::hdr::Rgba_f{1.f, 0.f, 0.f, 0.f}.data());
+    // Set texture comparison mode, allowing to compare the depth component to a reference value
+    glTextureParameteri(mStore[DepthMap].mTexture, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glTextureParameteri(mStore[DepthMap].mTexture, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
+
+    setupTexture(FragPositionView, GL_RGB16F, GL_CLAMP_TO_EDGE);
+    setupTexture(FragNormalView, GL_RGB16F, GL_CLAMP_TO_EDGE);
+
+    setupTexture(RawOcclusion, GL_R16F, GL_CLAMP_TO_EDGE);
+    setupTexture(FilteredOcclusion, GL_R16F, GL_CLAMP_TO_EDGE);
+}
+
 
 void TextureStore::setupTexture(Name aName, GLenum aInternalFormat, GLenum aWrapMode)
 {
@@ -312,85 +336,13 @@ void TextureStore::setupTexture(Name aName, GLenum aInternalFormat, GLenum aWrap
 
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
-    mTextures{
-        .mStore = makeVector(
-            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "shadow_map"), TextureStore::LINEARIZE_DEPTH,},
-            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "frag_position_view"), TextureStore::DEPTH_FROM_POSITION,},
-            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "frag_normal_view"), TextureStore::DIRECTION,},
-            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "RawOcclusion"), TextureStore::RAW_RED_CHANNEL,},
-            TextureStore::Data{makeTexture(GL_TEXTURE_2D, "FilteredOcclusion"), TextureStore::RAW_RED_CHANNEL,}
-        ),
-        .mScreenTextureSize{ aFrameSize },
-    },
+    mTextures{aFrameSize},
     mNoiseDirections{makeTexture(GL_TEXTURE_2D, "noise_directions")},
     mIntegratedGgxBrdf{ scenic::integrateEnvironmentBrdf(scenic::gIntegratedBrdfSide, mEngine.mLoader) },
     mFinalFrame{makeTexture(GL_TEXTURE_2D, "final_frame")},
     mPrograms{mEngine}
 {
-    //
-    //
-    //
-    glTextureStorage2D(tex(TextureStore::DepthMap),
-                       1,
-                       GL_DEPTH_COMPONENT24,
-                       mTextures.mScreenTextureSize.width(),
-                       mTextures.mScreenTextureSize.height());
-
-    // Set texture comparison mode, allowing to compare the depth component to a reference value
-    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_COMPARE_FUNC, GL_LESS);
-
-    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTextureParameterfv(tex(TextureStore::DepthMap), GL_TEXTURE_BORDER_COLOR,
-                         math::hdr::Rgba_f{1.f, 0.f, 0.f, 0.f}.data());
-
-    // We disable mipmap minification filter, otherwise a mutable texture
-    // would not be mipmap complete, and could not be sampled.
-    // (will be touched again by the PCF parameter)
-    glTextureParameteri(tex(TextureStore::DepthMap), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    // 
-    //
-    //
-    glTextureStorage2D(tex(TextureStore::FragPositionView),
-                       1,
-                       GL_RGB16F,
-                       mTextures.mScreenTextureSize.width(),
-                       mTextures.mScreenTextureSize.height());
-
-    glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(tex(TextureStore::FragPositionView), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    mTextures.setupTexture(TextureStore::FragNormalView, GL_RGB16F, GL_CLAMP_TO_EDGE);
-
-    // 
-    //
-    //
-    {
-        auto & texture = tex(TextureStore::RawOcclusion);
-        glTextureStorage2D(texture,
-                           1,
-                           // TODO: should we just use 8-bit normalized integer?
-                           GL_R16F,
-                           mTextures.mScreenTextureSize.width(),
-                           mTextures.mScreenTextureSize.height());
-
-        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
-    {
-        auto & texture = tex(TextureStore::FilteredOcclusion);
-        glTextureStorage2D(texture,
-                           1,
-                           // TODO: should we just use 8-bit normalized integer?
-                           GL_R16F,
-                           mTextures.mScreenTextureSize.width(),
-                           mTextures.mScreenTextureSize.height());
-
-        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
+    glTextureStorage2D(mFinalFrame, 1, GL_RGB8, aFrameSize.width(), aFrameSize.height());
 
     //
     // FBO attachments
@@ -406,7 +358,6 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
         assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
     }
 
-
     // 
     //
     //
@@ -416,15 +367,24 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTextureParameteri(mNoiseDirections, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    
-    //
-    //
-    //
-    glTextureStorage2D(mFinalFrame, 1, GL_RGB8, aFrameSize.width(), aFrameSize.height());
-
     // Dummy VAO
     graphics::ScopedBind{ mDummyVao };
     glObjectLabel(GL_VERTEX_ARRAY, mDummyVao, -1, "dummy_vao");
+}
+
+
+void FrameGraph::resizeFrame(math::Size<2, int> aRenderResolution)
+{
+    mTextures = TextureStore{ aRenderResolution };
+    {
+        glNamedFramebufferTexture(mFbo,
+                                  GL_DEPTH_ATTACHMENT,
+                                  tex(TextureStore::DepthMap),
+                                  /*mip map level*/0);
+        assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    }
+    mFinalFrame = makeTexture(GL_TEXTURE_2D, "final_frame");
+    glTextureStorage2D(mFinalFrame, 1, GL_RGB8, aRenderResolution.width(), aRenderResolution.height());
 }
 
 

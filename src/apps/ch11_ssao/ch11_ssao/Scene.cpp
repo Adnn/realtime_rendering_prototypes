@@ -174,6 +174,8 @@ scenic::SceneTree prepareSceneTree(Engine & aEngine)
 
 // TODO: on framebuffer resize, inform the framegraph
 Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
+    mSizeListener{aAppInterface.listenFramebufferResize(
+        std::bind(&Scene::onFramebufferResize, this, std::placeholders::_1))},
     mSurfaceProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gSurfaceProgramPath}) },
     mLightProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath}) },
     mGraph(aAppInterface.getFramebufferSize()),
@@ -199,6 +201,12 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     glObjectLabel(GL_BUFFER, mMaterialsBlockBuffer, -1, "Materials");
     graphics::bind(mLightsBlockBuffer, graphics::BindingIndex{ 4 });
     glObjectLabel(GL_BUFFER, mLightsBlockBuffer, -1, "Lights");
+}
+
+
+void Scene::onFramebufferResize(math::Size<2, int> aNewSize)
+{
+    mGraph.resizeFrame(aNewSize);
 }
 
 
