@@ -242,7 +242,7 @@ renderer::LightsDataCommon transformLightsData(
 }
 
 
-void Scene::render(math::Size<2, int> aRenderResolution)
+void Scene::render(math::Size<2, int> aBackbufferResolution)
 {
     //
     // Entities
@@ -286,7 +286,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Camera
     //
-    changeAspectRatio(mOrbitalCamera.mCamera, math::getRatio<GLfloat>(aRenderResolution));
+    changeAspectRatio(mOrbitalCamera.mCamera, math::getRatio<GLfloat>(aBackbufferResolution));
     graphics::loadSingle(mViewProjectionBuffer,
                          mOrbitalCamera.getViewProjectionBlock(),
                          graphics::BufferHint::StreamDraw);
@@ -294,12 +294,12 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Frame rendering
     //
+    mGraph.renderFrame(mSceneTree, mEnvironment);
+
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glViewport(0, 0, aRenderResolution.width(), aRenderResolution.height());
+    glViewport(0, 0, aBackbufferResolution.width(), aBackbufferResolution.height());
     glClearColor(0.1f, 0.2f, 0.3f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    mGraph.renderFrame(mSceneTree, mEnvironment, aRenderResolution);
 
     if (mSceneControl.mShowTexture)
     {
@@ -313,14 +313,14 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         // frame to a provided framebuffer.
         glNamedFramebufferReadBuffer(mGraph.mFbo, GL_COLOR_ATTACHMENT0);
         glBlitNamedFramebuffer(mGraph.mFbo, 0,
-                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
-                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
+                               0, 0, mGraph.mTextures.mScreenTextureSize.width(), mGraph.mTextures.mScreenTextureSize.height(),
+                               0, 0, aBackbufferResolution.width(), aBackbufferResolution.height(),
                                GL_COLOR_BUFFER_BIT,
                                GL_NEAREST);
         // Depth must also be copied for lights occlusion
         glBlitNamedFramebuffer(mGraph.mFbo, 0,
-                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
-                               0, 0, aRenderResolution.width(), aRenderResolution.height(),
+                               0, 0, mGraph.mTextures.mScreenTextureSize.width(), mGraph.mTextures.mScreenTextureSize.height(),
+                               0, 0, aBackbufferResolution.width(), aBackbufferResolution.height(),
                                GL_DEPTH_BUFFER_BIT,
                                GL_NEAREST);
 

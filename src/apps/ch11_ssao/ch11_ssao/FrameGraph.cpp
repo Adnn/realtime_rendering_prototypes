@@ -310,6 +310,7 @@ void TextureStore::setupTexture(Name aName, GLenum aInternalFormat, GLenum aWrap
     glTextureParameteri(texture, GL_TEXTURE_WRAP_T, aWrapMode);
 }
 
+
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mTextures{
         .mStore = makeVector(
@@ -434,14 +435,15 @@ void FrameGraph::loadPrograms()
 
 
 void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
-                             const scenic::Environment & aEnvironment,
-                             math::Size<2, int> aRenderResolution)
+                             const scenic::Environment & aEnvironment)
 {
+    math::Size<2, int> renderResolution = mTextures.mScreenTextureSize;
+
     // Fragment position pass
     renderFragPosition(aSceneTree);
 
     graphics::ScopedBind boundFbo{ mFbo, graphics::FrameBufferTarget::Draw };
-    glViewport(0, 0, mTextures.mScreenTextureSize.width(), mTextures.mScreenTextureSize.height());
+    glViewport(0, 0, renderResolution.width(), renderResolution.height());
     const GLenum attachmentPerLocation[1] = {
         GL_COLOR_ATTACHMENT0,
     };
@@ -461,10 +463,10 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     switch (mSsaoMethod)
     {
     case FrameGraph::SsaoMethod::Sphere:
-        passSphereSsaoFactor(aSceneTree, aRenderResolution);
+        passSphereSsaoFactor(aSceneTree, renderResolution);
         break;
     case FrameGraph::SsaoMethod::OrientedHemishphere:
-        passHemisphereSsaoFactor(aSceneTree, aRenderResolution);
+        passHemisphereSsaoFactor(aSceneTree, renderResolution);
         break;
     }
     glDepthFunc(GL_LESS); // Restore default
@@ -477,7 +479,7 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
-    passFilterAo(aRenderResolution);
+    passFilterAo(renderResolution);
 
     // Final frame composition
     glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
@@ -487,7 +489,7 @@ void FrameGraph::renderFrame(const scenic::SceneTree& aSceneTree,
     glClearColor(0.1f, 0.2f, 0.3f, 1.f); 
     glClear(GL_COLOR_BUFFER_BIT);
 
-    passForwardPbr(aSceneTree, aEnvironment, aRenderResolution);
+    passForwardPbr(aSceneTree, aEnvironment, renderResolution);
     if (mFrameControl.mApplyEnvironment)
     {
         passSkybox(aEnvironment);

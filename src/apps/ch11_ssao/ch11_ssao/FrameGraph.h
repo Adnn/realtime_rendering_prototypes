@@ -143,8 +143,7 @@ struct FrameGraph
     FrameGraph(math::Size<2, int> aFrameSize);
 
     void renderFrame(const scenic::SceneTree & aSceneTree,
-                     const scenic::Environment & aEnvironment,
-                     math::Size<2, int> aRenderResolution);
+                     const scenic::Environment & aEnvironment);
 
     void renderFragPosition(const scenic::SceneTree & aSceneTree);
     void passFragPosition(const scenic::SceneTree & aSceneTree);

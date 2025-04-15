@@ -56,7 +56,7 @@ struct Scene
         const graphics::Timer & aTimer,
         math::Size<2, int> aWindowResolution);
 
-    void render(math::Size<2, int> aRenderResolution);
+    void render(math::Size<2, int> aBackbufferResolution);
 
     void presentUi(bool * aOpen = nullptr);
 
