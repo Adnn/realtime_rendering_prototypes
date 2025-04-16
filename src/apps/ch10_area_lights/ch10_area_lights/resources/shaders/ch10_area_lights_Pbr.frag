@@ -104,8 +104,8 @@ void main(void)
     //
 
     // TODO: implement mrao texture
-    float metallic = material.metallicRoughness.x;
-    float roughness = material.metallicRoughness.y;
+    float metallic = material.metallic;
+    float roughness = material.roughness;
 
     // Handle alpha
     // We assume the roughness, not alpha, is provided even in 3rd party assets.
