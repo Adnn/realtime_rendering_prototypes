@@ -55,6 +55,7 @@ struct Scene
         math::Size<2, int> aWindowResolution);
 
     void render(math::Size<2, int> aBackbufferResolution);
+    void renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution);
 
     void presentUi(bool * aOpen = nullptr);
 

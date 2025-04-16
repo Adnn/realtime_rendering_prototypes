@@ -39,7 +39,8 @@ void serializeTexture(const graphics::Texture & aTexture,
                       GLint aLevel,
                       GLenum aPixelFormat,
                       arte::ImageFormat aFormat,
-                      std::ostream & aOut)
+                      std::ostream & aOut,
+                      arte::ImageOrientation aOrientation = arte::ImageOrientation::Unchanged)
 {
     graphics::ScopedBind boundTexture{ aTexture };
 
@@ -91,7 +92,7 @@ void serializeTexture(const graphics::Texture & aTexture,
     }
 
     arte::Image<T_Pixel> result{ resultSize, std::move(raster) };
-    result.write(aFormat, aOut);
+    result.write(aFormat, aOut, aOrientation);
 }
 
 
@@ -252,6 +253,17 @@ renderer::LightsDataCommon transformLightsData(
 
 void Scene::render(math::Size<2, int> aBackbufferResolution)
 {
+    renderTo(graphics::FrameBuffer::Default(), aBackbufferResolution);
+}
+
+
+void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
+{
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
+    glViewport(0, 0, aBackbufferResolution.width(), aBackbufferResolution.height());
+    glClearColor(0.1f, 0.2f, 0.3f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     //
     // Entities
     // 
@@ -304,11 +316,6 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
     //
     mGraph.renderFrame(mSceneTree, mEnvironment);
 
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glViewport(0, 0, aBackbufferResolution.width(), aBackbufferResolution.height());
-    glClearColor(0.1f, 0.2f, 0.3f, 1.f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     if (mSceneControl.mShowTexture)
     {
         mGraph.passShowTexture(mOrbitalCamera.mCamera,
@@ -320,13 +327,13 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
         // In a production setup, it is likely that the framegraph would render the final
         // frame to a provided framebuffer.
         glNamedFramebufferReadBuffer(mGraph.mFbo, GL_COLOR_ATTACHMENT0);
-        glBlitNamedFramebuffer(mGraph.mFbo, 0,
+        glBlitNamedFramebuffer(mGraph.mFbo, aFramebuffer,
                                0, 0, mGraph.mTextures.mScreenTextureSize.width(), mGraph.mTextures.mScreenTextureSize.height(),
                                0, 0, aBackbufferResolution.width(), aBackbufferResolution.height(),
                                GL_COLOR_BUFFER_BIT,
                                GL_NEAREST);
         // Depth must also be copied for lights occlusion
-        glBlitNamedFramebuffer(mGraph.mFbo, 0,
+        glBlitNamedFramebuffer(mGraph.mFbo, aFramebuffer,
                                0, 0, mGraph.mTextures.mScreenTextureSize.width(), mGraph.mTextures.mScreenTextureSize.height(),
                                0, 0, aBackbufferResolution.width(), aBackbufferResolution.height(),
                                GL_DEPTH_BUFFER_BIT,
@@ -362,6 +369,7 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
         }
     }
 }
+
 
 
 void Scene::presentUi(bool * aOpen)
@@ -443,6 +451,37 @@ void Scene::presentUi(bool * aOpen)
         }
         ad::serializeTexture<math::hdr::Rgb_f>(mEnvironment.mEnvMap.mTexture, 0, GL_RGB,
                                              arte::ImageFormat::Hdr, outFile);
+    }
+    if (ImGui::Button("Dump 4K frame"))
+    {
+        std::ofstream outFile{ "rtr_11-frame-4k.png", std::ios::binary };
+        if (!outFile.good())
+        {
+            throw std::runtime_error{ "Cannot open output file." };
+        }
+        auto savedSize = mGraph.mTextures.mScreenTextureSize;
+
+        math::Size<2, int> fullhd{ 1920, 1200 };
+        math::Size<2, int> resolution = 2*fullhd;
+        onFramebufferResize(resolution);
+        graphics::FrameBuffer fbo;
+        graphics::ScopedBind{fbo}; // Just to create it
+        graphics::Texture colorTarget{ GL_TEXTURE_2D };
+        graphics::ScopedBind{colorTarget}; // Just to create it
+        glTextureStorage2D(colorTarget,
+                           1,
+                           GL_RGB8,
+                           resolution.width(),
+                           resolution.height());
+        glNamedFramebufferTexture(fbo,
+                                  GL_COLOR_ATTACHMENT0,
+                                  colorTarget,
+                                  /*mip map level*/0);
+        renderTo(fbo, resolution);
+        ad::serializeTexture<math::sdr::Rgb>(mGraph.mFinalFrame, 0, GL_RGB,
+                                             arte::ImageFormat::Png, outFile,
+                                             arte::ImageOrientation::InvertVerticalAxis);
+        onFramebufferResize(savedSize);
     }
     ImGui::End();
 }
