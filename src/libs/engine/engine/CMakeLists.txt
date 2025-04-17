@@ -5,6 +5,7 @@ set(${TARGET_NAME}_HEADERS
 	Entities.h
     IntrospectProgram.h
     Lights.h
+    Lines.h
     Resources.h
     Semantic.h
     SemanticValues.h

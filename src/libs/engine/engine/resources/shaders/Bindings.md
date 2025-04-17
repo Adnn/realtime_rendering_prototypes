@@ -10,6 +10,7 @@ Waiting for a better solution, here are our hardcoded bindings
 * 5: LightViewProjection
 * 6: ShadowCascade
 * 7: GlyphMetrics
+* 8: LineSegment
 
 ## Textures
 

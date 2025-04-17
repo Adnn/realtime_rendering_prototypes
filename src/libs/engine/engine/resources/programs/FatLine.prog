@@ -1,0 +1,4 @@
+{
+    "vertex": "shaders/Line.vert",
+    "fragment": "shaders/PlainColor.frag"
+}

@@ -85,6 +85,7 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 const std::filesystem::path gProgramPath = "programs/ch10_area_lights_TessellateSphere.prog";
 //const std::filesystem::path gProgramPath = "programs/WrapLighting.prog";
 const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
+const std::filesystem::path gLineProgramPath = "programs/FatLine.prog";
 
 template <class T_witness>
 void describe(T_witness aWitness, Scene::TessellationControl & aValue)
@@ -113,7 +114,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
                                   std::span{mSphere.mIndices},
                                   graphics::BufferHint::StaticDraw)},
     mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})},
-    mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})}
+    mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
+    mLineProgram{mEngine.loadProgram(renderer::ReferencePath{gLineProgramPath})}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -153,10 +155,12 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
 
 void Scene::loadPrograms()
 {
-    mLightProgram =
-        mEngine.loadProgram(renderer::ReferencePath{ gLightProgramPath });
     mSurfaceProgram =
         mEngine.loadProgram(renderer::ReferencePath{ gProgramPath });
+    mLightProgram =
+        mEngine.loadProgram(renderer::ReferencePath{ gLightProgramPath });
+    mLineProgram =
+        mEngine.loadProgram(renderer::ReferencePath{ gLineProgramPath });
 }
 
 
@@ -197,6 +201,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     const unsigned int objectsCount = 1;
     // Ensure the vector can fit all point lights
     mEntities.mEntities.resize(objectsCount + mLights.mPointCount);
+    mLines.mSegments.clear();
 
     for (std::size_t pointLightIdx = 0; pointLightIdx != mLights.mPointCount; ++pointLightIdx)
     {
@@ -206,6 +211,17 @@ void Scene::render(math::Size<2, int> aRenderResolution)
             math::trans3d::scaleUniform(pointLight.mRadius.mMin)
             * math::trans3d::translate(pointLight.mPosition.as<math::Vec>());
         entity.mColorFactor = pointLight.mColors.mDiffuseColor;
+
+        // Populate the line segments representing the tube lights
+        if (pointLightIdx % 2 == 1)
+        {
+            mLines.mSegments.push_back(
+                renderer::LineSegment_glsl{
+                    .mPointA = mLights.mPointLights[pointLightIdx - 1].mPosition,
+                    .mPointB = mLights.mPointLights[pointLightIdx].mPosition,
+                    .mWidth = 2 * mLights.mPointLights[pointLightIdx - 1].mRadius.mMin,
+                });
+        }
     }
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
@@ -249,7 +265,6 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     //
     // Draw
     //
-
     const GLuint sphereCount = 1;
 
     // TODO: should be done only once for each pair of VAO-program
@@ -274,6 +289,21 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         0,
         mLights.mPointCount,
         sphereCount);
+
+    // Render tube lights as fat lines
+    {
+        glDisable(GL_CULL_FACE);
+        graphics::setUniform(mLineProgram, "u_FramebufferSize", aRenderResolution);
+        {
+            // Binds to the general binding point, in addition to binding index 8
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, mLinesSsbo);
+            std::span<renderer::LineSegment_glsl> lines{ mLines.mSegments };
+            glBufferData(GL_SHADER_STORAGE_BUFFER, lines.size_bytes(), lines.data(), GL_STREAM_DRAW);
+        }
+        glUseProgram(mLineProgram);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glEnable(GL_CULL_FACE);
+    }
 }
 
 

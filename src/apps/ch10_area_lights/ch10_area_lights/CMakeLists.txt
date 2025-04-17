@@ -28,7 +28,7 @@ source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
              FILES
                 ${${TARGET_NAME}_HEADERS}
                 ${${TARGET_NAME}_SOURCES}
-				${${TARGET_NAME}_RESOURCES}
+                ${${TARGET_NAME}_RESOURCES}
 )
 
 

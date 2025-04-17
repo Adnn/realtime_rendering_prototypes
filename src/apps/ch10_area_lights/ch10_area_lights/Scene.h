@@ -8,6 +8,7 @@
 #include <engine/Entities.h>
 #include <engine/IntrospectProgram.h>
 #include <engine/Lights.h>
+#include <engine/Lines.h>
 
 #include <graphics/Timer.h>
 
@@ -114,8 +115,10 @@ struct Scene
     graphics::UniformBufferObject mViewProjectionBuffer;
     graphics::UniformBufferObject mMaterialsBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
+    graphics::BufferAny mLinesSsbo;
     renderer::IntrospectProgram mSurfaceProgram;
     renderer::IntrospectProgram mLightProgram;
+    renderer::IntrospectProgram mLineProgram;
 
     renderer::EntitiesBlock_glsl mEntities{
         .mEntities = {
@@ -166,6 +169,7 @@ struct Scene
             },
          },
     };
+    renderer::LinesSsbo_glsl mLines;
     OrbitalCamera mOrbitalCamera;
 
     TessellationControl mTessControl;

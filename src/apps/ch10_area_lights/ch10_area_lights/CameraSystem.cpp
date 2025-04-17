@@ -12,18 +12,22 @@ void OrbitalCamera::update(int aWindowHeight)
 
 void OrbitalCamera::setRatio(float aAspectRatio)
 {
-    //mCamera.setupOrthographicProjection({
-    //    .mAspectRatio = aAspectRatio,
-    //    .mViewHeight = mViewHeightInWorld,
-    //    .mNearZ = -0.1f,
-    //    .mFarZ = -20.f }
-    //);
+//#define ORTHO
+#if defined(ORTHO)
+    mCamera.setupOrthographicProjection({
+        .mAspectRatio = aAspectRatio,
+        .mViewHeight = mViewHeightInWorld,
+        .mNearZ = -0.1f,
+        .mFarZ = -20.f }
+    );
+#else
     mCamera.setupPerspectiveProjection({
         .mAspectRatio = aAspectRatio,
         .mVerticalFov = math::Radian{math::pi<float>/2.f},
         .mNearZ = -0.1f,
         .mFarZ = -20.f }
     );
+#endif
 }
 
 
