@@ -110,6 +110,12 @@ void give(DearImguiWitness & aV, const Clamped<T> & aClamped, const char * aName
     aClamped.mValue = std::clamp(aClamped.mValue, aClamped.mMin, aClamped.mMax);
 }
 
+template <std::floating_point T>
+void give(DearImguiWitness & aV, const Clamped<T> & aClamped, const char * aName)
+{
+    ImGui::SliderFloat(aName, &aClamped.mValue, aClamped.mMin, aClamped.mMax);
+}
+
 
 inline void give(DearImguiWitness & aV, float  & aFloat, const char * aName)
 {

@@ -23,6 +23,12 @@ public:
     using OrthographicParameters = graphics::OrthographicParameters;
     using PerspectiveParameters = graphics::PerspectiveParameters;
 
+    enum Projection : int
+    {
+        Orthographic = 0,
+        Perspective = 1,
+    };
+
     //math::Matrix<4, 4, GLfloat> assembleViewMatrix() const
     //{ return mWorldToCamera * mProjection; }
 
@@ -51,8 +57,18 @@ public:
     const std::variant<OrthographicParameters, PerspectiveParameters> & getProjectionParameters() const
     { return mProjectionParameters; }
 
-    bool isProjectionOrthographic() const
-    { return std::holds_alternative<OrthographicParameters>(mProjectionParameters); }
+    Projection identifyProjection() const
+    { 
+        return 
+            std::holds_alternative<OrthographicParameters>(mProjectionParameters) ?
+                Orthographic : Perspective; 
+    }
+
+    /// @brief Switch to the selected projection.
+    /// @param aStablePlaneDistance The positive distance between the camera origin and a plane
+    ///        whose image will stay the same in both projections.
+    /// @return The projection that was active when the function was called.
+    Projection switchProjection(Projection aSelected, float aStablePlaneDistance);
 
 private:
     // TODO Ad 2024/05/28: #interpolation The camera pose should be expressed as a TRS to interpolate
@@ -72,6 +88,9 @@ private:
 /// @param aCamera 
 /// @param aNewHeight viewport height in world coordinates.
 void changeOrthographicViewportHeight(Camera & aCamera, float aNewHeight);
+
+
+void changeAspectRatio(Camera & aCamera, float aNewRatio);
 
 
 std::pair<float/*near*/, float/*far*/> getNearFarPlanes(const Camera & aCamera);

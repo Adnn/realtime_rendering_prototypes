@@ -9,7 +9,8 @@ struct MaterialPbr
 {
     vec4 ambientColor; // This is a convenience to control some constant ambient contribution
     vec4 baseColor;
-    vec2 metallicRoughness;
+    float metallic;
+    float roughness;
 };
 
 

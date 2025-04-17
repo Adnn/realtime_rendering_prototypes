@@ -1,0 +1,4 @@
+{
+    "vertex": "shaders/FullscreenQuad.vert",
+    "fragment": "shaders/IntegrateEnvironmentBrdf.frag"
+}

@@ -21,7 +21,7 @@ void addCombo(const char *aLabel,
 template <class T_enumeration, std::size_t N_spanExtent>
 void addCombo(const char *aLabel,
               T_enumeration & aValue,
-              const std::span<const T_enumeration, N_spanExtent> & aAvailableValues);
+              std::span<const T_enumeration, N_spanExtent> aAvailableValues);
 
 
 template <class T_enumeration, std::size_t N_spanExtent>
@@ -43,6 +43,14 @@ void addCombo(const char * aLabel,
     addCombo<T_enumeration, N_spanExtent>
             (aLabel, static_cast<std::atomic<T_enumeration> &>(aValue), aAvailableValues);
 }
+
+
+/// @brief Implement a combo over a **continous** enumeration, from [0, E_end[.
+/// @tparam E_end The end enumerator (usually named "_End", and kept last),
+/// or alternatively the size of the enum.
+template <auto E_end, class T_enumeration>
+void addComboContinuousEnum(const char* aLabel,
+                            T_enumeration& aValue);
 
 
 } // namespace imguiui

@@ -1,14 +1,51 @@
 set(TARGET_NAME scenic)
 
 set(${TARGET_NAME}_HEADERS
+    AssimpUtils.h
     Camera.h
+    CameraGui.h
+    CameraSystem.h
     ColorPalettes.h
+    Hierarchy.h
+    LoadScene.h
+    Model.h
+    Pose.h
     Shapes.h
+    ShapesAsModel.h
+    VertexStreamUtilities.h
+
+    environment/Environment.h
+    environment/EnvironmentUtilities.h
+    environment/Skybox.h
+
+    files/Archives.h
+    files/Serializer.h
+
+    log/Logging.h
+    log/Logging-channels.h
+    log/Logging-init.h
 )
 
 set(${TARGET_NAME}_SOURCES
     Camera.cpp
+    CameraGui.cpp
+    CameraSystem.cpp
+    Hierarchy.cpp
+    LoadScene.cpp
+    Model.cpp
+    Pose.cpp
     Shapes.cpp
+    ShapesAsModel.cpp
+    VertexStreamUtilities.cpp
+
+    environment/Environment.cpp
+    environment/EnvironmentUtilities.cpp
+    environment/Skybox.cpp
+
+    files/Archives.cpp
+    files/Serializer.cpp
+
+    log/Logging-init.cpp
 )
 
 set(${TARGET_NAME}_INFRA
@@ -18,9 +55,13 @@ set(${TARGET_NAME}_INFRA
 
 source_group(/ FILES ${${TARGET_NAME}_INFRA})
 
-#source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
-#             FILES ${${TARGET_NAME}_HEADERS} ${${TARGET_NAME}_SOURCES}
-#)
+source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
+             FILES
+                ${${TARGET_NAME}_HEADERS}
+                ${${TARGET_NAME}_SOURCES}
+                ${${TARGET_NAME}_RESOURCES}
+)
+
 
 add_library(${TARGET_NAME}
     ${${TARGET_NAME}_SOURCES}
@@ -45,8 +86,12 @@ cmc_find_dependencies(FILE CMakeFinds.cmake.in)
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
+        ad::engine
         ad::graphics
         ad::math
+    
+    PRIVATE
+        assimp::assimp
 )
 
 

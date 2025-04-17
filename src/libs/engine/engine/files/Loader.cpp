@@ -160,13 +160,27 @@ namespace {
                               GL_TEXTURE_COMPRESSED_BLOCK_HEIGHT, 1, &blockHeight);
         assert(blockWidth == blockHeight && blockHeight == 4);
 
-        // Sanity check: for compressed format, the internal format is also the "teximage" format
+        // Sanity check
         {
             GLint imageFormat;
             glGetInternalformativ(aTextureTarget, aCompressedFormat,
                                   GL_TEXTURE_IMAGE_FORMAT, 1, &imageFormat);
-            // Note: untested while writing, so if it asserts I was wrong in this assumption
-            assert(imageFormat == aCompressedFormat);
+            // WRONG
+            //assert(imageFormat == aCompressedFormat);
+            // Note: Why did I think that compressed format would match texture_image_format?
+            // GL_TEXTURE_IMAGE_FORMAT returns the format of pixel data
+            // suitable as _format_ argument for glTexImage2D() 
+
+            // TODO: uncomment when glenum mapping is complete
+            //ADLOG(debug)("Texture target {} has compressed format {} and image format {}",
+            //             graphics::to_string(aTextureTarget),
+            //             graphics::to_string(aCompressedFormat),
+            //             graphics::to_string((GLenum)imageFormat));
+
+            GLint isSupported;
+            glGetInternalformativ(aTextureTarget, aCompressedFormat,
+                                  GL_INTERNALFORMAT_SUPPORTED, 1, &isSupported);
+            assert(isSupported == GL_TRUE);
         }
 
         return {

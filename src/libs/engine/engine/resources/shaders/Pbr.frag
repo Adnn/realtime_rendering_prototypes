@@ -2,11 +2,37 @@
 
 #include "Gamma.glsl"
 #include "Helpers.glsl"
+#include "IblUtilities.glsl"
 #include "LightsBlock.glsl"
 #include "LightUtilities.glsl"
 #include "MaterialPbrBlock.glsl"
 #include "PbrUtilities.glsl"
+#include "ViewProjectionBlock.glsl"
 
+
+#if defined(ENVIRONMENT_MAPPING)
+	uniform samplerCube u_EnvironmentTexture;
+	uniform samplerCube u_FilteredRadianceEnvironmentTexture;
+	uniform samplerCube u_FilteredIrradianceEnvironmentTexture;
+	uniform sampler2D u_IntegratedEnvironmentBrdf;
+
+    // Control the IBL contributions strenght, good candidates to be part of each environment
+    uniform float u_SpecularIblFactor = 1.0;
+    uniform float u_DiffuseIblFactor = 1.0;
+#endif //ENVIRONMENT_MAPPING
+
+
+in vec4 ex_Color;
+in vec3 ex_Normal_view;
+in vec3 ex_Position_view;
+
+out vec4 out_Color;
+
+uniform sampler2D u_AmbientOcclusion;
+
+uniform ivec2 u_FramebufferSize;
+uniform bool u_ApplyAo;
+uniform bool u_ApplyEnvironment;
 
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
@@ -15,7 +41,7 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
     LightContributions result;
     vec3 F;
 
-    // IMPORTANT: All albedos are given already multiplied by Pi
+    // IMPORTANT: All albedos are returned already multiplied by Pi
     // This already satisfy the Pi factor in the reflectance equation.
 
     // Specular and Fresnel
@@ -56,8 +82,6 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
                               * aColors.specular.rgb
                               * nDotL;
         #endif // GGX_BRDF / BLINNPHONG_BRDF
-
-		//result.specular = vec3(-h.g);
     }
 
     // Diffuse
@@ -75,13 +99,6 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
 
     return result;
 }
-
-
-in vec4 ex_Color;
-in vec3 ex_Normal_view;
-in vec3 ex_Position_view;
-
-out vec4 out_Color;
 
 
 void main(void)
@@ -105,8 +122,8 @@ void main(void)
     //
 
     // TODO: implement mrao texture
-    float metallic = material.metallicRoughness.x;
-    float roughness = material.metallicRoughness.y;
+    float metallic = material.metallic;
+    float roughness = material.roughness;
 
     // Handle alpha
     // We assume the roughness, not alpha, is provided even in 3rd party assets.
@@ -150,95 +167,31 @@ void main(void)
     }
 
 
-    //// Point lights
-    //for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
-    //{
-    //    PointLight point = ub_PointLights[pointIdx];
-
-    //    // see rtr 4th p110 (5.10)
-    //    vec3 lightRay_view = point.position.xyz - ex_Position_view;
-    //    float radius = length(lightRay_view);
-    //    vec3 lightDir_view = lightRay_view / radius;
-
-    //    vec3 specularLightDir_view = normalize(
-    //        representativePoint_sphere(ex_Position_view,
-    //                                   point.position.xyz,
-    //                                   reflect(-viewDir_view, shadingNormal_view),
-    //                                   point.radius.x));
-
-    //    LightContributions lighting = 
-    //        applyLight_pbr(
-    //            viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
-    //            pbrParameters, point.colors);
-
-    //    float falloff = attenuatePoint(point, radius);
-    //    diffuseAccum  += lighting.diffuse  * falloff;
-    //    specularAccum += lighting.specular * falloff;
-    //}
-
-
-    // Tube lights
-    for(uint pointIdx = 0; pointIdx != ub_PointCount; pointIdx += 2)
+    // Point lights
+    for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
     {
-        PointLight p0 = ub_PointLights[pointIdx];
-        PointLight p1 = ub_PointLights[pointIdx+1];
+        PointLight point = ub_PointLights[pointIdx];
 
-        // TODO: #area_diffuse
-        //       Find if there are better solution than picking the middle point
-        vec3 middlePoint_view = (p0.position.xyz + p1.position.xyz) / 2;
-        vec3 midLightRay_view = middlePoint_view - ex_Position_view;
-        float midRadius = length(midLightRay_view);
-        vec3 midLightDir_view = midLightRay_view / midRadius;
+        // see rtr 4th p110 (5.10)
+        vec3 lightRay_view = point.position.xyz - ex_Position_view;
+        float radius = length(lightRay_view);
+        vec3 lightDir_view = lightRay_view / radius;
 
-		vec3 reflectionDir = reflect(-viewDir_view, shadingNormal_view);
-
-        TubeInterpolation tube = 
-            representativePoint_tube(
-                ex_Position_view,
-                p0.position.xyz, p1.position.xyz,
-                reflectionDir);
-
-        vec3 lightRay_view = tube.lightRay;
-        float t = tube.t;
-
-        #define FEAT_TUBE_WIDTH
-        #if defined(FEAT_TUBE_WIDTH)
-			lightRay_view = 
-				representativePoint_sphere(lightRay_view,
-										   reflectionDir,
-										   p0.radius.x);
-        #endif
-
-        float representativeRadius = length(lightRay_view);
-        vec3 lightDir_view = lightRay_view / representativeRadius;
+        vec3 specularLightDir_view = normalize(
+            representativePoint_sphere(ex_Position_view,
+                                       point.position.xyz,
+                                       reflect(-viewDir_view, shadingNormal_view),
+                                       point.radius.x));
 
         LightContributions lighting = 
             applyLight_pbr(
-                viewDir_view, midLightDir_view, lightDir_view, shadingNormal_view,
-                pbrParameters,
-                // TODO: interpolate colors
-                p0.colors);
+                viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
+                pbrParameters, point.colors);
 
-		// TODO interpolate point fall-off radii?
-        // Note: we cannot use the radius of the representative point:
-        // It has strong discontinuities when "escaping" from endpoints, 
-        // which cause disturbing artifacts in a "low frequency" diffuse contribution.
-        float falloffDiffuse = attenuatePoint(p0, midRadius);
-        diffuseAccum  += lighting.diffuse  * falloffDiffuse;
-
-        // Note: we might instead reuse the already computed falloff, 
-        // but this change the specular result
-        float falloffSpec = attenuatePoint(p0, representativeRadius);
-        specularAccum += lighting.specular * falloffSpec;
-
-        // Usefull to show the interpolation parameter
-        // gamma encode t to go from a perceptually linear t to light linear space.
-        // (this cancels out gamma correction, bringing it back to perceptually linear sRGB)
-        //out_Color = correctGamma(vec4(vec3(pow(t, 2.2)), 1));
-        //out_Color = correctGamma(vec4(vec3(pow(representativeRadius/10, 2.2)), 1));
-        //return;
+        float falloff = attenuatePoint(point, radius);
+        diffuseAccum  += lighting.diffuse  * falloff;
+        specularAccum += lighting.specular * falloff;
     }
-
 
     // Sum contributions
     // Note: the ambient term is a quick hack, to be removed when IBL is in place
@@ -247,11 +200,75 @@ void main(void)
     vec3 diffuse  = diffuseAccum        ;//* material.diffuseColor.rgb;
     vec3 specular = specularAccum       ;//* material.specularColor.rgb;
 
+    //
+    // Ambient Occlusion
+    //
+
+	float aoFactor;
+    if(u_ApplyAo)
+    {
+		vec2 frag_screenuv = gl_FragCoord.xy / u_FramebufferSize;
+		aoFactor = texture(u_AmbientOcclusion, frag_screenuv).r;
+		ambient *= aoFactor;
+	}
+
     vec3 fragmentColor = diffuse + ambient + specular;
 
     // DEBUG SECTION
     //fragmentColor = specular;
     //fragmentColor = highlightAberrations(fragmentColor);
+
+
+    //
+    // IBL
+    //
+	#if defined(ENVIRONMENT_MAPPING)
+    if(u_ApplyEnvironment)
+    {
+        // The directions that will be used to sample into the cubemap need to be in 
+        // world-space, where the cubemaps are defined.
+		// Note: No need to normalize as long as it is only used to sample a cubemap.
+		vec3 reflected_world = mat3(ub_cameraToWorld) * reflect(-viewDir_view, shadingNormal_view);
+		vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
+
+		vec3 specularIbl = 
+            approximateSpecularIbl(pbrParameters.f0,
+		                           reflected_world,
+                                   shadingNormal_world,
+                                   // Note should be reused from previous computation
+                                   // (but is currently calculated inside a function)
+                                   dotPlus(shadingNormal_view, viewDir_view),
+                                   roughness,
+                                   u_FilteredRadianceEnvironmentTexture,
+                                   u_IntegratedEnvironmentBrdf);
+
+		vec3 irradianceIbl = texture(u_FilteredIrradianceEnvironmentTexture, 
+                                     worldToCubemap(shadingNormal_world)).rgb;
+
+		if(u_ApplyAo)
+        {
+            // See rtr 4th eq. (11.25) p464
+            // TODO: There is a 1/Pi factor in the book equation. Is it already part of the integrated irradiance
+            irradianceIbl *= aoFactor;
+        }
+
+
+        // Note: The Fresnel term:
+        //   * is part of the precomputed BRDF of split-sum approximation for specular
+        //   * might be part of the irradiance texture for diffuse (see: prefilterEnvMapDiffuse_LambertianFresnel())
+        // Note: mftpbr does use Fresnel terms in its diffuses brdf (Fr_DisneyDiffuse),
+        //   which is in a term separate from the actual image lighting pre-integration.
+
+        fragmentColor += specularIbl * u_SpecularIblFactor;
+		// For Lambertian surfaces, outgoing radiance is proportional to irradiance.
+        // See rtr 4th eq. (10.2) p379
+        fragmentColor += irradianceIbl
+						  // Diffuse color is the subsurface albedo
+						 * pbrParameters.diffuseColor.rgb
+						 * u_DiffuseIblFactor
+                         ;
+    }
+    #endif //ENVIRONMENT_MAPPING
 
     //
     // Output

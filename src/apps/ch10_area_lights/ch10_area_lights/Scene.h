@@ -71,7 +71,7 @@ struct Scene
             glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &mMaxTessGenLevel);
         }
 
-        static constexpr GLfloat gLevel = 1;
+        static constexpr GLfloat gLevel = 2;
         GLuint mPatchVertices = 3;
         math::Vec<4, GLfloat> mOuterLevel{ gLevel, gLevel, gLevel, 1.f };
         math::Vec<2, GLfloat> mInnerLevel{ gLevel, 1.f };
@@ -80,7 +80,7 @@ struct Scene
         GLint mMaxTessGenLevel;
     };
 
-    struct PipelineControl
+    struct FrameControl
     {
        inline static constexpr std::array<GLenum, 3> gPolygonModes{
             GL_POINT,
@@ -169,7 +169,7 @@ struct Scene
     OrbitalCamera mOrbitalCamera;
 
     TessellationControl mTessControl;
-    PipelineControl mPipelineControl;
+    FrameControl mFrameControl;
 };
 
 

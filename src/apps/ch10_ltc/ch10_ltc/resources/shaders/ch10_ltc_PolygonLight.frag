@@ -30,7 +30,7 @@ out vec4 out_Color;
 /// @param aDir must be normalized
 float clampedCos(vec3 aDir)
 {
-    return max(0, aDir.z) / PI;
+    return max(0, aDir.z) / M_PI;
 }
 
 
@@ -151,8 +151,8 @@ void main(void)
     MaterialPbr material = ub_MaterialPbr[0];
 
     vec4 albedo = ex_Color * material.baseColor;
-    float metallic = material.metallicRoughness.x;
-    float roughness = material.metallicRoughness.y;
+    float metallic = material.metallic;
+    float roughness = material.roughness;
     float alpha = alphaFromRoughness(roughness);
     alpha = max(0.005, alpha);
 

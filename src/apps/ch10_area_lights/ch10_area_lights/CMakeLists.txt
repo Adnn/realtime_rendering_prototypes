@@ -22,16 +22,20 @@ set(${TARGET_NAME}_SOURCES
     log/Logging-init.cpp
 )
 
+file(GLOB_RECURSE ${TARGET_NAME}_RESOURCES "resources/*")
+
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
              FILES
                 ${${TARGET_NAME}_HEADERS}
                 ${${TARGET_NAME}_SOURCES}
+				${${TARGET_NAME}_RESOURCES}
 )
 
 
 add_executable(${TARGET_NAME}
     ${${TARGET_NAME}_SOURCES}
     ${${TARGET_NAME}_HEADERS}
+	${${TARGET_NAME}_RESOURCES}
 )
 
 
@@ -63,8 +67,7 @@ file(GENERATE
      OUTPUT $<TARGET_FILE_DIR:${TARGET_NAME}>/assets.json
      # TODO: should we remove the snacman local V2_resources folder?
      #       for the moment we cannot, we have dedicated custom shaders for snacman (not the base renderer versions)
-     CONTENT "{\"prefixes\": [\"${RENDERER_SOURCE_DIR}/resources/\"
+     CONTENT "{\"prefixes\": [\"${CMAKE_CURRENT_SOURCE_DIR}/resources\",
+			      \"${RENDERER_SOURCE_DIR}/resources/\"
                              ]}")
-     #                        \"${REPO_FOLDER}/../assets/\"]}")
-
 
