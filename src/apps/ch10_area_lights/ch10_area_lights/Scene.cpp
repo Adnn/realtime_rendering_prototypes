@@ -82,6 +82,7 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 }
 
 
+const unsigned int gCircleResolution = 32;
 const std::filesystem::path gProgramPath = "programs/ch10_area_lights_TessellateSphere.prog";
 //const std::filesystem::path gProgramPath = "programs/WrapLighting.prog";
 const std::filesystem::path gLightProgramPath = "programs/TessSphere_PlainColor.prog";
@@ -105,6 +106,20 @@ void describe(T_witness aWitness, Scene::TessellationControl & aValue)
     aValue.mInnerLevel = math::min(aValue.mInnerLevel, maxTess.xy());
 }
 
+LineDrawer::LineDrawer(renderer::IntrospectProgram aLineProgram) :
+    mProgram{std::move(aLineProgram)}
+{
+    auto vertices = renderer::makeRoundSegment(gCircleResolution);
+    auto verticesSpan = std::span{vertices};
+    mVerticesCount = vertices.size();
+    glBindBuffer(mVertices.GLTarget_v, mVertices);
+    glBufferData(mVertices.GLTarget_v, verticesSpan.size_bytes(), verticesSpan.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(mVao);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(mVertices.GLTarget_v, mVertices);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+}
 
 Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui) :
     mVertexSpecification{},
@@ -115,7 +130,7 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
                                   graphics::BufferHint::StaticDraw)},
     mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})},
     mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
-    mLineProgram{mEngine.loadProgram(renderer::ReferencePath{gLineProgramPath})}
+    mLineDrawer{mEngine.loadProgram(renderer::ReferencePath{gLineProgramPath})}
 {
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
@@ -159,7 +174,7 @@ void Scene::loadPrograms()
         mEngine.loadProgram(renderer::ReferencePath{ gProgramPath });
     mLightProgram =
         mEngine.loadProgram(renderer::ReferencePath{ gLightProgramPath });
-    mLineProgram =
+    mLineDrawer.mProgram =
         mEngine.loadProgram(renderer::ReferencePath{ gLineProgramPath });
 }
 
@@ -279,29 +294,33 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         sphereCount,
         0);
 
-    // Render point lights as sphere
-    validateVertexAttributes(mLightProgram);
-    glUseProgram(mLightProgram);
-    glDrawElementsInstancedBaseInstance(
-        GL_PATCHES,
-        mIndicesCount,
-        graphics::MappedGL_v<scenic::Index>,
-        0,
-        mLights.mPointCount,
-        sphereCount);
+    if (mFrameControl.mShowPunctualLights)
+    {
+        // Render point lights as sphere
+        validateVertexAttributes(mLightProgram);
+        glUseProgram(mLightProgram);
+        glDrawElementsInstancedBaseInstance(
+            GL_PATCHES,
+            mIndicesCount,
+            graphics::MappedGL_v<scenic::Index>,
+            0,
+            mLights.mPointCount,
+            sphereCount);
+    }
 
     // Render tube lights as fat lines
     {
         glDisable(GL_CULL_FACE);
-        graphics::setUniform(mLineProgram, "u_FramebufferSize", aRenderResolution);
+        graphics::setUniform(mLineDrawer.mProgram, "u_FramebufferSize", aRenderResolution);
         {
             // Binds to the general binding point, in addition to binding index 8
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, mLinesSsbo);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, mLineDrawer.mLinesSsbo);
             std::span<renderer::LineSegment_glsl> lines{ mLines.mSegments };
             glBufferData(GL_SHADER_STORAGE_BUFFER, lines.size_bytes(), lines.data(), GL_STREAM_DRAW);
         }
-        glUseProgram(mLineProgram);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glBindVertexArray(mLineDrawer.mVao);
+        glUseProgram(mLineDrawer.mProgram);
+        glDrawArrays(GL_TRIANGLES, 0, mLineDrawer.mVerticesCount);
         glEnable(GL_CULL_FACE);
     }
 }
@@ -329,6 +348,8 @@ void Scene::presentUi(bool * aOpen)
         FrameControl::gPolygonModes.begin(),
         FrameControl::gPolygonModes.end(),
         [](auto aModeIt){return graphics::to_string(*aModeIt);});
+
+    ImGui::Checkbox("Show Punctual Lights", &mFrameControl.mShowPunctualLights);
 
     DearImguiWitness witness;
 

@@ -61,6 +61,16 @@ constexpr graphics::AttributeDescriptionList gInstanceDescription{
 //    1,
 //};
 
+struct LineDrawer 
+{
+    LineDrawer(renderer::IntrospectProgram aLineProgram);
+
+    graphics::Buffer<graphics::BufferType::Array> mVertices;
+    GLuint mVerticesCount;
+    graphics::BufferAny mLinesSsbo;
+    graphics::VertexArrayObject mVao;
+    renderer::IntrospectProgram mProgram;
+};
 
 struct Scene
 {
@@ -83,13 +93,14 @@ struct Scene
 
     struct FrameControl
     {
-       inline static constexpr std::array<GLenum, 3> gPolygonModes{
+        inline static constexpr std::array<GLenum, 3> gPolygonModes{
             GL_POINT,
             GL_LINE,
             GL_FILL,
         }; 
 
-       decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+        decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+        bool mShowPunctualLights = true;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
@@ -115,10 +126,9 @@ struct Scene
     graphics::UniformBufferObject mViewProjectionBuffer;
     graphics::UniformBufferObject mMaterialsBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
-    graphics::BufferAny mLinesSsbo;
     renderer::IntrospectProgram mSurfaceProgram;
     renderer::IntrospectProgram mLightProgram;
-    renderer::IntrospectProgram mLineProgram;
+    LineDrawer mLineDrawer;
 
     renderer::EntitiesBlock_glsl mEntities{
         .mEntities = {

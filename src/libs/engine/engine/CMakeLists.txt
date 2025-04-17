@@ -22,6 +22,7 @@ set(${TARGET_NAME}_HEADERS
 
 set(${TARGET_NAME}_SOURCES
     IntrospectProgram.cpp
+    Lines.cpp
     Resources.cpp
     ShaderConstants.cpp
     ShaderProgramManager.cpp

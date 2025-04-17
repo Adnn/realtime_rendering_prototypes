@@ -25,4 +25,7 @@ struct LinesSsbo_glsl
 };
 
 
+std::vector<math::Position<3, GLfloat>> makeRoundSegment(unsigned int aCircleResolution);
+
+
 } // namespace ad::renderer
