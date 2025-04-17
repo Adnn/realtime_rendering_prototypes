@@ -14,6 +14,8 @@ in vec3 ex_Position_view;
 
 out vec4 out_Color;
 
+uniform uint u_TubeCount;
+
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
                                   PbrParameters aParams, LightColors aColors)
@@ -149,35 +151,38 @@ void main(void)
     }
 
 
-    //// Point lights
-    //for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
-    //{
-    //    PointLight point = ub_PointLights[pointIdx];
+    // The u_TubeCount first pairs of point lights are representing tube lights
+    uint firstPoint = min(2 * u_TubeCount, ub_PointCount);
 
-    //    // see rtr 4th p110 (5.10)
-    //    vec3 lightRay_view = point.position.xyz - ex_Position_view;
-    //    float radius = length(lightRay_view);
-    //    vec3 lightDir_view = lightRay_view / radius;
+    // Point lights
+    for(uint pointIdx = firstPoint; pointIdx != ub_PointCount; ++pointIdx)
+    {
+        PointLight point = ub_PointLights[pointIdx];
 
-    //    vec3 specularLightDir_view = normalize(
-    //        representativePoint_sphere(ex_Position_view,
-    //                                   point.position.xyz,
-    //                                   reflect(-viewDir_view, shadingNormal_view),
-    //                                   point.radius.x));
+        // see rtr 4th p110 (5.10)
+        vec3 lightRay_view = point.position.xyz - ex_Position_view;
+        float radius = length(lightRay_view);
+        vec3 lightDir_view = lightRay_view / radius;
 
-    //    LightContributions lighting = 
-    //        applyLight_pbr(
-    //            viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
-    //            pbrParameters, point.colors);
+        vec3 specularLightDir_view = normalize(
+            representativePoint_sphere(ex_Position_view,
+                                       point.position.xyz,
+                                       reflect(-viewDir_view, shadingNormal_view),
+                                       point.radius.x));
 
-    //    float falloff = attenuatePoint(point, radius);
-    //    diffuseAccum  += lighting.diffuse  * falloff;
-    //    specularAccum += lighting.specular * falloff;
-    //}
+        LightContributions lighting = 
+            applyLight_pbr(
+                viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
+                pbrParameters, point.colors);
+
+        float falloff = attenuatePoint(point, radius);
+        diffuseAccum  += lighting.diffuse  * falloff;
+        specularAccum += lighting.specular * falloff;
+    }
 
 
     // Tube lights
-    for(uint pointIdx = 0; pointIdx != ub_PointCount; pointIdx += 2)
+    for(uint pointIdx = 0; (pointIdx + 1) < firstPoint; pointIdx += 2)
     {
         PointLight p0 = ub_PointLights[pointIdx];
         PointLight p1 = ub_PointLights[pointIdx+1];

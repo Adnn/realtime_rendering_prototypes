@@ -1,6 +1,7 @@
 #version 460
 
 
+#include "LineBlock.glsl"
 #include "ViewProjectionBlock.glsl"
 
 
@@ -8,21 +9,6 @@ out vec2 ex_Uv;
 out vec4 ex_Color;
 
 uniform ivec2 u_FramebufferSize;
-
-struct LineSegment
-{
-    // We never use vec3 in buffer-backed interface blocks due to alignment complications
-    // We could use the last float for a per-point width
-    vec4 pointA;
-    vec4 pointB;
-    float width;
-};
-
-
-layout(std140, binding = 8) readonly buffer LinesSsbo
-{
-    LineSegment ub_Segments[];
-};
 
 const vec2 pos_data[4] = vec2[] (
     vec2( 1.0, -0.5),

@@ -225,7 +225,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         entity.mLocalToWorld =
             math::trans3d::scaleUniform(pointLight.mRadius.mMin)
             * math::trans3d::translate(pointLight.mPosition.as<math::Vec>());
-        entity.mColorFactor = pointLight.mColors.mDiffuseColor;
+        entity.mColorFactor = pointLight.mColors.mSpecularColor;
 
         // Populate the line segments representing the tube lights
         if (pointLightIdx % 2 == 1)
@@ -234,6 +234,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                 renderer::LineSegment_glsl{
                     .mPointA = mLights.mPointLights[pointLightIdx - 1].mPosition,
                     .mPointB = mLights.mPointLights[pointLightIdx].mPosition,
+                    .mColor = mLights.mPointLights[pointLightIdx - 1].mColors.mSpecularColor,
                     .mWidth = 2 * mLights.mPointLights[pointLightIdx - 1].mRadius.mMin,
                 });
         }
@@ -285,6 +286,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     // TODO: should be done only once for each pair of VAO-program
     validateVertexAttributes(mSurfaceProgram);
     glUseProgram(mSurfaceProgram);
+    graphics::setUniform(mSurfaceProgram, "u_TubeCount", mFrameControl.mTubeCount);
 
     glDrawElementsInstancedBaseInstance(
         GL_PATCHES,
@@ -320,7 +322,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         }
         glBindVertexArray(mLineDrawer.mVao);
         glUseProgram(mLineDrawer.mProgram);
-        glDrawArrays(GL_TRIANGLES, 0, mLineDrawer.mVerticesCount);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, mLineDrawer.mVerticesCount, mFrameControl.mTubeCount);
         glEnable(GL_CULL_FACE);
     }
 }
@@ -350,6 +352,10 @@ void Scene::presentUi(bool * aOpen)
         [](auto aModeIt){return graphics::to_string(*aModeIt);});
 
     ImGui::Checkbox("Show Punctual Lights", &mFrameControl.mShowPunctualLights);
+
+    ImGui::InputScalar("Tube count", ImGuiDataType_U32, &mFrameControl.mTubeCount);
+    mFrameControl.mTubeCount = std::min(mFrameControl.mTubeCount, mLights.mPointCount / 2);
+
 
     DearImguiWitness witness;
 

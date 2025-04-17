@@ -2,6 +2,7 @@
 
 
 #include "Constants.glsl"
+#include "LineBlock.glsl"
 #include "ViewProjectionBlock.glsl"
 
 
@@ -11,29 +12,12 @@ out vec4 ex_Color;
 
 uniform ivec2 u_FramebufferSize;
 
-struct LineSegment
-{
-    // We never use vec3 in buffer-backed interface blocks due to alignment complications
-    // We could use the last float for a per-point width
-    vec4 pointA;
-    vec4 pointB;
-    float width;
-};
-
-
-layout(std140, binding = 8) readonly buffer LinesSsbo
-{
-    LineSegment ub_Segments[];
-};
-
-
 // Note: the idea to use a special pattern of positions to draw the line and the round endpoints
 // was inspired by: https://wwwtyro.net/2019/11/18/instanced-lines.html
 void main() 
 {
-    ex_Color = vec4(1);
-
     LineSegment segment = ub_Segments[gl_InstanceID];
+    ex_Color = segment.color;
     float width = segment.width;
     vec3 point = v_Position;
 

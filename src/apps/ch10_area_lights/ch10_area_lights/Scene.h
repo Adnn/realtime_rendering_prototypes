@@ -101,6 +101,7 @@ struct Scene
 
         decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
         bool mShowPunctualLights = true;
+        unsigned int mTubeCount = 1;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
