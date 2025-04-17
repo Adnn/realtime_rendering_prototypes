@@ -49,6 +49,7 @@ void main()
     vec2 point = pos_data[gl_VertexID];
 
 //#define COMPUTE_VIEW_SPACE
+//#define COMPUTE_SCREEN_SPACE
 #if defined(COMPUTE_VIEW_SPACE)
 	// This approach computes the line side vector in view space
 	// The problem is it make the singularity (when the segment is along Z)
@@ -74,7 +75,8 @@ void main()
     gl_Position = 
         ub_projection
         * (A_view + ray_view * point.x + sideScaled_view * point.y);
-#else
+
+#elseif defined(COMPUTE_SCREEN_SPACE)
     // This approach computes the side vector in screen (window) space
     // wich is the space where the segment is 2D 
     // (the singularity is when the line is viewed head-on)
@@ -102,5 +104,23 @@ void main()
 
     vec4 ray_clip = B_clip - A_clip;
     gl_Position = (A_clip + ray_clip * point.x + sideScaled_clip * point.y);
+
+#else
+    // This one use a billboarding technique, and does not requires any extra transformation
+    // while giving equivalent results to the screen-space computation
+    vec4 A_world = vec4(segment.pointA.xyz, 1);
+    vec4 B_world = vec4(segment.pointB.xyz, 1);
+
+    vec4 ray_world = B_world - A_world;
+    // Extract the camera position (last column of the cameraToWorld matrix)
+    vec3 camera_world = ub_cameraToWorld[3].xyz;
+    vec3 quadNormal_world = camera_world - A_world.xyz;
+
+    vec3 side_world = normalize(cross(quadNormal_world, ray_world.xyz));
+	vec4 sideScaled_world = vec4(side_world * width, 0);
+
+    gl_Position = 
+        ub_viewingProjection
+        * (A_world + ray_world * point.x + sideScaled_world * point.y);
 #endif
 }
