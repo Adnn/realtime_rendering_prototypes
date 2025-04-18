@@ -132,6 +132,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
     mLineDrawer{mEngine.loadProgram(renderer::ReferencePath{gLineProgramPath})}
 {
+    setupLights();
+
     graphics::attachIndexBuffer(mIndexBuffer, mVertexSpecification.mVertexArray);
 
     graphics::appendToVertexSpecification(
@@ -167,6 +169,68 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
     glObjectLabel(GL_BUFFER, mLightsBlockBuffer, -1, "Lights");
 }
 
+
+void Scene::setupLights()
+{
+    constexpr unsigned int tubeCount = 3;
+    constexpr unsigned int bulbCount = 1;
+    std::array<math::hdr::Rgb<GLfloat>, tubeCount + bulbCount> colors{{
+        {0.55f, 0.05f, 0.05f},
+        {0.13f, 0.64f, 0.62f},
+        {1.f, 0.73f, 0.29f},
+        {0.44f, 0.f, 0.37f},
+    }};
+    float height = 1.5f;
+    float radius = 3.f;
+
+    const math::Radian<GLfloat> pi{ math::pi<GLfloat> };
+    const math::Radian<GLfloat> reserve{pi / 8};
+    math::Radian<GLfloat> step{ 2 * pi / tubeCount };
+
+    auto makePosition = [&](unsigned int i, math::Radian<GLfloat> aReserve)
+        {
+            return math::Position<3, GLfloat>{
+                radius * cos(i * step + aReserve),
+                height,
+                radius * sin(i * step + aReserve)};
+        };
+
+    for (unsigned int i = 0; i != tubeCount; ++i)
+    {
+        unsigned int pointIdx = 2 * i;
+        mLights.mPointLights[pointIdx] =
+            renderer::PointLight_glsl{
+                .mPosition{makePosition(pointIdx, reserve)},
+                .mColors{
+                    .mDiffuseColor = colors[i] * 30,
+                    .mSpecularColor = colors[i] * 30,
+                },
+            };
+        mLights.mPointLights[pointIdx + 1] =
+            renderer::PointLight_glsl{
+                .mPosition{makePosition(pointIdx + 1, -reserve)},
+                .mColors{
+                    .mDiffuseColor = colors[i] * 30,
+                    .mSpecularColor = colors[i] * 30,
+                },
+            };
+    }
+    mLights.mPointCount = 2 * tubeCount;
+    mFrameControl.mTubeCount = tubeCount;
+
+    mLights.mPointLights[mLights.mPointCount++] =
+        renderer::PointLight_glsl{
+            .mPosition{2.f, -3.f, 0.f},
+            .mRadius{
+                .mMin = 1.f,
+                .mMax = 5.f,
+            },
+            .mColors{
+                .mDiffuseColor = colors[tubeCount] * 30,
+                .mSpecularColor = colors[tubeCount] * 30,
+            },
+        };
+}
 
 void Scene::loadPrograms()
 {
@@ -208,6 +272,19 @@ renderer::LightsDataCommon transformLightsData(
 }
 
 
+math::hdr::Rgb<float> capColor(math::hdr::Rgb<float> aColor)
+{
+    float maxElement = *aColor.getMaxMagnitudeElement();
+    if (maxElement > 1)
+    {
+        return aColor / maxElement;
+    }
+    else
+    {
+        return aColor;
+    }
+}
+
 void Scene::render(math::Size<2, int> aRenderResolution)
 {
     //
@@ -225,16 +302,19 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         entity.mLocalToWorld =
             math::trans3d::scaleUniform(pointLight.mRadius.mMin)
             * math::trans3d::translate(pointLight.mPosition.as<math::Vec>());
-        entity.mColorFactor = pointLight.mColors.mSpecularColor;
+        entity.mColorFactor = capColor(pointLight.mColors.mSpecularColor);
 
         // Populate the line segments representing the tube lights
+        // Note: whereas for point lights we populate the entities UBO to render the spheres
+        // with classical matrix tansforms,
+        // for tube lights we populate a line segment UBO, directly with world positions
         if (pointLightIdx % 2 == 1)
         {
             mLines.mSegments.push_back(
                 renderer::LineSegment_glsl{
                     .mPointA = mLights.mPointLights[pointLightIdx - 1].mPosition,
                     .mPointB = mLights.mPointLights[pointLightIdx].mPosition,
-                    .mColor = mLights.mPointLights[pointLightIdx - 1].mColors.mSpecularColor,
+                    .mColor = capColor(mLights.mPointLights[pointLightIdx - 1].mColors.mSpecularColor),
                     .mWidth = 2 * mLights.mPointLights[pointLightIdx - 1].mRadius.mMin,
                 });
         }

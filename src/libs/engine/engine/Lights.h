@@ -71,7 +71,7 @@ struct Radius
     // * r_0 (the distance at which the intensities are given)
     // * r_min (the distance below which light will not gain intensities anymore)
     // max is used as r_max, i.e. where both light intensity & derivative should reach zero.
-    GLfloat mMin = 0.25f;
+    GLfloat mMin = 0.2f;
     GLfloat mMax = 10.f;
     // Until the maybe_uninitialized warning works better we need
     // mMin and mMax to have default values or gcc will shout on

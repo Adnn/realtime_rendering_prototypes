@@ -116,6 +116,8 @@ struct Scene
 
     void presentUi(bool * aOpen = nullptr);
 
+    void setupLights();
+
     Engine mEngine;
 
     scenic::geodesic::Sphere mSphere{ 4 };
@@ -147,38 +149,12 @@ struct Scene
             },
         },
     };
+    // Note: see setupLights() for point and tube lights definitions
     renderer::LightsDataCommon mLights{
         .mDirectionalCount = 0,
-        .mPointCount = 2,
         // We decode a sRGB 10% white (which is also perceptually ~10%)
         // to linear space for computation.
         .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.1f),
-        .mDirectionalLights = {
-            renderer::DirectionalLight_glsl{
-                .mDirection = math::UnitVec<3, float>{ {0.5f, 0.f, -0.5f} },
-                // TODO: decode the srgb value to have it show correctly in Imgui
-                // (and have it perceptually proportional to the factor)
-                .mColors = renderer::LightColors_glsl{} * 0.2,
-            },
-         },
-        .mPointLights = {
-            renderer::PointLight_glsl{
-                .mPosition = {-2.f, 3.f, 0.f},
-                .mRadius{
-                    .mMin = 0.2f,
-                    .mMax = 5.f,
-                },
-                .mColors = renderer::LightColors_glsl{} * 30.f,
-            },
-            renderer::PointLight_glsl{
-                .mPosition = {+2.f, 3.f, 0.f},
-                .mRadius{
-                    .mMin = 0.2f,
-                    .mMax = 5.f,
-                },
-                .mColors = renderer::LightColors_glsl{} * 30.f,
-            },
-         },
     };
     renderer::LinesSsbo_glsl mLines;
     OrbitalCamera mOrbitalCamera;

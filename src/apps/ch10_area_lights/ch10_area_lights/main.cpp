@@ -27,7 +27,11 @@ int main(int argc, const char * argv[])
     {
         spdlog::set_level(spdlog::level::debug);
 
-        ad::graphics::ApplicationGlfw application("ch10_area_lights", 1080, 600);
+        ad::graphics::ApplicationGlfw application{
+            "ch10_area_lights", 1080, 600,
+            ad::graphics::ApplicationFlag::None,
+            4, 6,
+            { {GLFW_SAMPLES, 8} }};
 
         // Ensures the messages are sent synchronously with the event triggering them
         // This makes debug stepping much more feasible.
