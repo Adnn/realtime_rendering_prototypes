@@ -13,6 +13,8 @@
 #include <renderer/BufferLoad.h>
 #include <renderer/Uniforms.h>
 
+#include <scenic/ColorPalettes.h>
+
 #include <ui/ImguiUi.h>
 #include <ui/Widgets.h>
 #include <ui/Widgets-impl.h>
@@ -92,7 +94,7 @@ template <class T_witness>
 void describe(T_witness aWitness, Scene::TessellationControl & aValue)
 {
     GIVE_EX(make_Clamped(aValue.mPatchVertices, {.mMin = 1u, .mMax = (GLuint)aValue.mMaxPatchVertices}), 
-            PatchVertices);
+            "PatchVertices");
     GIVE(OuterLevel);
     GIVE(InnerLevel);
 
@@ -175,10 +177,10 @@ void Scene::setupLights()
     constexpr unsigned int tubeCount = 3;
     constexpr unsigned int bulbCount = 1;
     std::array<math::hdr::Rgb<GLfloat>, tubeCount + bulbCount> colors{{
-        {0.55f, 0.05f, 0.05f},
-        {0.13f, 0.64f, 0.62f},
-        {1.f, 0.73f, 0.29f},
-        {0.44f, 0.f, 0.37f},
+        scenic::hdr::gNicePalette1_srgb[0],
+        scenic::hdr::gNicePalette1_srgb[1],
+        scenic::hdr::gNicePalette1_srgb[2],
+        scenic::hdr::gNicePalette1_srgb[3],
     }};
     float height = 1.5f;
     float radius = 3.f;

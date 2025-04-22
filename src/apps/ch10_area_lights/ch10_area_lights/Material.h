@@ -56,7 +56,7 @@ struct PhongMaterialsBlock_glsl
 
 DESCRIBE(PhongMaterialsBlock_glsl)
 {
-    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), count);
+    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), "count");
     GIVE_EX(aValue.spanMaterials(), "materials");
 }
 
@@ -98,7 +98,7 @@ struct PbrMaterialsBlock_glsl
 
 DESCRIBE(PbrMaterialsBlock_glsl)
 {
-    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), count);
+    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), "count");
     GIVE_EX(aValue.spanMaterials(), "materials");
 }
 

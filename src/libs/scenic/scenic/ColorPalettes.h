@@ -121,6 +121,16 @@ namespace hdr {
         {0.319f, 0.319f, 0.319f},
     }};
 
+
+    // Some pleasing and contrasted palette
+    // see: https://coolors.co/ffba49-20a39e-ef5b5b-23001e-a4a9ad 
+    constexpr std::array<math::hdr::Rgb_f, 4> gNicePalette1_srgb{{
+        {0.94f, 0.36f, 0.36f},
+        {0.13f, 0.64f, 0.62f},
+        {1.00f, 0.73f, 0.29f},
+        {0.44f, 0.00f, 0.37f},
+    }};
+
 } // namespace hdr
 
 } // namespace ad::scenic

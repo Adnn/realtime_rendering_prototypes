@@ -18,6 +18,7 @@
 #include <renderer/VertexSpecification.h>
 #include <renderer/Drawing.h>
 
+#include <scenic/ColorPalettes.h>
 #include <scenic/Shapes.h>
 
 
@@ -26,6 +27,8 @@ namespace ad {
 
 constexpr math::hdr::Rgb<GLfloat> gBrickAlbedo{ 0.262f, 0.095f, 0.061f };
 
+constexpr float gLightPowerScale = 8;
+constexpr float gPlaneRotation = math::Degree<GLfloat>(30.f).as<math::Radian>().value();
 
 namespace graphics {
     class AppInterface;
@@ -150,18 +153,64 @@ struct Scene
         },
     };
     PlanarLightsBlock mLights{
-        .mPlanarCount = 1,
+        .mPlanarCount = 5,
         // We decode a sRGB 10% white (which is also perceptually ~10%)
         // to linear space for computation.
         .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> *0.1f),
         .mPlanarLights{
             CardLight_glsl{
-                .mHeight = 2.f,
+                .mHeight = 3.5f,
                 .mRect{
-                    .mPosition{0.f, 0.f},
+                    .mPosition{-2.f, -2.f},
+                    .mDimension{4.f, 4.f},
+                },
+                .mColors = renderer::makeLightColors(
+                    math::hdr::gWhite<GLfloat> *gLightPowerScale),
+            },
+            CardLight_glsl{
+                .mHeight = -2.f + 2 * std::sin(gPlaneRotation),
+                .mDoubleSided = true,
+                .mRect{
+                    .mPosition{-3.f + 2 * (1 - std::cos(gPlaneRotation)), -1.f},
                     .mDimension{2.f, 2.f},
                 },
-            }
+                .mRotationZ = -gPlaneRotation,
+                .mColors = renderer::makeLightColors(
+                    math::decode_sRGB(scenic::hdr::gNicePalette1_srgb[0]) * gLightPowerScale),
+            },
+            CardLight_glsl{
+                .mHeight = -2.f,
+                .mDoubleSided = true,
+                .mRect{
+                    .mPosition{1.f, -1.f},
+                    .mDimension{2.f, 2.f},
+                },
+                .mRotationZ = gPlaneRotation,
+                .mColors = renderer::makeLightColors(
+                    math::decode_sRGB(scenic::hdr::gNicePalette1_srgb[1]) * gLightPowerScale),
+            },
+            CardLight_glsl{
+                .mHeight = -2.f,
+                .mDoubleSided = true,
+                .mRect{
+                    .mPosition{-1.f, 1.f},
+                    .mDimension{2.f, 2.f},
+                },
+                .mRotationX = -gPlaneRotation,
+                .mColors = renderer::makeLightColors(
+                    math::decode_sRGB(scenic::hdr::gNicePalette1_srgb[2]) * gLightPowerScale),
+            },
+            CardLight_glsl{
+                .mHeight = -2.f + 2 * std::sin(gPlaneRotation),
+                .mDoubleSided = true,
+                .mRect{
+                    .mPosition{-1.f, -3.f + 2 * (1 - std::cos(gPlaneRotation))},
+                    .mDimension{2.f, 2.f},
+                },
+                .mRotationX = gPlaneRotation,
+                .mColors = renderer::makeLightColors(
+                    math::decode_sRGB(scenic::hdr::gNicePalette1_srgb[3]) * gLightPowerScale),
+            },
         }
     };
     OrbitalCamera mOrbitalCamera;

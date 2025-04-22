@@ -33,6 +33,10 @@ struct alignas(16) CardLight_glsl
     // Note: in GLSL, we do not have struct matching the rect, but directly read it as 2x vec2
     // std140 rule 2.: alignment of vec2 is 2x4.
     alignas(8) math::Rectangle<GLfloat> mRect;
+    //
+    GLfloat mRotationX = 0.f;
+    GLfloat mRotationZ = 0.f;
+    
     // Note: this member is actually matched to a GLSL struct.
     // We rely on LightColors_glsl struct to define its alignment
     renderer::LightColors_glsl mColors;
@@ -41,10 +45,14 @@ struct alignas(16) CardLight_glsl
 
 DESCRIBE(CardLight_glsl)
 {
+    auto pi = math::pi<GLfloat>;
+
     GIVE(Height);
     GIVE(DoubleSided);
     GIVE(ClipHorizon);
     GIVE(Rect);
+    GIVE_EX((Clamped<GLfloat>(aValue.mRotationX, -pi/2, pi/2)), "rotation X");
+    GIVE_EX((Clamped<GLfloat>(aValue.mRotationZ, -pi, pi)), "rotation Z");
     GIVE_EX(aValue.mColors.mDiffuseColor,  "diffuse color");
     GIVE_EX(aValue.mColors.mSpecularColor, "specular color");
 }

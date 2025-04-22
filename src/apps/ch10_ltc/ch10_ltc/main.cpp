@@ -27,9 +27,11 @@ int main(int argc, const char * argv[])
     {
         spdlog::set_level(spdlog::level::debug);
 
-        ad::graphics::ApplicationGlfw application("ch10_ltc", 1080, 600,
-                                                  ad::graphics::ApplicationFlag::None,
-                                                  4, 6);
+        ad::graphics::ApplicationGlfw application{
+            "ch10_ltc", 1080, 600,
+            ad::graphics::ApplicationFlag::None,
+            4, 6,
+            { {GLFW_SAMPLES, 8} }};
         //glClearColor(1.f, 1.f, 1.f, 1.f);
 
         // Ensures the messages are sent synchronously with the event triggering them

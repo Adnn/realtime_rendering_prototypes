@@ -39,6 +39,16 @@ struct alignas(16) LightColors_glsl
 };
 
 
+// Do not introduce ctors to allow list initialization
+inline LightColors_glsl makeLightColors(math::hdr::Rgb<GLfloat> aColor)
+{
+    return {
+        .mDiffuseColor = aColor,
+        .mSpecularColor = aColor,
+    };
+}
+
+
 inline LightColors_glsl operator * (LightColors_glsl aLhs, float aFactor)
 {
     aLhs.mDiffuseColor  *= aFactor;

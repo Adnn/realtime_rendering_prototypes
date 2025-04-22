@@ -65,31 +65,31 @@ namespace ad {
 
 DESCRIBE(FrameGraph::SphereSsaoControl)
 {
-    GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), DepthBias);
-    GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), SphereRadius);
+    GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), "DepthBias");
+    GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), "SphereRadius");
     GIVE(ReflectSamples);
     GIVE(Weighted);
-    GIVE_EX(make_Clamped(aValue.mWeightFactor, { .mMax = 50.0f }), WeightFactor);
+    GIVE_EX(make_Clamped(aValue.mWeightFactor, { .mMax = 50.0f }), "WeightFactor");
     GIVE(SphereInScreenSpace);
     GIVE(ScreenSpaceNonLinearDepth);
 }
 
 DESCRIBE(FrameGraph::HemiSsaoControl)
 {
-    GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), DepthBias);
-    GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), SphereRadius);
+    GIVE_EX(make_Clamped(aValue.mDepthBias, { .mMax = 1.0f }), "DepthBias");
+    GIVE_EX(make_Clamped(aValue.mSphereRadius, { .mMax = 5.0f }), "SphereRadius");
     GIVE(ImportanceSampling);
     GIVE(RotateSamples);
     GIVE(WeightDistance);
     GIVE(WeightCosine);
-    GIVE_EX(make_Clamped(aValue.mDistanceFactor, { .mMax = 50.0f }), DistanceFactor);
+    GIVE_EX(make_Clamped(aValue.mDistanceFactor, { .mMax = 50.0f }), "DistanceFactor");
 }
 
 DESCRIBE(FrameGraph::BlurControl)
 {
-    GIVE_EX(make_Clamped(aValue.mBlurRadius, {.mMin = 0, .mMax = 32 }), BlurRadius);
-    GIVE_EX(make_Clamped(aValue.mDepthFactor, {.mMin = 0, .mMax = 100 }), DepthFactor);
-    GIVE_EX(make_Clamped(aValue.mNormalFactor, {.mMin = 0, .mMax = 100 }), NormalFactor);
+    GIVE_EX(make_Clamped(aValue.mBlurRadius, {.mMin = 0, .mMax = 32 }), "BlurRadius");
+    GIVE_EX(make_Clamped(aValue.mDepthFactor, {.mMin = 0, .mMax = 100 }), "DepthFactor");
+    GIVE_EX(make_Clamped(aValue.mNormalFactor, {.mMin = 0, .mMax = 100 }), "NormalFactor");
 }
 
 std::string to_string(TextureStore::Name aName)

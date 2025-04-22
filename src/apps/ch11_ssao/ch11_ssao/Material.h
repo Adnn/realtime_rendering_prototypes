@@ -56,7 +56,7 @@ struct PhongMaterialsBlock_glsl
 
 DESCRIBE(PhongMaterialsBlock_glsl)
 {
-    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), count);
+    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), "count");
     GIVE_EX(aValue.spanMaterials(), "materials");
 }
 
@@ -79,7 +79,7 @@ DESCRIBE(PbrMaterial_glsl)
     GIVE(AmbientColor);
     GIVE(BaseColor);
     GIVE(Metallic);
-    GIVE_EX((Clamped<GLfloat>{aValue.mRoughness, 0.f, 1.f}), Roughness);
+    GIVE_EX((Clamped<GLfloat>{aValue.mRoughness, 0.f, 1.f}), "Roughness");
 }
 
 
@@ -100,7 +100,7 @@ struct PbrMaterialsBlock_glsl
 
 DESCRIBE(PbrMaterialsBlock_glsl)
 {
-    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), count);
+    GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), "count");
     GIVE_EX(aValue.spanMaterials(), "materials");
 }
 

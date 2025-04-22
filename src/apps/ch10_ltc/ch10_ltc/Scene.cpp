@@ -104,7 +104,7 @@ template <class T_witness>
 void describe(T_witness aWitness, Scene::TessellationControl & aValue)
 {
     GIVE_EX(make_Clamped(aValue.mPatchVertices, {.mMin = 1u, .mMax = (GLuint)aValue.mMaxPatchVertices}), 
-            PatchVertices);
+            "PatchVertices");
     GIVE(OuterLevel);
     GIVE(InnerLevel);
 
@@ -261,6 +261,20 @@ renderer::LightsDataCommon transformLightsData(
 }
 
 
+math::hdr::Rgb<float> capColor(math::hdr::Rgb<float> aColor)
+{
+    float maxElement = *aColor.getMaxMagnitudeElement();
+    if (maxElement > 1)
+    {
+        return aColor / maxElement;
+    }
+    else
+    {
+        return aColor;
+    }
+}
+
+
 void Scene::render(math::Size<2, int> aRenderResolution)
 {
     //
@@ -280,11 +294,14 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                 light.mRect.mDimension.width(),
                 1.f,
                 light.mRect.mDimension.height())
+            * math::trans3d::rotateX(math::Radian<GLfloat>{light.mRotationX})
+            * math::trans3d::rotateZ(math::Radian<GLfloat>{light.mRotationZ})
             * math::trans3d::translate<GLfloat>({
                 light.mRect.mPosition.x(),
                 light.mHeight,
                 light.mRect.y()});
-        entity.mColorFactor = light.mColors.mSpecularColor;
+        // Encode to sRGB, because PlainColor.frag does not apply gamma correction
+        entity.mColorFactor = math::encode_sRGB(capColor(light.mColors.mSpecularColor));
     }
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
