@@ -84,17 +84,18 @@ void validateVertexAttributes(const renderer::IntrospectProgram & aProgram)
 }
 
 
-// This program replicates the results from figure 2
-//const std::filesystem::path gProgramPath = "programs/ch10_ltc_ShowBasicLtc.prog";
+std::array<const std::filesystem::path, 3> gProgramPaths = {{
+    // The integration demo, lighting a sphere from a polygon
+    "programs/ch10_ltc_PolygonLight.prog",
+    //"programs/RenderModel_PlainColor.prog",
+    // This program replicates the plots from the ltc_code repository
+    // (and lower line of Figure 5 in the paper).
+    // Use controls alpha and view polar angle, and the sphere show resulting LTC.
+    "programs/ch10_ltc_ShowGgxLtc.prog",
+    // This program replicates the results from figure 2
+    "programs/ch10_ltc_ShowBasicLtc.prog",
+}};
 
-// This program replicates the plots from the ltc_code repository
-// (and lower line of Figure 5 in the paper).
-// Use controls alpha and view polar angle, and the sphere show resulting LTC.
-//const std::filesystem::path gProgramPath = "programs/ch10_ltc_ShowGgxLtc.prog";
-
-
-// The integration demo, lighting a sphere from a polygon
-const std::filesystem::path gProgramPath = "programs/ch10_ltc_PolygonLight.prog";
 
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
@@ -125,12 +126,13 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
                                   //std::span{scenic::icosahedron::gIndices},
                                   std::span{mSphere.mIndices},
                                   graphics::BufferHint::StaticDraw)},
-    mSurfaceProgram{mEngine.loadProgram(renderer::ReferencePath{gProgramPath})},
     mLightProgram{mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath})},
     mLtcColorMap{GL_TEXTURE_1D},
     mLtc_1{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_1.dds"}) },
     mLtc_2{ mEngine.loadDds(renderer::ReferencePath{"textures/ltc_2.dds"}) }
 {
+    loadPrograms();
+
     graphics::attachIndexBuffer(mSphereIndexBuffer, mSphereVertexSpecification.mVertexArray);
 
     graphics::appendToVertexSpecification(
@@ -221,8 +223,12 @@ void Scene::loadPrograms()
 {
     mLightProgram =
         mEngine.loadProgram(renderer::ReferencePath{ gLightProgramPath });
-    mSurfaceProgram =
-        mEngine.loadProgram(renderer::ReferencePath{ gProgramPath });
+    mSurfacePrograms.clear();
+    for (std::size_t i = 0; i != (std::size_t)FrameControl::AppMode::_End; ++i)
+    {
+        mSurfacePrograms.push_back(
+            mEngine.loadProgram(renderer::ReferencePath{gProgramPaths[i]}));
+    }
 }
 
 
@@ -300,29 +306,39 @@ void Scene::render(math::Size<2, int> aRenderResolution)
                          mOrbitalCamera.getViewProjectionBlock(),
                          graphics::BufferHint::StreamDraw);
 
+
+    renderer::IntrospectProgram & program = 
+        mSurfacePrograms[(std::size_t)mFrameControl.mAppMode];
     // 
     // Textures
     //
     {
         GLint unitIdx = 1;
         glBindTextureUnit(unitIdx, mLtcColorMap);
-        graphics::setUniform(mSurfaceProgram, "u_LtcColorMap", unitIdx);
+        graphics::setUniform(program, "u_LtcColorMap", unitIdx);
 
         ++unitIdx;
         glBindTextureUnit(unitIdx, mLtc_1);
-        graphics::setUniform(mSurfaceProgram, "u_Ltc_1", unitIdx);
+        graphics::setUniform(program, "u_Ltc_1", unitIdx);
 
         ++unitIdx;
         glBindTextureUnit(unitIdx, mLtc_2);
-        graphics::setUniform(mSurfaceProgram, "u_Ltc_2", unitIdx);
+        graphics::setUniform(program, "u_Ltc_2", unitIdx);
     }
 
     //
     // LTC
     //
     {
-        graphics::setUniform(mSurfaceProgram, "u_alpha", mLtcControl.mAlpha);
-        graphics::setUniform(mSurfaceProgram, "u_thetaViewDir", mLtcControl.mViewAngle.data());
+        graphics::setUniform(program, "u_alpha", mLtcControl.mAlpha);
+        graphics::setUniform(program, "u_thetaViewDir", mLtcControl.mViewAngle.data());
+    }
+
+    //
+    // Figure 2 (see paper "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines")
+    //
+    {
+        graphics::setUniform(program, "u_Letter", mFigureControl.mLetter);
     }
 
     //
@@ -349,8 +365,8 @@ void Scene::render(math::Size<2, int> aRenderResolution)
     const GLuint sphereCount = 1;
 
     // TODO: should be done only once for each pair of VAO-program
-    validateVertexAttributes(mSurfaceProgram);
-    glUseProgram(mSurfaceProgram);
+    validateVertexAttributes(program);
+    glUseProgram(program);
 
     glDrawElementsInstancedBaseInstance(
         GL_PATCHES,
@@ -361,17 +377,51 @@ void Scene::render(math::Size<2, int> aRenderResolution)
         0);
 
 
-    glDisable(GL_CULL_FACE);
-    glBindVertexArray(mCardLightVertexSpecification.mVertexArray);
-    // TODO: should be done only once for each pair of VAO-program
-    validateVertexAttributes(mLightProgram);
-    glUseProgram(mLightProgram);
-    glDrawArraysInstancedBaseInstance(
-        GL_TRIANGLE_STRIP,
-        0,
-        std::size(scenic::quad::gVertices),
-        mLights.mPlanarCount,
-        sphereCount);
+    if (mFrameControl.mAppMode == FrameControl::AppMode::Shaded_scene)
+    {
+        glDisable(GL_CULL_FACE);
+        glBindVertexArray(mCardLightVertexSpecification.mVertexArray);
+        // TODO: should be done only once for each pair of VAO-program
+        validateVertexAttributes(mLightProgram);
+        glUseProgram(mLightProgram);
+        glDrawArraysInstancedBaseInstance(
+            GL_TRIANGLE_STRIP,
+            0,
+            std::size(scenic::quad::gVertices),
+            mLights.mPlanarCount,
+            sphereCount);
+    }
+}
+
+
+std::string to_string(Scene::FrameControl::AppMode aValue)
+{
+#define STR(enumerator) case Scene::FrameControl::AppMode::##enumerator: return #enumerator
+    switch (aValue)
+    {
+        STR(Fig2);
+        STR(Ltc_viewer);
+        STR(Shaded_scene);
+    default:
+        throw std::logic_error{ "Unhandled AppMode." };
+    }
+#undef STR
+}
+
+
+std::string to_string(Scene::FigureControl::Letter aValue)
+{
+#define STR(enumerator) case Scene::FigureControl::##enumerator: return #enumerator
+    switch (aValue)
+    {
+        STR(a);
+        STR(b);
+        STR(c);
+        STR(d);
+    default:
+        throw std::logic_error{ "Unhandled figure." };
+    }
+#undef STR
 }
 
 
@@ -392,6 +442,9 @@ void Scene::presentUi(bool * aOpen)
         }
     }
 
+    imguiui::addComboContinuousEnum<FrameControl::AppMode::_End>(
+        "App mode", mFrameControl.mAppMode);
+
     imguiui::addCombo("Polygon mode",
         mFrameControl.mPolygonMode,
         FrameControl::gPolygonModes.begin(),
@@ -401,25 +454,41 @@ void Scene::presentUi(bool * aOpen)
     DearImguiWitness witness;
 
     ImGui::Spacing();
-    describe(witness, mTessControl);
 
-    ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Ltc"))
+    if (ImGui::CollapsingHeader("Tessellation"))
     {
-        ImGui::DragFloat("Alpha", &mLtcControl.mAlpha, 0.005, 0.f, 1.f);
-        ImGui::SliderAngle("View polar angle", &mLtcControl.mViewAngle.data(), 0.f, 90.f);
+        describe(witness, mTessControl);
     }
 
-    //ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Materials"))
+    switch (mFrameControl.mAppMode)
     {
-        describe(witness, mMaterials);
-    }
-
-    ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Lights"))
-    {
-        describe(witness, mLights);
+        case FrameControl::AppMode::Shaded_scene:
+        {
+            if (ImGui::CollapsingHeader("Materials"))
+            {
+                describe(witness, mMaterials);
+            }
+            if (ImGui::CollapsingHeader("Lights"))
+            {
+                describe(witness, mLights);
+            }
+            break;
+        }
+        case FrameControl::AppMode::Ltc_viewer:
+        {
+            if (ImGui::CollapsingHeader("Ltc"))
+            {
+                ImGui::DragFloat("Alpha", &mLtcControl.mAlpha, 0.005, 0.f, 1.f);
+                ImGui::SliderAngle("View polar angle", &mLtcControl.mViewAngle.data(), 0.f, 90.f);
+            }
+            break;
+        }
+        case FrameControl::AppMode::Fig2:
+        {
+            imguiui::addComboContinuousEnum<FigureControl::Letter::_End>(
+                "Figure", mFigureControl.mLetter);
+            break;
+        }
     }
 
     ImGui::End();

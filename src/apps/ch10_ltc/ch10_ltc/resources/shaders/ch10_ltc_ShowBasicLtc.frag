@@ -9,6 +9,7 @@ in vec3 ex_Normal_view;
 in vec3 ex_Position_view;
 
 uniform sampler1D u_LtcColorMap;
+uniform uint u_Letter = 2;
 
 out vec4 out_Color;
 
@@ -43,11 +44,10 @@ void main(void)
     // GLSL matrices are column major (so, the first 3 values are the first column)
 
     // Mode 0 to 3 maps to domains a to d in Figure 2.
-    uint mode = 2;
     mat3 M = mat3(1);
     vec3 maxDir = vec3(0, 0, 1);
 
-    switch (mode)
+    switch (u_Letter)
     {
         case 1:
             M = mat3(0.3, 0,   0,

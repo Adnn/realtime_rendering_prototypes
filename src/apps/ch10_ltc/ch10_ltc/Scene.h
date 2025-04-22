@@ -63,13 +63,22 @@ struct Scene
 
     struct FrameControl
     {
-       inline static constexpr std::array<GLenum, 3> gPolygonModes{
-            GL_POINT,
-            GL_LINE,
-            GL_FILL,
-        }; 
+        enum class AppMode
+        {
+            Shaded_scene,
+            Ltc_viewer,
+            Fig2,
+            _End/*keep last*/
+        };
 
-       decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+        inline static constexpr std::array<GLenum, 3> gPolygonModes{
+             GL_POINT,
+             GL_LINE,
+             GL_FILL,
+         }; 
+
+        AppMode mAppMode = AppMode::Shaded_scene;
+        decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
     };
 
     struct LtcControl
@@ -78,6 +87,20 @@ struct Scene
         // using alpha as a dimension.
         float mAlpha = 0.3;
         math::Radian<float> mViewAngle{ math::Degree<float>{45.f} };
+    };
+
+    struct FigureControl
+    {
+        enum Letter : GLuint
+        {
+            a,
+            b,
+            c,
+            d,
+            _End/*keep last*/
+        };
+            
+        Letter mLetter = c;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
@@ -104,7 +127,7 @@ struct Scene
     graphics::UniformBufferObject mViewProjectionBuffer;
     graphics::UniformBufferObject mMaterialsBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
-    renderer::IntrospectProgram mSurfaceProgram;
+    std::vector<renderer::IntrospectProgram> mSurfacePrograms;
     renderer::IntrospectProgram mLightProgram;
     graphics::Texture mLtcColorMap;
     graphics::Texture mLtc_1;
@@ -146,7 +169,13 @@ struct Scene
     TessellationControl mTessControl;
     FrameControl mFrameControl;
     LtcControl mLtcControl;
+    FigureControl mFigureControl;
 };
+
+
+std::string to_string(Scene::FrameControl::AppMode aValue);
+
+std::string to_string(Scene::FigureControl::Letter aValue);
 
 
 } // namespace ad
