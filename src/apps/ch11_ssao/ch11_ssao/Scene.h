@@ -25,6 +25,8 @@
 
 #include <scenic/environment/Environment.h>
 
+#include <scenic/gui/HierarchyGui.h>
+
 
 namespace ad {
 
@@ -120,6 +122,7 @@ struct Scene
     };
 
     SceneControl mSceneControl;
+    scenic::TreeInteractionState mSceneTreeGuiState;
 };
 
 

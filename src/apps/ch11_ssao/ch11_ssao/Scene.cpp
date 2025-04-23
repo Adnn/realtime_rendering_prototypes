@@ -16,7 +16,6 @@
 #include <renderer/Uniforms.h>
 
 #include <scenic/CameraGui.h>
-
 #include <scenic/ColorPalettes.h>
 #include <scenic/LoadScene.h>
 
@@ -139,7 +138,10 @@ std::filesystem::path getCacheModel(renderer::ReferencePath aModel)
 
 scenic::SceneTree prepareSceneTree(Engine & aEngine)
 {
-    scenic::SceneTree scene;
+    scenic::SceneTree scene{
+        .mTree = scenic::makeOneRootTree<scenic::Pose>()
+    };
+
     for (const auto & reference : gModelPaths)
     {
         scenic::SceneTree modelScene;
@@ -166,7 +168,7 @@ scenic::SceneTree prepareSceneTree(Engine & aEngine)
             scenic::Serializer serializer;
             serializer.serial(archive, modelScene);
         }
-        scenic::mergeScenes(scene, modelScene);
+        scenic::mergeScenes(scene, modelScene, scene.mTree.mFirstRoot);
     }
 
     return scene;
@@ -420,6 +422,25 @@ void Scene::presentUi(bool * aOpen)
     if (ImGui::CollapsingHeader("Camera"))
     {
         scenic::appendUi(mOrbitalCamera);
+    }
+
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Scene tree"))
+    {
+        scenic::presentNodeTree(mSceneTree.mTree, mSceneTree.mTree.mFirstRoot, mSceneTreeGuiState);
+    }
+
+    if (auto selected = mSceneTreeGuiState.mSelected;
+        selected!= scenic::Node::gInvalidIndex)
+    {
+        std::string storage;
+        const std::string & name = mSceneTree.mTree.getSafeName(selected, storage);
+        ImGui::Begin(name.c_str(), aOpen);
+        if (auto modified = scenic::presentPose(mSceneTree.mTree.mLocalPose[selected]))
+        {
+            mSceneTree.mTree.setLocalPose(selected, *modified);
+        }
+        ImGui::End();
     }
 
     if (ImGui::Button("Dump depth map"))

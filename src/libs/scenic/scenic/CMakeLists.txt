@@ -21,6 +21,8 @@ set(${TARGET_NAME}_HEADERS
     files/Archives.h
     files/Serializer.h
 
+    gui/HierarchyGui.h
+
     log/Logging.h
     log/Logging-channels.h
     log/Logging-init.h
@@ -41,6 +43,8 @@ set(${TARGET_NAME}_SOURCES
     environment/Environment.cpp
     environment/EnvironmentUtilities.cpp
     environment/Skybox.cpp
+
+    gui/HierarchyGui.cpp
 
     files/Archives.cpp
     files/Serializer.cpp
