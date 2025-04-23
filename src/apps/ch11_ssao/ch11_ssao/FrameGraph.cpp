@@ -111,6 +111,10 @@ std::string to_string(TextureStore::Name aName)
 void drawPass(const renderer::IntrospectProgram & aProgram, 
               const scenic::SceneTree & aSceneTree)
 {
+    // We populated the per-instance buffer in the order of the objects map interation
+    // We keep track of the base-instance to access the correct index in the shader
+    GLuint baseInstance = 0;
+    const GLuint instanceCount = 1;
     glUseProgram(aProgram);
     for (const auto & [nodeIdx, object] : aSceneTree.mObjectsMap)
     {
@@ -126,14 +130,14 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
                     part.mIndicesCount,
                     part.mIndicesType,
                     (void *)part.mIndexFirst,
-                    1, // One instance
-                    0 /* base instance */);
+                    instanceCount, // One instance
+                    baseInstance);
             }
             else
             {
                 throw std::logic_error{ "Who is not using indexed rendering?" };
             }
-
+            baseInstance += instanceCount;
         }
     }
 }
