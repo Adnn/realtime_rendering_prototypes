@@ -259,11 +259,6 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
 
 void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
 {
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
-    glViewport(0, 0, aBackbufferResolution.width(), aBackbufferResolution.height());
-    glClearColor(0.1f, 0.2f, 0.3f, 1.f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     //
     // Entities
     // 
@@ -315,6 +310,11 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     // Frame rendering
     //
     mGraph.renderFrame(mSceneTree, mEnvironment);
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
+    glViewport(0, 0, aBackbufferResolution.width(), aBackbufferResolution.height());
+    glClearColor(0.1f, 0.2f, 0.3f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (mSceneControl.mShowTexture)
     {
@@ -466,7 +466,7 @@ void Scene::presentUi(bool * aOpen)
         onFramebufferResize(resolution);
         graphics::FrameBuffer fbo;
         graphics::ScopedBind{fbo}; // Just to create it
-        graphics::Texture colorTarget{ GL_TEXTURE_2D };
+        graphics::Texture colorTarget{GL_TEXTURE_2D};
         graphics::ScopedBind{colorTarget}; // Just to create it
         glTextureStorage2D(colorTarget,
                            1,
@@ -478,7 +478,7 @@ void Scene::presentUi(bool * aOpen)
                                   colorTarget,
                                   /*mip map level*/0);
         renderTo(fbo, resolution);
-        ad::serializeTexture<math::sdr::Rgb>(mGraph.mFinalFrame, 0, GL_RGB,
+        ad::serializeTexture<math::sdr::Rgb>(colorTarget, 0, GL_RGB,
                                              arte::ImageFormat::Png, outFile,
                                              arte::ImageOrientation::InvertVerticalAxis);
         onFramebufferResize(savedSize);
