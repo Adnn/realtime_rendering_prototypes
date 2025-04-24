@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-test-deployrecipe:
-    uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v3.0.0
+    uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v3.0.1
     with:
       deployrecipe_user: adnn
     secrets:
