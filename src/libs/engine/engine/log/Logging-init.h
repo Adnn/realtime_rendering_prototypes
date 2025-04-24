@@ -40,14 +40,14 @@ void ad_renderer_loggerinitialization();
 namespace ad::renderer {
 
 
-std::pair<std::shared_ptr<spdlog::logger>, std::shared_ptr<spdlog::logger>>
+std::tuple<std::shared_ptr<spdlog::logger>>
 initializeLogger();
 
 struct LoggerInitialization
 {
-    inline static const std::pair<std::shared_ptr<spdlog::logger>,
-                                std::shared_ptr<spdlog::logger>>
-        logger = initializeLogger();
+
+    inline static const std::tuple<std::shared_ptr<spdlog::logger>>
+        gLogger = initializeLogger();
 };
 
 

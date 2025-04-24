@@ -41,10 +41,10 @@ void ad_renderer_loggerinitialization()
 namespace ad::renderer {
 
 
-std::pair<std::shared_ptr<spdlog::logger>, std::shared_ptr<spdlog::logger>>
+std::tuple<std::shared_ptr<spdlog::logger>>
 initializeLogger()
 {
-    return std::make_pair(spdlog::stdout_color_mt(gMainLogger));
+    return std::make_tuple(spdlog::stdout_color_mt(gMainLogger));
 }
 
 
