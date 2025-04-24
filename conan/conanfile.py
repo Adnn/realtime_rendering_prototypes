@@ -8,7 +8,7 @@ import os
 
 
 class GraphicsConan(ConanFile):
-    name = "rtr_prototypes"
+    name = "realtime_rendering_prototypes"
     license = "MIT"
     author = "adnn"
     url = "https://github.com/Adnn/rtr_prototypes"
