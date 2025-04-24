@@ -1,6 +1,3 @@
-#pragma once
-
-
 #include "Lines.h"
 
 #include <math/Angle.h>
