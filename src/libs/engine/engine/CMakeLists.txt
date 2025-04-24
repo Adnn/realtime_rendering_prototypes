@@ -10,7 +10,6 @@ set(${TARGET_NAME}_HEADERS
     Semantic.h
     SemanticValues.h
     ShaderConstants.h
-    ShaderProgramManager.h
 
     files/Loader.h
     files/ShaderInclusionLookup.h
@@ -25,7 +24,6 @@ set(${TARGET_NAME}_SOURCES
     Lines.cpp
     Resources.cpp
     ShaderConstants.cpp
-    ShaderProgramManager.cpp
 
     files/Loader.cpp
 
