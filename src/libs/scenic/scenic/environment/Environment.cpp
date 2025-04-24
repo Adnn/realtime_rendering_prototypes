@@ -62,7 +62,7 @@ Environment prepareEnvironment(const renderer::ReferencePath & aEnvironmentMapPa
 
 std::string to_string(Environment::Category aCategory)
 {
-#define STR(enumerator) case Environment::##enumerator: return #enumerator
+#define STR(enumerator) case Environment::enumerator: return #enumerator
     switch (aCategory)
     {
         default:

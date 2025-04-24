@@ -25,7 +25,7 @@ namespace {
 
 
     // TODO: move that to a low level utils lib (handy)
-    constexpr std::uint32_t makeFourCC(char a, char b, char c, char d)
+    [[maybe_unused]] constexpr std::uint32_t makeFourCC(char a, char b, char c, char d)
     {
         return (std::uint32_t)a 
             | ((std::uint32_t)b << 8)

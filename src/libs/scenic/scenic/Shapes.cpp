@@ -52,7 +52,6 @@ namespace geodesic {
             };
 
         std::vector<Index> subdividedIndices;
-        Index nextIdx = (Index)mVertices.size();
         // Iterate each source triangle, define by each group of 3 indices
         for (Index triangleStartIdx = 0;
             triangleStartIdx != mIndices.size();

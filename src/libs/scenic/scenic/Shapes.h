@@ -5,6 +5,8 @@
 
 #include <vector>
 
+#include <cstdint>
+
 
 namespace ad::scenic {
 

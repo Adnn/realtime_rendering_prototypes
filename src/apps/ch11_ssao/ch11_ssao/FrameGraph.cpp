@@ -1,5 +1,6 @@
 #include "FrameGraph.h"
 
+#include "log/Logging.h"
 #include "SetupDrawing.h"
 #include "UniformSetterWitness.h"
 
@@ -94,7 +95,7 @@ DESCRIBE(FrameGraph::BlurControl)
 
 std::string to_string(TextureStore::Name aName)
 {
-#define STR(enumerator) case TextureStore::##enumerator: return #enumerator
+#define STR(enumerator) case TextureStore::enumerator: return #enumerator
     switch (aName)
     {
         STR(DepthMap);
@@ -768,6 +769,9 @@ void FrameGraph::appendUi()
         break;
     case FrameGraph::SsaoMethod::OrientedHemishphere:
         describe(witness, mHemisphereSsaoControl);
+        break;
+    default:
+        ADLOG(warn)("Unhandled SSAO method value: {}.", (unsigned int)mSsaoMethod);
         break;
     }
 

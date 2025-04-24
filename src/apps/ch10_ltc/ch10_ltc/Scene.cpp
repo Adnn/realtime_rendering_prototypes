@@ -413,7 +413,7 @@ void Scene::render(math::Size<2, int> aRenderResolution)
 
 std::string to_string(Scene::FrameControl::AppMode aValue)
 {
-#define STR(enumerator) case Scene::FrameControl::AppMode::##enumerator: return #enumerator
+#define STR(enumerator) case Scene::FrameControl::AppMode::enumerator: return #enumerator
     switch (aValue)
     {
         STR(Fig2);
@@ -428,7 +428,7 @@ std::string to_string(Scene::FrameControl::AppMode aValue)
 
 std::string to_string(Scene::FigureControl::Letter aValue)
 {
-#define STR(enumerator) case Scene::FigureControl::##enumerator: return #enumerator
+#define STR(enumerator) case Scene::FigureControl::enumerator: return #enumerator
     switch (aValue)
     {
         STR(a);

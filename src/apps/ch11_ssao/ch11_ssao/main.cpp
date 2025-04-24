@@ -77,17 +77,17 @@ int main(int argc, const char* argv[])
                 if (resetStatus == GL_GUILTY_CONTEXT_RESET)
                 {
                     ADLOG_THROW(critical, "OpenGL: Guilty context reset (likely caused by the application).");
-                    terminate();
+                    std::terminate();
                 }
                 else if (resetStatus == GL_INNOCENT_CONTEXT_RESET)
                 {
                     ADLOG_THROW(critical, "OpenGL: Innocent context reset (external cause).");
-                    terminate();
+                    std::terminate();
                 }
                 else if (resetStatus == GL_UNKNOWN_CONTEXT_RESET)
                 {
                     ADLOG_THROW(critical, "OpenGL: Unknown context reset (cause undetermined).");
-                    terminate();
+                    std::terminate();
                 }
             }
         }

@@ -247,7 +247,7 @@ std::vector<T_element> & append(std::vector<T_element> & aReceiver,
 
 inline void shiftNode(Node & aNode, Node::Index aOffset, unsigned int aLevelOffset)
 {
-#define SHIFT(member) if(aNode.##member != Node::gInvalidIndex) aNode.##member += aOffset
+#define SHIFT(member) if(aNode.member != Node::gInvalidIndex) aNode.member += aOffset
 
     SHIFT(mParent);
     SHIFT(mFirstChild);

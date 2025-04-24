@@ -5,7 +5,7 @@
 #include <span>
 #include <unordered_map>
 
-#include <handy/guard.h>
+#include <handy/Guard.h>
 
 #include <renderer/BufferBase.h>
 #include <renderer/ScopeGuards.h>
@@ -89,7 +89,7 @@ FileOutput & serialEach(FileOutput & aFile,
         // or the serialize is invoked.
         // At the moment: hardcode that only values need the serializer
         serial(aFile, key);
-        aSerializer.serial<FileOutput>(aFile, value);
+        aSerializer.template serial<FileOutput>(aFile, value);
     }
     return aFile;
 }

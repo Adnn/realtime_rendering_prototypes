@@ -22,7 +22,7 @@ LoggerInitialization::LoggerInitialization()
 const LoggerInitialization LoggerInitialization::gInitialized;
 
 
-} // namespace ad::renderer
+} // namespace ad
 
 
 void ad_rtr_ch10_loggerinitialization()
@@ -38,7 +38,7 @@ void ad_rtr_ch10_loggerinitialization()
 //
 #else
 
-namespace ad::renderer {
+namespace ad {
 
 
 std::tuple<std::shared_ptr<spdlog::logger>>

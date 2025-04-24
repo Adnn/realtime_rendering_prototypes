@@ -79,7 +79,7 @@ void appendUi(OrbitalCamera & aCameraSystem)
         }
 
         // Edit the current projection parameters
-        std::visit([& changed, & camera = aCameraSystem.mCamera](auto params)
+        std::visit([& camera = aCameraSystem.mCamera](auto params)
         {
             if (appendUi(params))
             {

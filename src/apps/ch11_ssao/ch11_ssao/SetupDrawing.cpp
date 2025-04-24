@@ -103,7 +103,7 @@ graphics::VertexArrayObject prepareVAO(const renderer::IntrospectProgram & aProg
             assert(elementSize <= 16);
             const GLsizeiptr bufferSize = elementSize * aMesh.mVertexCount;
             scenic::BufferView dummyBufferView{
-                .mGLBuffer = accessor.mBuffer,
+                .mGLBuffer = {accessor.mBuffer},
                 .mStride = elementSize,
                 .mInstanceDivisor = 0, // All attributes from a Naive MeshPart are per vertex
                 .mOffset = 0,
@@ -206,6 +206,6 @@ void setTextures(const IntrospectProgram & aProgram,
         }
     }
 }
-#endif 0
+#endif
 
 } // namespace ad

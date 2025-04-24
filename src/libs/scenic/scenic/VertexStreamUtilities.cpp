@@ -9,6 +9,7 @@ namespace ad::scenic {
 namespace {
 
 
+#if 0
     BufferView makeBufferView(Handle<const graphics::BufferAny> aBuffer,
                               GLsizei aElementSize,
                               GLsizeiptr aElementCount,
@@ -25,6 +26,7 @@ namespace {
             .mSize = bufferSize, // The view has access to the provided range of elements
         };
     };
+#endif
 
 
 } // unnamed namespace

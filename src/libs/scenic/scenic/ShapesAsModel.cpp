@@ -14,7 +14,6 @@ namespace ad::scenic {
 Object makeSphere(unsigned int aSubdivisions)
 {
     geodesic::Sphere sphere{aSubdivisions};
-    GLsizei indicesCount = (GLsizei)sphere.mIndices.size();
 
     auto aabb = math::Box<float>::CenterOnOrigin({ 2.f, 2.f, 2.f });
 

@@ -23,7 +23,7 @@ void OrbitalCamera::setRatio(float aAspectRatio)
 #else
     mCamera.setupPerspectiveProjection({
         .mAspectRatio = aAspectRatio,
-        .mVerticalFov = math::Radian{math::pi<float>/2.f},
+        .mVerticalFov = math::Radian<float>{math::pi<float>/2.f},
         .mNearZ = -0.1f,
         .mFarZ = -20.f }
     );

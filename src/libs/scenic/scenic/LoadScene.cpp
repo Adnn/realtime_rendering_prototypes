@@ -58,15 +58,19 @@ namespace {
 
     MeshPart_Naive handleMesh(aiMesh * aMesh)
     {
-        aiVector3D * normals = aMesh->mNormals;
-        // Should always be present, we request smooth normals on load
-        assert(normals);
-        aiVector3D * tangents = aMesh->mTangents;
-        // Note that with assimp, tangents and bitangents are either both present or both absent.
-        aiVector3D * bitangents = aMesh->mBitangents;
+#if ! defined(NDEBUG) // For the moment, those variable are only used for assertions
+        {
+            aiVector3D * normals = aMesh->mNormals;
+            // Should always be present, we request smooth normals on load
+            assert(normals);
+            aiVector3D * tangents = aMesh->mTangents;
+            // Note that with assimp, tangents and bitangents are either both present or both absent.
+            aiVector3D * bitangents = aMesh->mBitangents;
 
-        assert(bitangents || !tangents); // Note: we should never fail here: if tangents were presents,
-                                         // assimp guarantees bitangents are present
+            assert(bitangents || !tangents); // Note: we should never fail here: if tangents were presents,
+                                             // assimp guarantees bitangents are present
+        }
+#endif
 
         // TODO: factorize
         MeshPart_Naive mesh{
@@ -196,7 +200,7 @@ namespace {
         return result;
     }
 
-    NodeResult countVerticesDirect(aiNode* aNode, const aiScene* aScene)
+    [[maybe_unused]] NodeResult countVerticesDirect(aiNode* aNode, const aiScene* aScene)
     {
         // TODO: Note can we directly sum on all meshes present in the file instead?
         NodeResult result;
@@ -245,7 +249,7 @@ namespace {
             {
                 unsigned int globalMeshIndex = aNode->mMeshes[meshIdx];
                 {
-                    auto insertionResult = aMeshMap.insert(globalMeshIndex);
+                    [[maybe_unused]] auto insertionResult = aMeshMap.insert(globalMeshIndex);
                     // Ensure the mesh was not already encountered
                     // TODO: later on, we actually want to recover the notion of "Object" instance,
                     // that might be present on several Nodes
