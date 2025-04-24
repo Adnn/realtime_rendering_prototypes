@@ -1,0 +1,18 @@
+name: Build, test, deploy recipe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build-test-deployrecipe:
+    uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v3.0.0
+    with:
+      deployrecipe_user: adnn
+    secrets:
+      SHREDROBOT_GITHUB_TOKEN: ${{ secrets.SHREDROBOT_GITHUB_TOKEN }}
+      ACTION_CACHENAME: ${{ secrets.ACTION_CACHENAME }}
+      CONAN_USER_NAME: ${{ secrets.CONAN_USER_NAME }}
+      CONAN_USER_PASSWORD: ${{ secrets.CONAN_USER_PASSWORD }}
