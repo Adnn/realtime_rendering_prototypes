@@ -29,14 +29,14 @@ class GraphicsConan(ConanFile):
     revision_mode = "scm"
 
     def requirements(self):
-        self.requires("graphics/d228309bee@adnn", transitive_headers=True)
+        self.requires("graphics/a842a03bf7@adnn", transitive_headers=True)
         self.requires("handy/97edf2bb4f@adnn", transitive_headers=True)
         self.requires("math/ee8b6fb1ed@adnn", transitive_headers=True)
 
         self.requires("assimp/5.4.3", transitive_headers=False)
         self.requires("imgui/1.91.5-docking", transitive_headers=True)
         # Note: we do not want spdlog to be a public dependency
-        self.requires("spdlog/1.15.0", transitive_headers=False)
+        self.requires("spdlog/1.15.1", transitive_headers=False)
 
 
     # There exist automatic alternatives.
