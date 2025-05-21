@@ -43,23 +43,6 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Mat/meetmat_2.glb"}};
 constexpr float gModelScale = 0.1f;
 
-//const renderer::ReferencePath gModelPaths[] = {
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/head.stl"},
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body.stl"},
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body-horn-l.stl"},
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/body-horn-r.stl"},
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-1.stl"},
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-l.stl"},
-//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/leg-r.stl"},
-//};
-//constexpr float gModelScale = 0.01f;
-
-//const renderer::ReferencePath gEnvMapPath{ "envmaps/neon_photostudio/neon_photostudio_8k-cubemap.dds" };
-//const renderer::ReferencePath gEnvMapPath{ "envmaps/winter_evening/winter_evening_8k.hdr" };
-//const renderer::ReferencePath gEnvMapPath{ "envmaps/rogland_clear_night/rogland_clear_night_8k.hdr" };
-//const renderer::ReferencePath gEnvMapPath{ "envmaps/rostock_arches/rostock_arches_8k.dds" };
-
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
 
