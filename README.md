@@ -2,6 +2,14 @@
 
 Prototypes developed while reading RTR 4th edition.
 
+## Usage
+
+Clone [`realtime_rendering_assets`](https://github.com/Adnn/realtime_rendering_assets) **next** to this repository:
+
+```bash
+git clone git@github.com:Adnn/realtime_rendering_assets.git assets
+```
+
 ## Content
 
 The repository contains several standalone applications demonstrating real-time rendering techniques.

@@ -77,12 +77,12 @@ get_target_property(RENDERER_SOURCE_DIR ad::engine SOURCE_DIR)
 set(REPO_FOLDER ${PROJECT_SOURCE_DIR})
 file(GENERATE
      OUTPUT $<TARGET_FILE_DIR:${TARGET_NAME}>/assets.json
-     # TODO: should we remove the snacman local V2_resources folder?
-     #       for the moment we cannot, we have dedicated custom shaders for snacman (not the base renderer versions)
+     # Note: we try to locate the assets next to the repository
+     # Locally, developers we can use a symlink if the assets are located elsewhere
      CONTENT "{\"prefixes\": [
                     \"${CMAKE_CURRENT_SOURCE_DIR}/resources\",
-			        \"${RENDERER_SOURCE_DIR}/resources/\",
-                    \"${REPO_FOLDER}/../../assets/\"
+                    \"${RENDERER_SOURCE_DIR}/resources/\",
+                    \"${REPO_FOLDER}/../assets/\"
             ]}")
 
 
