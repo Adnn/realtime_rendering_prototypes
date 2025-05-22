@@ -36,4 +36,26 @@ SceneTree & mergeScenes(SceneTree & aBaseTree,
 }
 
 
+math::Box<float> getAabb(const SceneTree & aSceneTree)
+{
+    if (aSceneTree.mObjectsMap.empty())
+    {
+        return {};
+    }
+    else
+    {
+        auto it = aSceneTree.mObjectsMap.begin();
+        math::Box<float> result = it->second.mAabb
+            * math::AffineMatrix<4, float>{aSceneTree.mTree.mGlobalPose[it->first]};
+        for (; it != aSceneTree.mObjectsMap.end(); ++it)
+        {
+            result.uniteAssign(
+                it->second.mAabb
+                * math::AffineMatrix<4, float>{aSceneTree.mTree.mGlobalPose[it->first]});
+        }
+        return result;
+    }
+}
+
+
 } // namespce ad::scenic

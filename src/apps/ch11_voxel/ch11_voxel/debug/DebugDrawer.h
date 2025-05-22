@@ -48,7 +48,9 @@ struct DebugDrawer
         commands().mLineVertices.push_back(std::move(aP2));
     }
 
-    void addBox(const math::Box<float> & aBox, scenic::Pose aPose);
+    void addBox(const math::Box<float> & aBox,
+                scenic::Pose aPose,
+                math::hdr::Rgba_f aColor);
 
     Commands & commands()
     {

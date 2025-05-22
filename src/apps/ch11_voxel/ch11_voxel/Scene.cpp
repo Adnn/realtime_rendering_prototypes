@@ -263,7 +263,16 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     }
 
     DBGDRAW.startFrame();
-    DBGDRAW.addLine({.mPosition = {0.f, 0.f, 0.f}}, {.mPosition = {5.f, 2.f, 0.f}});
+    for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
+    {
+        DBGDRAW.addBox(
+            object.mAabb,
+            mSceneTree.mTree.mGlobalPose[nodeIdx],
+            math::hdr::gGreen<float>);
+    }
+    DBGDRAW.addBox(scenic::getAabb(mSceneTree),
+                   scenic::Pose{},
+                   math::hdr::gCyan<float>);
     DBGDRAW.endFrame();
 
     mDebugRenderer.render(DBGDRAW.mFrameCommands);

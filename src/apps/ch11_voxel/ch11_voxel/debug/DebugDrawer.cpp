@@ -24,7 +24,9 @@ namespace {
 
 
 // TODO: port the better box implementation from Snacman debug drawer
-void DebugDrawer::addBox(const math::Box<float> & aBox, scenic::Pose aPose)
+void DebugDrawer::addBox(const math::Box<float> & aBox,
+                         scenic::Pose aPose,
+                         math::hdr::Rgba_f aColor)
 {
     ad::math::AffineMatrix<4, float> transform{aPose};
     for (std::size_t cornedIdx = 0;
@@ -34,10 +36,12 @@ void DebugDrawer::addBox(const math::Box<float> & aBox, scenic::Pose aPose)
         LineVertex p1{
             .mPosition = (math::homogeneous::makePosition(aBox.cornerAt(gBoxLineConnectivity[cornedIdx]))
                          * transform).xyz(),
+            .mColor = aColor,
         };
         LineVertex p2{
-            .mPosition = (math::homogeneous::makePosition(aBox.cornerAt(gBoxLineConnectivity[cornedIdx] + 1))
+            .mPosition = (math::homogeneous::makePosition(aBox.cornerAt(gBoxLineConnectivity[cornedIdx + 1]))
                          * transform).xyz(),
+            .mColor = aColor,
         };
         addLine(p1, p2);
     }

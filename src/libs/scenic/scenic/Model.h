@@ -163,6 +163,9 @@ struct SceneTree
 };
 
 
+math::Box<float> getAabb(const SceneTree & aSceneTree);
+
+
 SceneTree & mergeScenes(SceneTree & aBaseTree,
                         SceneTree & aMerged,
                         Node::Index aParent = Node::gInvalidIndex);
