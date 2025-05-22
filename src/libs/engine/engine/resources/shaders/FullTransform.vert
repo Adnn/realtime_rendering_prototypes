@@ -6,13 +6,20 @@
 
 layout(location=0) in vec3 ve_Position;
 layout(location=1) in vec3 ve_Normal;
+layout(location=2) in vec4 ve_Color;
 
-// Note: currently replaced by gl_InstanceID because we have 1:1 mapping between instances and entities
-// The instance attribute associating the OpenGL instance
-// (in the sense of instanced rendering) to its corresponding Entity.
-//layout(location=1) in uint in_EntityIdx; // Note: cannot be part of the include, which might be used in other shader stages
-#define ENTITY_IDX_ATTRIBUTE (gl_InstanceID + gl_BaseInstance)
-#include "EntitiesBlock.glsl"
+#if defined(ENTITIES)
+	// Note: currently replaced by gl_InstanceID because we have 1:1 mapping between instances and entities
+	// The instance attribute associating the OpenGL instance
+	// (in the sense of instanced rendering) to its corresponding Entity.
+	//layout(location=1) in uint in_EntityIdx; // Note: cannot be part of the include, which might be used in other shader stages
+	#define ENTITY_IDX_ATTRIBUTE (gl_InstanceID + gl_BaseInstance)
+	#include "EntitiesBlock.glsl"
+#else
+	// Hopefully optimized away
+	float getModelTransform()
+	{ return 1; }
+#endif // ENTITIES
 
 
 // Output interpolated for fragment shader
@@ -25,7 +32,14 @@ out vec3 ex_Position_view;
 
 void main(void)
 {
-	ex_Color = getEntity().colorFactor;
+	ex_Color = vec4(1)
+		#if defined(ENTITIES)
+			* getEntity().colorFactor
+		#endif
+		#if defined(VERTEX_COLOR)
+			* ve_Color
+		#endif
+		;
 
 	// TODO: handle non-uniform scaling with dedicated normal transform
 	vec4 normal_world = getModelTransform() * vec4(ve_Normal, 0);

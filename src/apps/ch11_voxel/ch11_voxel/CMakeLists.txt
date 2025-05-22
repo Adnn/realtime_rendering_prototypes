@@ -1,6 +1,7 @@
 set(TARGET_NAME ch11_voxel)
 
 set(${TARGET_NAME}_HEADERS
+    DebugDrawing.h
     Engine.h
     FrameGraph.h
     Material.h
@@ -9,6 +10,9 @@ set(${TARGET_NAME}_HEADERS
     ShaderConstants.h
     Ui.h
     UniformSetterWitness.h
+
+    debug/DebugDrawer.h
+    debug/DebugRenderer.h
 
     log/Logging.h
     log/Logging-channels.h
@@ -21,6 +25,9 @@ set(${TARGET_NAME}_SOURCES
     Scene.cpp
     SetupDrawing.cpp
     ShaderConstants.cpp
+
+    debug/DebugDrawer.cpp
+    debug/DebugRenderer.cpp
 
     log/Logging-init.cpp
 )

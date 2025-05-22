@@ -1,5 +1,5 @@
 {
-    "vertex": "shaders/Forward.vert",
+    "vertex": "shaders/ForwardTess.vert",
     "tes": "shaders/TessellateSphere.tes",
     "fragment": "shaders/AreaLight.frag"
 }

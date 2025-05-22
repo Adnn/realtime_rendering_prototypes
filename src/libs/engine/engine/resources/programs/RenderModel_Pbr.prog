@@ -1,4 +1,5 @@
 {
     "vertex": "shaders/FullTransform.vert",
-    "fragment": "shaders/Pbr.frag"
+    "fragment": "shaders/Pbr.frag",
+    "defines":  ["ENTITIES"]
 }

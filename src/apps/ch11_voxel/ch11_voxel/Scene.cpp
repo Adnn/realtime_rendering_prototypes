@@ -2,6 +2,7 @@
 
 #include "log/Logging.h"
 
+#include "DebugDrawing.h"
 #include "SetupDrawing.h"
 
 #include <graphics/AppInterface.h>
@@ -256,10 +257,16 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             }
             else
             {
-                throw std::logic_error{ "Who is not using indexed rendering?" };
+                throw std::logic_error{"Who is not using indexed rendering?"};
             }
         }
     }
+
+    DBGDRAW.startFrame();
+    DBGDRAW.addLine({.mPosition = {0.f, 0.f, 0.f}}, {.mPosition = {5.f, 2.f, 0.f}});
+    DBGDRAW.endFrame();
+
+    mDebugRenderer.render(DBGDRAW.mFrameCommands);
 }
 
 

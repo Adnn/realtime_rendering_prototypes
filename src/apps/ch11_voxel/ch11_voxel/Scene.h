@@ -5,6 +5,8 @@
 #include "FrameGraph.h"
 #include "Material.h"
 
+#include "debug/DebugRenderer.h"
+
 #include <engine/Entities.h>
 #include <engine/IntrospectProgram.h>
 #include <engine/Lights.h>
@@ -68,6 +70,7 @@ struct Scene
     scenic::Object mSphere{ scenic::makeSphere(4) };
     SceneControl mSceneControl;
     scenic::TreeInteractionState mSceneTreeGuiState;
+    debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
 
     std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
 
