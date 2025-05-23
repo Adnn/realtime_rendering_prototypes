@@ -167,13 +167,13 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
     //
     else
     {
-        mObjectsCount = 0;
+        const unsigned int gridSide = 4;
+        mObjectsCount = std::pow(gridSide, 3);
 
         GLuint query;
         glGenQueries(1, &query);
         glBeginQuery(GL_FRAGMENT_SHADER_INVOCATIONS, query);
 
-        const unsigned int gridSide = 4;
         mVoxelizer.voxelize(mSceneTree, gridSide);
 
         glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
@@ -191,10 +191,44 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
             std::cerr << (unsigned)buffer[i] << " ";
         }
         std::cerr << std::endl;
-        glUnmapNamedBuffer(mVoxelizer.mVoxelStore);
 
         // Ensure the vector can fit all objects and point lights
         mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
+
+        const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
+        const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+        const float cellSide = maxSide / gridSide;
+        const auto scaling = math::trans3d::scaleUniform(cellSide / 2);
+        math::Vec<3, float> stride{cellSide, cellSide, cellSide};
+        math::Vec<3, float> baseOffset = 
+            sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
+        unsigned int voxelIdx = 0;
+        unsigned int entityIdx = 0;
+
+        for (unsigned int y = 0; y != gridSide; ++y)
+        {
+            for (unsigned int x = 0; x != gridSide; ++x)
+            {
+                for (unsigned int z = 0; z != gridSide; ++z)
+                {
+                    if (buffer[voxelIdx] == 1)
+                    {
+                        auto & entity = mEntities.mEntities[entityIdx];
+                        entity.mLocalToWorld =
+                            scaling
+                            * math::trans3d::translate(
+                                baseOffset
+                                + stride.cwMul({(float)x, (float)y, float(z)}));
+                        ++entityIdx;
+                    }
+                    ++voxelIdx;
+                }
+            }
+        }
+        glUnmapNamedBuffer(mVoxelizer.mVoxelStore);
+
+        // tighten the object count to just include populated entities
+        mObjectsCount = entityIdx;
     }
 
     for (std::size_t lightIdx = 0; lightIdx != mLights.mPointCount; ++lightIdx)
@@ -279,6 +313,28 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
 
     if (mSceneControl.mShowVoxels)
     {
+        glUseProgram(mLightProgram);
+
+        for (const scenic::MeshPart_Naive & part : mSphere.mParts)
+        {
+            graphics::VertexArrayObject vao = prepareVAO(mLightProgram, part);
+            glBindVertexArray(vao);
+
+            if (scenic::useElementIndices(part))
+            {
+                glDrawElementsInstancedBaseInstance(
+                    part.mPrimitiveMode,
+                    part.mIndicesCount,
+                    part.mIndicesType,
+                    (void *)part.mIndexFirst,
+                    mObjectsCount, /* instances count */
+                    0  /* base instance, voxel instances are first in the UBO */);
+            }
+            else
+            {
+                throw std::logic_error{"Who is not using indexed rendering?"};
+            }
+        }
     }
     else
     {

@@ -15,13 +15,15 @@ void main(void)
 {
 	// floor() because the float mulitplication exact value would be "idx.5",
 	// which would be rounded up because of the "0.5".
-	vec2 slice = floor(ex_Uv * u_GridSide);
+	ivec2 slice = ivec2(floor(ex_Uv * u_GridSide));
 	const uint voxelPerUint = 4; // Cpp uint8_t per GLSL uint
 	uint xStride = u_GridSide / voxelPerUint;
 	uint yStride = xStride * u_GridSide;
 	
-	unsigned int idx = int(xStride * slice.x + yStride * slice.y);
+	unsigned int idx = xStride * slice.x + yStride * slice.y;
 
 	// TODO: handle depth
-	ub_Voxels[idx] = 1 + (1 << 16);
+	// For even(odd) grid position, set voxel at even(odd) depth
+	uint parity = (slice.x + slice.y) % 2;
+	ub_Voxels[idx] = (1 + (1 << 16)) << (parity * 8);
 }
