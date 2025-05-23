@@ -11,6 +11,8 @@ Waiting for a better solution, here are our hardcoded bindings
 * 6: ShadowCascade
 * 7: GlyphMetrics
 * 8: LineSegment
+*
+* 10: Voxels storage
 
 ## Textures
 

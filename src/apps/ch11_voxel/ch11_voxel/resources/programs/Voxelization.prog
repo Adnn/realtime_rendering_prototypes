@@ -1,0 +1,4 @@
+{
+    "vertex": "shaders/FullScreenQuad.vert",
+    "fragment": "shaders/Voxelization.frag"
+}

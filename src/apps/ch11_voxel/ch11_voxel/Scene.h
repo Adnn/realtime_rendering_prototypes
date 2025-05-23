@@ -4,6 +4,7 @@
 #include "Engine.h"
 #include "FrameGraph.h"
 #include "Material.h"
+#include "Voxelization.h"
 
 #include "debug/DebugRenderer.h"
 
@@ -44,6 +45,7 @@ struct Scene
     struct SceneControl
     {
         bool mShowPunctualLights = false;
+        bool mShowVoxels = false;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
@@ -71,6 +73,7 @@ struct Scene
     SceneControl mSceneControl;
     scenic::TreeInteractionState mSceneTreeGuiState;
     debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
+    Voxelizer mVoxelizer{mGraph.mEngine};
 
     std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
 
@@ -81,6 +84,9 @@ struct Scene
     renderer::IntrospectProgram mLightProgram;
 
     renderer::EntitiesBlock_glsl mEntities;
+    // The count of entities to be rendered that are not lights
+    // (i.e.: this is the index of the first light in the entities buffer)
+    unsigned int mObjectsCount = 0;
     PhongMaterialsBlock_glsl mMaterials{
         .mCount = 1,
         .mMaterials = {

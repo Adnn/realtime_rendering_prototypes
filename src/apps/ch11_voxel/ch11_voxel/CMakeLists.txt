@@ -10,6 +10,7 @@ set(${TARGET_NAME}_HEADERS
     ShaderConstants.h
     Ui.h
     UniformSetterWitness.h
+    Voxelization.h
 
     debug/DebugDrawer.h
     debug/DebugRenderer.h
@@ -25,6 +26,7 @@ set(${TARGET_NAME}_SOURCES
     Scene.cpp
     SetupDrawing.cpp
     ShaderConstants.cpp
+    Voxelization.cpp
 
     debug/DebugDrawer.cpp
     debug/DebugRenderer.cpp

@@ -142,6 +142,72 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
                  math::Size<2, int> aWindowResolution)
 {
     mOrbitalCamera.update(aWindowResolution.height());
+
+    //
+    // Entities
+    // 
+    if (!mSceneControl.mShowVoxels)
+    {
+        mObjectsCount = mSceneTree.mObjectsMap.size();
+        // Ensure the vector can fit all objects and point lights
+        mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
+
+        std::size_t objectIdx = 0;
+        for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
+        {
+            auto & entity = mEntities.mEntities[objectIdx];
+            entity.mLocalToWorld = static_cast<math::AffineMatrix<4, GLfloat>>(
+                mSceneTree.mTree.mGlobalPose[nodeIdx]);
+            entity.mColorFactor = math::hdr::gWhite<float>;
+            ++objectIdx;
+        }
+    }
+    //
+    // Voxelization
+    //
+    else
+    {
+        mObjectsCount = 0;
+
+        GLuint query;
+        glGenQueries(1, &query);
+        glBeginQuery(GL_FRAGMENT_SHADER_INVOCATIONS, query);
+
+        const unsigned int gridSide = 4;
+        mVoxelizer.voxelize(mSceneTree, gridSide);
+
+        glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
+        GLuint64 fragmentInvocations = 0;
+        glGetQueryObjectui64v(query, GL_QUERY_RESULT, &fragmentInvocations);
+
+        std::uint8_t * buffer =
+            (std::uint8_t *)glMapNamedBufferRange(mVoxelizer.mVoxelStore,
+                                                  0, mVoxelizer.mStoreByteSize,
+                                                  GL_MAP_READ_BIT);
+
+        std::cerr << "From " << fragmentInvocations << " FS invocations: ";
+        for (unsigned int i = 0; i != mVoxelizer.mStoreByteSize; ++i)
+        {
+            std::cerr << (unsigned)buffer[i] << " ";
+        }
+        std::cerr << std::endl;
+        glUnmapNamedBuffer(mVoxelizer.mVoxelStore);
+
+        // Ensure the vector can fit all objects and point lights
+        mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
+    }
+
+    for (std::size_t lightIdx = 0; lightIdx != mLights.mPointCount; ++lightIdx)
+    {
+        const auto & light = mLights.mPointLights[lightIdx];
+        auto & entity = mEntities.mEntities[mObjectsCount + lightIdx];
+        entity.mLocalToWorld =
+            math::trans3d::scaleUniform(light.mRadius.mMin)
+            * math::trans3d::translate(light.mPosition.as<math::Vec>());
+        entity.mColorFactor = light.mColors.mSpecularColor;
+    }
+
+
 }
 
 
@@ -176,31 +242,11 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
 
 void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
 {
+    // TODO: All this loading to buffer should probably be part of the update step
+
     //
     // Entities
-    // 
-    const unsigned int objectsCount = mSceneTree.mObjectsMap.size();
-    // Ensure the vector can fit all objects and point lights
-    mEntities.mEntities.resize(objectsCount + mLights.mPointCount);
-
-    std::size_t objectIdx = 0;
-    for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
-    {
-        auto & entity = mEntities.mEntities[objectIdx];
-        entity.mLocalToWorld = static_cast<math::AffineMatrix<4, GLfloat>>(
-            mSceneTree.mTree.mGlobalPose[nodeIdx]);
-        ++objectIdx;
-    }
-
-    for (std::size_t lightIdx = 0; lightIdx != mLights.mPointCount; ++lightIdx)
-    {
-        const auto & light = mLights.mPointLights[lightIdx];
-        auto & entity = mEntities.mEntities[objectsCount + lightIdx];
-        entity.mLocalToWorld =
-            math::trans3d::scaleUniform(light.mRadius.mMin)
-            * math::trans3d::translate(light.mPosition.as<math::Vec>());
-        entity.mColorFactor = light.mColors.mSpecularColor;
-    }
+    //
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
     //
@@ -231,7 +277,13 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     glClearColor(0.1f, 0.2f, 0.3f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    mGraph.renderSimple(mSceneTree);
+    if (mSceneControl.mShowVoxels)
+    {
+    }
+    else
+    {
+        mGraph.renderSimple(mSceneTree);
+    }
 
     //
     // Draw lights
@@ -253,7 +305,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
                     part.mIndicesType,
                     (void *)part.mIndexFirst,
                     mLights.mPointCount, /* instances count */
-                    objectsCount /* base instance, light instances are after objects in UBOs */);
+                    mObjectsCount /* base instance, light instances are after objects in UBOs */);
             }
             else
             {
@@ -276,6 +328,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     DBGDRAW.endFrame();
 
     mDebugRenderer.render(DBGDRAW.mFrameCommands);
+
 }
 
 
@@ -298,6 +351,7 @@ void Scene::presentUi(bool * aOpen)
 
     // Scene control
     ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
+    ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
 
     DearImguiWitness witness;
 

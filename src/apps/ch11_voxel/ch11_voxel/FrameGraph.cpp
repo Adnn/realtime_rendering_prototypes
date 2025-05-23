@@ -37,7 +37,7 @@ namespace ad {
 void drawPass(const renderer::IntrospectProgram & aProgram, 
               const scenic::SceneTree & aSceneTree)
 {
-    // We populated the per-instance buffer in the order of the objects map interation
+    // We populated the per-instance buffer in the order of the objects map iteration
     // We keep track of the base-instance to access the correct index in the shader
     GLuint baseInstance = 0;
     const GLuint instanceCount = 1;
