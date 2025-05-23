@@ -219,6 +219,7 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
                             * math::trans3d::translate(
                                 baseOffset
                                 + stride.cwMul({(float)x, (float)y, float(z)}));
+                        entity.mColorFactor = math::hdr::gWhite<float>;
                         ++entityIdx;
                     }
                     ++voxelIdx;
@@ -313,11 +314,12 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
 
     if (mSceneControl.mShowVoxels)
     {
-        glUseProgram(mLightProgram);
+        const auto & program = mGraph.mPrograms.mBlinnPhong;
+        glUseProgram(program);
 
-        for (const scenic::MeshPart_Naive & part : mSphere.mParts)
+        for (const scenic::MeshPart_Naive & part : mCube.mParts)
         {
-            graphics::VertexArrayObject vao = prepareVAO(mLightProgram, part);
+            graphics::VertexArrayObject vao = prepareVAO(program, part);
             glBindVertexArray(vao);
 
             if (scenic::useElementIndices(part))

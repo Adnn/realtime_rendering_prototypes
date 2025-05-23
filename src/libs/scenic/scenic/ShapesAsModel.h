@@ -7,6 +7,8 @@
 namespace ad::scenic {
 
 
+Object makeCube();
+
 Object makeSphere(unsigned int aSubdivisions);
 
 

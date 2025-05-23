@@ -70,6 +70,7 @@ struct Scene
     scenic::OrbitalCamera mOrbitalCamera;
     //scenic::Environment mEnvironment;
     scenic::Object mSphere{ scenic::makeSphere(4) };
+    scenic::Object mCube{ scenic::makeCube() };
     SceneControl mSceneControl;
     scenic::TreeInteractionState mSceneTreeGuiState;
     debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
