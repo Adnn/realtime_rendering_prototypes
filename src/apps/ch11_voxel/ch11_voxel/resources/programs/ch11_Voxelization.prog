@@ -1,4 +1,4 @@
 {
     "vertex": "shaders/FullScreenQuad.vert",
-    "fragment": "shaders/Voxelization.frag"
+    "fragment": "shaders/ch11_Voxelization.frag"
 }

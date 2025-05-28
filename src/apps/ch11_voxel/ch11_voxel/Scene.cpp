@@ -314,27 +314,58 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
 
     if (mSceneControl.mShowVoxels)
     {
-        const auto & program = mGraph.mPrograms.mBlinnPhong;
-        glUseProgram(program);
-
-        for (const scenic::MeshPart_Naive & part : mCube.mParts)
+        if (mSceneControl.mRaytraceVoxels)
         {
-            graphics::VertexArrayObject vao = prepareVAO(program, part);
-            glBindVertexArray(vao);
+            static const graphics::VertexArrayObject dummyVao;
+            glBindVertexArray(dummyVao);
 
-            if (scenic::useElementIndices(part))
+            const auto & program = mGraph.mPrograms.mRayTraceVoxels;
+            glUseProgram(program);
+
+
+            // TODO cache the aabb
+            math::Box<float> aabb = scenic::getAabb(mSceneTree);
+            graphics::setUniform(program, "u_AabbMin", aabb.leftBottomZMin());
+            graphics::setUniform(program, "u_AabbMax", aabb.rightTopZMax());
+
+            graphics::setUniform(program, "u_FramebufferSize", aBackbufferResolution);
+            
+            const graphics::PerspectiveParameters projectionParams =
+                std::get<graphics::PerspectiveParameters>
+                (mOrbitalCamera.mCamera.getProjectionParameters());
+            float imageHeight = 2 * tan(projectionParams.mVerticalFov / 2);
+            math::Size<2, float> imagePlaneSize{
+                projectionParams.mAspectRatio * imageHeight,
+                imageHeight
+            };
+            graphics::setUniform(program, "u_ImagePlane_view", imagePlaneSize);
+
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+        else
+        {
+            const auto & program = mGraph.mPrograms.mBlinnPhong;
+            glUseProgram(program);
+
+            for (const scenic::MeshPart_Naive & part : mCube.mParts)
             {
-                glDrawElementsInstancedBaseInstance(
-                    part.mPrimitiveMode,
-                    part.mIndicesCount,
-                    part.mIndicesType,
-                    (void *)part.mIndexFirst,
-                    mObjectsCount, /* instances count */
-                    0  /* base instance, voxel instances are first in the UBO */);
-            }
-            else
-            {
-                throw std::logic_error{"Who is not using indexed rendering?"};
+                graphics::VertexArrayObject vao = prepareVAO(program, part);
+                glBindVertexArray(vao);
+
+                if (scenic::useElementIndices(part))
+                {
+                    glDrawElementsInstancedBaseInstance(
+                        part.mPrimitiveMode,
+                        part.mIndicesCount,
+                        part.mIndicesType,
+                        (void *)part.mIndexFirst,
+                        mObjectsCount, /* instances count */
+                        0  /* base instance, voxel instances are first in the UBO */);
+                }
+                else
+                {
+                    throw std::logic_error{"Who is not using indexed rendering?"};
+                }
             }
         }
     }
@@ -410,6 +441,7 @@ void Scene::presentUi(bool * aOpen)
     // Scene control
     ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
     ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
+    ImGui::Checkbox("Raytrace Voxels", &mSceneControl.mRaytraceVoxels);
 
     DearImguiWitness witness;
 

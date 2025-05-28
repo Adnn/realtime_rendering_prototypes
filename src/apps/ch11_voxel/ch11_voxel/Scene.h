@@ -46,6 +46,7 @@ struct Scene
     {
         bool mShowPunctualLights = false;
         bool mShowVoxels = false;
+        bool mRaytraceVoxels = false;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);

@@ -50,6 +50,7 @@ struct FrameGraph
         ProgramStore(Engine & aEngine);
 
         renderer::IntrospectProgram mBlinnPhong;
+        renderer::IntrospectProgram mRayTraceVoxels;
     };
 
 

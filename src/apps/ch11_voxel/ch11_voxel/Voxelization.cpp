@@ -12,7 +12,7 @@ namespace ad {
 
 namespace {
 
-    const renderer::ReferencePath gVoxelizationProgram{"programs/Voxelization.prog"};
+    const renderer::ReferencePath gVoxelizationProgram{"programs/ch11_Voxelization.prog"};
 
 } // unnamed namespace
 
