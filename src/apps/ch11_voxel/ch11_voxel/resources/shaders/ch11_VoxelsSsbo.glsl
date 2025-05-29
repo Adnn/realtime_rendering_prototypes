@@ -24,6 +24,9 @@ uint getVoxelTableIdx(ivec3 aVoxel)
 
 uint getVoxelValue(ivec3 aVoxel)
 {
+	// Debug access: show a 3D checkerboard
+	//return (aVoxel.x + aVoxel.y + aVoxel.z) % 2;
+
 	uint idx = getVoxelTableIdx(aVoxel);
 	return (ub_Voxels[idx] >> ((aVoxel.z % gVoxelPerUint) * 8)) & 0xFF;
 }

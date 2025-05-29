@@ -128,27 +128,29 @@ void main(void)
 			#if defined INIT_SHADERTOY_FB39CA4
 				// see: https://www.shadertoy.com/view/4dX3zl
 				vec3 tDelta = abs( vec3(length(rayDir_world) * u_VoxelSize) / rayDir_world );
-				vec3 tMax = (step * (vec3(currentVoxel) - entry_aabb) + (step * 0.5) + 0.5)
+				vec3 tMax = (step * (vec3(currentVoxel * u_VoxelSize) - entry_aabb) + (step + 1) * 0.5 * u_VoxelSize)
 							* tDelta;
 			#else
 				// Advancing by tDelta results in next position being N_1 = (t + tDelta) * rayDir
 				// tDelta being 1/rayDir result in:
-				// N_1 = (t * rayDir) + (1/rayDir * rayDir) = N_0 + rayDir/rayDir, an increment of 1.
+				// N_1 = (t * rayDir) + (1/rayDir * rayDir) = N_0 + rayDir/rayDir,
+				// an increment of 1.
 				// Note: the absolute value ensure each component of tDelta are positive 
 				//       (even though the world direction could be negative)
-				vec3 tDelta = abs(1 / rayDir_world);
+				vec3 tDelta = abs(u_VoxelSize / rayDir_world);
 
 				// Our grid is aligned to voxel corners: the boundaries' coordinates are
-				// the voxel coordinates.
+				// the (scaled) voxel coordinates.
 				// Depending on rayDir's components sign, the next boundary is either:
 				// * the current voxel coordinates (negative dir component)
 				// * the next voxel coordinates (positive dir component).
 				// Note: remap `step` from [-1, 1] to [0, 1]
-				vec3 voxelBoundary = currentVoxel + (step + 1.0) * 0.5; 
+				vec3 voxelBoundary_aabb = (currentVoxel + (step + 1.0) * 0.5) 
+									      * u_VoxelSize; 
 
-				vec3 tMax = (voxelBoundary - entry_aabb) / rayDir_world;
+				vec3 tMax = (voxelBoundary_aabb - entry_aabb) / rayDir_world;
 				// Equivalent to (related to the shadertoy formula):
-				//vec3 tMax = (step * (voxelBoundary - entry_aabb)) * tDelta;
+				//vec3 tMax = (step * (voxelBoundary_aabb - entry_aabb)) * tDelta;
 			#endif
 
 

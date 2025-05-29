@@ -32,7 +32,7 @@
 
 namespace ad {
 
-constexpr unsigned int gGridDimension = 4;
+constexpr unsigned int gGridDimension = 8;
 
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
@@ -244,8 +244,6 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
             * math::trans3d::translate(light.mPosition.as<math::Vec>());
         entity.mColorFactor = light.mColors.mSpecularColor;
     }
-
-
 }
 
 

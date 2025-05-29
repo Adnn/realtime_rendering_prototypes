@@ -6,7 +6,6 @@
 
 in vec2 ex_Uv;
 
-
 void main(void)
 {
 	// floor() because the float mulitplication exact value would be "idx.5",
@@ -21,5 +20,8 @@ void main(void)
 	// TODO: handle depth
 	// For even(odd) grid position, set voxel at even(odd) depth
 	uint parity = (slice.x + slice.y) % 2;
-	ub_Voxels[idx] = (1 + (1 << 16)) << (parity * 8);
+	for(uint i = 0; i != ub_GridDimension / voxelPerUint; ++i)
+	{
+		ub_Voxels[idx + i] = (1 + (1 << 16)) << (parity * 8);
+	}
 }
