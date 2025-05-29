@@ -1,24 +1,20 @@
 #version 460
 
 
+#include "ch11_VoxelsSsbo.glsl"
+
+
 in vec2 ex_Uv;
-
-uniform uint u_GridSide;
-
-layout(std430, binding = 10) buffer VoxelsSsbo
-{
-  uint ub_Voxels[];
-};
 
 
 void main(void)
 {
 	// floor() because the float mulitplication exact value would be "idx.5",
 	// which would be rounded up because of the "0.5".
-	ivec2 slice = ivec2(floor(ex_Uv * u_GridSide));
+	ivec2 slice = ivec2(floor(ex_Uv * ub_GridDimension));
 	const uint voxelPerUint = 4; // Cpp uint8_t per GLSL uint
-	uint xStride = u_GridSide / voxelPerUint;
-	uint yStride = xStride * u_GridSide;
+	uint xStride = ub_GridDimension / voxelPerUint;
+	uint yStride = xStride * ub_GridDimension;
 	
 	unsigned int idx = xStride * slice.x + yStride * slice.y;
 

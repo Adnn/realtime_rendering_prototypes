@@ -32,7 +32,7 @@
 
 namespace ad {
 
-constexpr unsigned int gGridSide = 4;
+constexpr unsigned int gGridDimension = 4;
 
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
@@ -170,48 +170,49 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
     //
     else
     {
-        mObjectsCount = std::pow(gGridSide, 3);
+        mObjectsCount = std::pow(gGridDimension, 3);
 
-        GLuint query;
-        glGenQueries(1, &query);
-        glBeginQuery(GL_FRAGMENT_SHADER_INVOCATIONS, query);
+        //GLuint query;
+        //glGenQueries(1, &query);
+        //glBeginQuery(GL_FRAGMENT_SHADER_INVOCATIONS, query);
 
-        mVoxelizer.voxelize(mSceneTree, gGridSide);
+        mVoxelizer.voxelize(mSceneTree, gGridDimension);
 
-        glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
-        GLuint64 fragmentInvocations = 0;
-        glGetQueryObjectui64v(query, GL_QUERY_RESULT, &fragmentInvocations);
+        //glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
+        //GLuint64 fragmentInvocations = 0;
+        //glGetQueryObjectui64v(query, GL_QUERY_RESULT, &fragmentInvocations);
 
         std::uint8_t * buffer =
             (std::uint8_t *)glMapNamedBufferRange(mVoxelizer.mVoxelStore,
-                                                  0, mVoxelizer.mStoreByteSize,
+                                                  offsetof(VoxelsSsbo_glsl, mVoxels),
+                                                  mVoxelizer.mVoxelsByteSize,                                     
                                                   GL_MAP_READ_BIT);
 
-        std::cerr << "From " << fragmentInvocations << " FS invocations: ";
-        for (unsigned int i = 0; i != mVoxelizer.mStoreByteSize; ++i)
-        {
-            std::cerr << (unsigned)buffer[i] << " ";
-        }
-        std::cerr << std::endl;
+        //std::cerr << "From " << fragmentInvocations << " FS invocations: ";
+        //for (unsigned int i = 0; i != mVoxelizer.mVoxelsByteSize; ++i)
+        //{
+        //    std::cerr << (unsigned)buffer[i] << " ";
+        //}
+        //std::cerr << std::endl;
 
         // Ensure the vector can fit all objects and point lights
         mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
 
         const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
         const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-        mCellSide = maxSide / gGridSide;
-        const auto scaling = math::trans3d::scaleUniform(mCellSide / 2);
-        math::Vec<3, float> stride{mCellSide, mCellSide, mCellSide};
+        mVoxelSize = maxSide / gGridDimension;
+        const auto scaling = math::trans3d::scaleUniform(mVoxelSize / 2);
+        math::Vec<3, float> stride{mVoxelSize, mVoxelSize, mVoxelSize};
         math::Vec<3, float> baseOffset = 
             sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
         unsigned int voxelIdx = 0;
         unsigned int entityIdx = 0;
 
-        for (unsigned int y = 0; y != gGridSide; ++y)
+        for (unsigned int y = 0; y != gGridDimension; ++y)
         {
-            for (unsigned int x = 0; x != gGridSide; ++x)
+            for (unsigned int x = 0; x != gGridDimension; ++x)
             {
-                for (unsigned int z = 0; z != gGridSide; ++z)
+                for (unsigned int z = 0; z != gGridDimension; ++z)
                 {
                     if (buffer[voxelIdx] == 1)
                     {
@@ -318,8 +319,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     {
         if (mSceneControl.mRaytraceVoxels)
         {
-            static const graphics::VertexArrayObject dummyVao;
-            glBindVertexArray(dummyVao);
+            glBindVertexArray(mGraph.mDummyVao);
 
             const auto & program = mGraph.mPrograms.mRayTraceVoxels;
             glUseProgram(program);
@@ -343,8 +343,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             };
             graphics::setUniform(program, "u_ImagePlane_view", imagePlaneSize);
 
-            graphics::setUniform(program, "u_GridSide", gGridSide);
-            graphics::setUniform(program, "u_VoxelSide", mCellSide);
+            graphics::setUniform(program, "u_VoxelSize", mVoxelSize);
 
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }

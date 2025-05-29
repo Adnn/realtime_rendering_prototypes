@@ -76,7 +76,7 @@ struct Scene
     scenic::TreeInteractionState mSceneTreeGuiState;
     debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
     Voxelizer mVoxelizer{mGraph.mEngine};
-    float mCellSide{0.f};
+    float mVoxelSize{0.f};
 
     std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
 
