@@ -8,3 +8,7 @@
 Rasterizer,”
   https://research.nvidia.com/labs/rtr/publication/crassin2012voxelization/
   * Detailed description of a method to voxelize mesh models, in regular grids or SVO.
+* John Amanatides, Andrew Woo "A Fast Voxel Traversal Algorithm for Ray Tracing"
+  http://www.cse.yorku.ca/~amana/research/grid.pdf
+  * Fast and simple voxel traversal algorithm (3D DDA). 
+	Used to render a dense voxel grid via raytracing.

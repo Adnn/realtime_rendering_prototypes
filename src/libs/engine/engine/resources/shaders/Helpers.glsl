@@ -25,6 +25,20 @@ float maxCw(vec4 v)
 }
 
 
+float minCw(vec3 v)
+{
+    return min(min(v.x, v.y), v.z);
+}
+
+
+float minCw(vec4 v)
+{
+    //see: https://stackoverflow.com/a/77071476
+    vec2 pairs = min(v.xy, v.zw);
+    return min(pairs.x, pairs.y);
+}
+
+
 // Remaps a vector from symmetric domain [-amplitude, amplitude]^3 to [0, 1]^3.
 // Notably useful to display unit direction vectors as colors.
 vec3 mapToRgb(vec3 aInput, float aAmplitude)

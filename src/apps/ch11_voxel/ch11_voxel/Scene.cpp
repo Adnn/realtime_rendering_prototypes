@@ -32,6 +32,7 @@
 
 namespace ad {
 
+constexpr unsigned int gGridSide = 4;
 
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
@@ -41,8 +42,10 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 }
 
 
-const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Mat/meetmat_2.glb"}};
-constexpr float gModelScale = 0.1f;
+//const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Mat/meetmat_2.glb"}};
+//constexpr float gModelScale = 0.1f;
+const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/4x4_cube/4x4_cube.gltf"}};
+constexpr float gModelScale = 1.f;
 
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
@@ -167,14 +170,13 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
     //
     else
     {
-        const unsigned int gridSide = 4;
-        mObjectsCount = std::pow(gridSide, 3);
+        mObjectsCount = std::pow(gGridSide, 3);
 
         GLuint query;
         glGenQueries(1, &query);
         glBeginQuery(GL_FRAGMENT_SHADER_INVOCATIONS, query);
 
-        mVoxelizer.voxelize(mSceneTree, gridSide);
+        mVoxelizer.voxelize(mSceneTree, gGridSide);
 
         glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
         GLuint64 fragmentInvocations = 0;
@@ -197,19 +199,19 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
 
         const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
         const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-        const float cellSide = maxSide / gridSide;
-        const auto scaling = math::trans3d::scaleUniform(cellSide / 2);
-        math::Vec<3, float> stride{cellSide, cellSide, cellSide};
+        mCellSide = maxSide / gGridSide;
+        const auto scaling = math::trans3d::scaleUniform(mCellSide / 2);
+        math::Vec<3, float> stride{mCellSide, mCellSide, mCellSide};
         math::Vec<3, float> baseOffset = 
             sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
         unsigned int voxelIdx = 0;
         unsigned int entityIdx = 0;
 
-        for (unsigned int y = 0; y != gridSide; ++y)
+        for (unsigned int y = 0; y != gGridSide; ++y)
         {
-            for (unsigned int x = 0; x != gridSide; ++x)
+            for (unsigned int x = 0; x != gGridSide; ++x)
             {
-                for (unsigned int z = 0; z != gridSide; ++z)
+                for (unsigned int z = 0; z != gGridSide; ++z)
                 {
                     if (buffer[voxelIdx] == 1)
                     {
@@ -322,6 +324,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             const auto & program = mGraph.mPrograms.mRayTraceVoxels;
             glUseProgram(program);
 
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, mVoxelizer.mVoxelStore);
 
             // TODO cache the aabb
             math::Box<float> aabb = scenic::getAabb(mSceneTree);
@@ -339,6 +342,9 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
                 imageHeight
             };
             graphics::setUniform(program, "u_ImagePlane_view", imagePlaneSize);
+
+            graphics::setUniform(program, "u_GridSide", gGridSide);
+            graphics::setUniform(program, "u_VoxelSide", mCellSide);
 
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
