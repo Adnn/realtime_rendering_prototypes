@@ -133,7 +133,8 @@ void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimen
                              prepareVoxelizationCamera(sceneAabb)},
                          graphics::BufferHint::StreamDraw);
 
-    glViewport(0, 0, aGridDimension, aGridDimension);
+    // Done by calling context
+    //glViewport(0, 0, aGridDimension, aGridDimension);
 
     const auto & program = aGraph.mPrograms.mVoxelizationViewProgram;
 

@@ -373,6 +373,8 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     {
         if (mSceneControl.mVoxelPov)
         {
+            int min = *aBackbufferResolution.getMinMagnitudeElement();
+            glViewport(0, 0, min, min);
             mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
         }
         else
