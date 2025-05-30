@@ -24,19 +24,29 @@ uint getVoxelTableIdx(ivec3 aVoxel)
 
 uint getVoxelValue(ivec3 aVoxel)
 {
-	// Debug access: show a 3D checkerboard
-	//return (aVoxel.x + aVoxel.y + aVoxel.z) % 2;
-
-	uint idx = getVoxelTableIdx(aVoxel);
-	return (ub_Voxels[idx] >> ((aVoxel.z % gVoxelPerUint) * 8)) & 0xFF;
+	//#define GET_VOXEL_CHECKERBOARD
+	#if defined(GET_VOXEL_CHECKERBOARD)
+		// Debug access: show a 3D checkerboard
+		return (aVoxel.x + aVoxel.y + aVoxel.z) % 2;
+	#else
+		uint idx = getVoxelTableIdx(aVoxel);
+		return (ub_Voxels[idx] >> ((aVoxel.z % gVoxelPerUint) * 8)) & 0xFF;
+	#endif
 }
 
 
 void setVoxelValue(ivec3 aVoxel, uint aValue)
 {
 	uint idx = getVoxelTableIdx(aVoxel);
-	uint written = (aValue & 0xFF) << ((aVoxel.z % gVoxelPerUint) * 8);
+	// Get the existing value
+	uint bitoffset = (aVoxel.z % gVoxelPerUint) * 8;
+	uint mask = ~(0xFF << bitoffset);
+	uint value = (aValue & 0xFF) << bitoffset;
+	uint written = (ub_Voxels[idx] & mask) | value;
 	ub_Voxels[idx] = written;
+
+	//uint idx = getVoxelTableIdx(aVoxel);
+	//ub_Voxels[idx] = 0x01010101;
 }
 
 

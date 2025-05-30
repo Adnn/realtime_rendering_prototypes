@@ -47,6 +47,8 @@ struct Scene
         bool mShowPunctualLights = false;
         bool mShowVoxels = false;
         bool mRaytraceVoxels = false;
+        bool mDrawBoundingBoxes = true;
+        bool mVoxelPov = false;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
@@ -75,11 +77,12 @@ struct Scene
     SceneControl mSceneControl;
     scenic::TreeInteractionState mSceneTreeGuiState;
     debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
-    Voxelizer mVoxelizer{mGraph.mEngine};
+    Voxelizer mVoxelizer;
     float mVoxelSize{0.f};
 
     std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
 
+    // TODO: should mostly move to framegraph
     graphics::UniformBufferObject mEntitiesBlockBuffer;
     graphics::UniformBufferObject mLightsBlockBuffer;
     graphics::UniformBufferObject mMaterialsBlockBuffer;

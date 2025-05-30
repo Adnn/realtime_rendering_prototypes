@@ -51,6 +51,9 @@ struct FrameGraph
 
         renderer::IntrospectProgram mBlinnPhong;
         renderer::IntrospectProgram mRayTraceVoxels;
+
+        renderer::IntrospectProgram mVoxelizationProgram;
+        renderer::IntrospectProgram mVoxelizationViewProgram;
     };
 
 

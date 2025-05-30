@@ -3,11 +3,14 @@
 
 #include <engine/IntrospectProgram.h>
 
+#include <renderer/UniformBuffer.h>
+
 
 namespace ad {
 
 
 struct Engine;
+struct FrameGraph;
 
 namespace scenic {
 struct SceneTree;
@@ -30,11 +33,18 @@ struct VoxelsSsbo_glsl
 
 struct Voxelizer
 {
-    Voxelizer(Engine & aEngine);
+    Voxelizer();
 
-    void voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension);
+    void voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension,
+                  // TODO: take a FrameGraph (when the buffers are moved there)
+                  const graphics::UniformBufferObject & aViewProjectionBuffer,
+                  const FrameGraph & aGraph);
 
-    renderer::IntrospectProgram mProgram;
+    void voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
+                  // TODO: take a FrameGraph (when the buffers are moved there)
+                  const graphics::UniformBufferObject & aViewProjectionBuffer,
+                  const FrameGraph & aGraph);
+
     graphics::Buffer<graphics::BufferType::ShaderStorage> mVoxelStore;
     GLsizeiptr mVoxelsByteSize;
     graphics::VertexArrayObject mDummyVao;

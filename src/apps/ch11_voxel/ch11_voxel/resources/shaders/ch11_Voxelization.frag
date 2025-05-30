@@ -4,24 +4,17 @@
 #include "ch11_VoxelsSsbo.glsl"
 
 
-in vec2 ex_Uv;
+in vec3 ex_Position_view;
+
+uniform float u_AabbDepth;
+
 
 void main(void)
 {
-	// floor() because the float mulitplication exact value would be "idx.5",
-	// which would be rounded up because of the "0.5".
-	ivec2 slice = ivec2(floor(ex_Uv * ub_GridDimension));
-	const uint voxelPerUint = 4; // Cpp uint8_t per GLSL uint
-	uint xStride = ub_GridDimension / voxelPerUint;
-	uint yStride = xStride * ub_GridDimension;
-	
-	unsigned int idx = xStride * slice.x + yStride * slice.y;
+	// TODO: interpolate the arithmetic in floor() from the vertex shader
+	uint z = uint(floor(-ex_Position_view.z * ub_GridDimension / u_AabbDepth));
+	ivec3 voxel = ivec3( ivec2(gl_FragCoord.xy),
+				         max(0, (ub_GridDimension - 1) - z) );
 
-	// TODO: handle depth
-	// For even(odd) grid position, set voxel at even(odd) depth
-	uint parity = (slice.x + slice.y) % 2;
-	for(uint i = 0; i != ub_GridDimension / voxelPerUint; ++i)
-	{
-		ub_Voxels[idx + i] = (1 + (1 << 16)) << (parity * 8);
-	}
+	setVoxelValue(voxel, 1);
 }

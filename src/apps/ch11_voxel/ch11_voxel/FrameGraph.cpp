@@ -30,6 +30,9 @@ namespace ad {
         const std::filesystem::path gBlinnPhongProgramPath = "programs/RenderModel_BlinnPhong.prog";
         const std::filesystem::path gRayTraceVoxelsProgramPath = "programs/ch11_RayTraceVoxels.prog";
 
+        const renderer::ReferencePath gVoxelizationProgram{"programs/ch11_Voxelization.prog"};
+        const renderer::ReferencePath gVoxelizationViewProgram{"programs/ch11_View.prog"};
+
 
     } // unnamed namespace
 
@@ -72,7 +75,10 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
 
 FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mBlinnPhong{ aEngine.loadProgram(renderer::ReferencePath{ gBlinnPhongProgramPath }) },
-    mRayTraceVoxels{ aEngine.loadProgram(renderer::ReferencePath{ gRayTraceVoxelsProgramPath }) }
+    mRayTraceVoxels{ aEngine.loadProgram(renderer::ReferencePath{ gRayTraceVoxelsProgramPath }) },
+    mVoxelizationProgram{ aEngine.loadProgram(gVoxelizationProgram) },
+    mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) }
+
 {}
 
 

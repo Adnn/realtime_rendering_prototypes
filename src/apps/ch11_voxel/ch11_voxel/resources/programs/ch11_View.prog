@@ -1,5 +1,5 @@
 {
     "vertex": "shaders/FullTransform.vert",
-    "fragment": "shaders/ch11_Voxelization.frag",
+    "fragment": "shaders/BlinnPhong.frag",
     "defines":  ["ENTITIES"]
 }

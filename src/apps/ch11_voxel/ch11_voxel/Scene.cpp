@@ -32,7 +32,7 @@
 
 namespace ad {
 
-constexpr unsigned int gGridDimension = 8;
+constexpr unsigned int gGridDimension = 64;
 
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
@@ -44,8 +44,14 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Mat/meetmat_2.glb"}};
 //constexpr float gModelScale = 0.1f;
-const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/4x4_cube/4x4_cube.gltf"}};
-constexpr float gModelScale = 1.f;
+
+const renderer::ReferencePath gModelPaths[] = {
+    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
+};
+constexpr float gModelScale = 0.01f;
+
+//const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/4x4_cube/4x4_cube.gltf"}};
+//constexpr float gModelScale = 1.f;
 
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
@@ -141,112 +147,6 @@ void Scene::loadPrograms()
 }
 
 
-void Scene::step(const graphics::Timer & /*aTimer*/,
-                 math::Size<2, int> aWindowResolution)
-{
-    mOrbitalCamera.update(aWindowResolution.height());
-
-    //
-    // Entities
-    // 
-    if (!mSceneControl.mShowVoxels)
-    {
-        mObjectsCount = mSceneTree.mObjectsMap.size();
-        // Ensure the vector can fit all objects and point lights
-        mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
-
-        std::size_t objectIdx = 0;
-        for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
-        {
-            auto & entity = mEntities.mEntities[objectIdx];
-            entity.mLocalToWorld = static_cast<math::AffineMatrix<4, GLfloat>>(
-                mSceneTree.mTree.mGlobalPose[nodeIdx]);
-            entity.mColorFactor = math::hdr::gWhite<float>;
-            ++objectIdx;
-        }
-    }
-    //
-    // Voxelization
-    //
-    else
-    {
-        mObjectsCount = std::pow(gGridDimension, 3);
-
-        //GLuint query;
-        //glGenQueries(1, &query);
-        //glBeginQuery(GL_FRAGMENT_SHADER_INVOCATIONS, query);
-
-        mVoxelizer.voxelize(mSceneTree, gGridDimension);
-
-        //glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
-        //GLuint64 fragmentInvocations = 0;
-        //glGetQueryObjectui64v(query, GL_QUERY_RESULT, &fragmentInvocations);
-
-        std::uint8_t * buffer =
-            (std::uint8_t *)glMapNamedBufferRange(mVoxelizer.mVoxelStore,
-                                                  offsetof(VoxelsSsbo_glsl, mVoxels),
-                                                  mVoxelizer.mVoxelsByteSize,                                     
-                                                  GL_MAP_READ_BIT);
-
-        //std::cerr << "From " << fragmentInvocations << " FS invocations: ";
-        //for (unsigned int i = 0; i != mVoxelizer.mVoxelsByteSize; ++i)
-        //{
-        //    std::cerr << (unsigned)buffer[i] << " ";
-        //}
-        //std::cerr << std::endl;
-
-        // Ensure the vector can fit all objects and point lights
-        mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
-
-        const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
-        const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-        mVoxelSize = maxSide / gGridDimension;
-        const auto scaling = math::trans3d::scaleUniform(mVoxelSize / 2);
-        math::Vec<3, float> stride{mVoxelSize, mVoxelSize, mVoxelSize};
-        math::Vec<3, float> baseOffset = 
-            sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
-        unsigned int voxelIdx = 0;
-        unsigned int entityIdx = 0;
-
-        for (unsigned int y = 0; y != gGridDimension; ++y)
-        {
-            for (unsigned int x = 0; x != gGridDimension; ++x)
-            {
-                for (unsigned int z = 0; z != gGridDimension; ++z)
-                {
-                    if (buffer[voxelIdx] == 1)
-                    {
-                        auto & entity = mEntities.mEntities[entityIdx];
-                        entity.mLocalToWorld =
-                            scaling
-                            * math::trans3d::translate(
-                                baseOffset
-                                + stride.cwMul({(float)x, (float)y, float(z)}));
-                        entity.mColorFactor = math::hdr::gWhite<float>;
-                        ++entityIdx;
-                    }
-                    ++voxelIdx;
-                }
-            }
-        }
-        glUnmapNamedBuffer(mVoxelizer.mVoxelStore);
-
-        // tighten the object count to just include populated entities
-        mObjectsCount = entityIdx;
-    }
-
-    for (std::size_t lightIdx = 0; lightIdx != mLights.mPointCount; ++lightIdx)
-    {
-        const auto & light = mLights.mPointLights[lightIdx];
-        auto & entity = mEntities.mEntities[mObjectsCount + lightIdx];
-        entity.mLocalToWorld =
-            math::trans3d::scaleUniform(light.mRadius.mMin)
-            * math::trans3d::translate(light.mPosition.as<math::Vec>());
-        entity.mColorFactor = light.mColors.mSpecularColor;
-    }
-}
-
-
 // TODO: move to a generic header
 renderer::LightsDataCommon transformLightsData(
     renderer::LightsDataCommon aLightsData, // by value, as we need a copy
@@ -270,20 +170,10 @@ renderer::LightsDataCommon transformLightsData(
 }
 
 
-void Scene::render(math::Size<2, int> aBackbufferResolution)
+void Scene::step(const graphics::Timer & /*aTimer*/,
+                 math::Size<2, int> aWindowResolution)
 {
-    renderTo(graphics::FrameBuffer::Default(), aBackbufferResolution);
-}
-
-
-void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
-{
-    // TODO: All this loading to buffer should probably be part of the update step
-
-    //
-    // Entities
-    //
-    loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
+    mOrbitalCamera.update(aWindowResolution.height());
 
     //
     // Materials
@@ -297,6 +187,113 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
         transformLightsData(mLights, mOrbitalCamera.mCamera.getParentToCamera());
     graphics::loadSingle(mLightsBlockBuffer, lights_cam, graphics::BufferHint::StreamDraw);
 
+
+    //
+    // Entities
+    // 
+    mObjectsCount = mSceneTree.mObjectsMap.size();
+    // Ensure the vector can fit all objects and point lights
+    mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
+
+    std::size_t objectIdx = 0;
+    for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
+    {
+        auto & entity = mEntities.mEntities[objectIdx];
+        entity.mLocalToWorld = static_cast<math::AffineMatrix<4, GLfloat>>(
+            mSceneTree.mTree.mGlobalPose[nodeIdx]);
+        entity.mColorFactor = math::hdr::gWhite<float>;
+        ++objectIdx;
+    }
+    // Must be loaded before voxelization
+    loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
+
+
+    //
+    // Voxelization
+    //
+    if (mSceneControl.mShowVoxels)
+    {
+        mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+
+        if (!mSceneControl.mRaytraceVoxels)
+        {
+            mObjectsCount = std::pow(gGridDimension, 3);
+            std::uint8_t * buffer =
+                (std::uint8_t *)glMapNamedBufferRange(mVoxelizer.mVoxelStore,
+                                                      offsetof(VoxelsSsbo_glsl, mVoxels),
+                                                      mVoxelizer.mVoxelsByteSize,
+                                                      GL_MAP_READ_BIT);
+
+            //std::cerr << "From " << fragmentInvocations << " FS invocations: ";
+            //for (unsigned int i = 0; i != mVoxelizer.mVoxelsByteSize; ++i)
+            //{
+            //    std::cerr << (unsigned)buffer[i] << " ";
+            //}
+            //std::cerr << std::endl;
+
+            // Ensure the vector can fit all objects and point lights
+            mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
+
+            const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
+            const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+            mVoxelSize = maxSide / gGridDimension;
+            const auto scaling = math::trans3d::scaleUniform(mVoxelSize / 2);
+            math::Vec<3, float> stride{mVoxelSize, mVoxelSize, mVoxelSize};
+            math::Vec<3, float> baseOffset =
+                sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
+            unsigned int voxelIdx = 0;
+            unsigned int entityIdx = 0;
+
+            for (unsigned int y = 0; y != gGridDimension; ++y)
+            {
+                for (unsigned int x = 0; x != gGridDimension; ++x)
+                {
+                    for (unsigned int z = 0; z != gGridDimension; ++z)
+                    {
+                        if (buffer[voxelIdx] == 1)
+                        {
+                            auto & entity = mEntities.mEntities[entityIdx];
+                            entity.mLocalToWorld =
+                                scaling
+                                * math::trans3d::translate(
+                                    baseOffset
+                                    + stride.cwMul({(float)x, (float)y, float(z)}));
+                            entity.mColorFactor = math::hdr::gWhite<float>;
+                            ++entityIdx;
+                        }
+                        ++voxelIdx;
+                    }
+                }
+            }
+            glUnmapNamedBuffer(mVoxelizer.mVoxelStore);
+
+            // tighten the object count to just include populated entities
+            mObjectsCount = entityIdx;
+        }
+    }
+
+    for (std::size_t lightIdx = 0; lightIdx != mLights.mPointCount; ++lightIdx)
+    {
+        const auto & light = mLights.mPointLights[lightIdx];
+        auto & entity = mEntities.mEntities[mObjectsCount + lightIdx];
+        entity.mLocalToWorld =
+            math::trans3d::scaleUniform(light.mRadius.mMin)
+            * math::trans3d::translate(light.mPosition.as<math::Vec>());
+        entity.mColorFactor = light.mColors.mSpecularColor;
+    }
+    // TODO: address this duplicate load of the entities buffer
+    loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
+}
+
+
+void Scene::render(math::Size<2, int> aBackbufferResolution)
+{
+    renderTo(graphics::FrameBuffer::Default(), aBackbufferResolution);
+}
+
+
+void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
+{
     //
     // Camera
     //
@@ -374,7 +371,14 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     }
     else
     {
-        mGraph.renderSimple(mSceneTree);
+        if (mSceneControl.mVoxelPov)
+        {
+            mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+        }
+        else
+        {
+            mGraph.renderSimple(mSceneTree);
+        }
     }
 
     //
@@ -407,20 +411,21 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     }
 
     DBGDRAW.startFrame();
-    for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
+    if (mSceneControl.mDrawBoundingBoxes)
     {
-        DBGDRAW.addBox(
-            object.mAabb,
-            mSceneTree.mTree.mGlobalPose[nodeIdx],
-            math::hdr::gGreen<float>);
+        for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
+        {
+            DBGDRAW.addBox(
+                object.mAabb,
+                mSceneTree.mTree.mGlobalPose[nodeIdx],
+                math::hdr::gGreen<float>);
+        }
+        DBGDRAW.addBox(scenic::getAabb(mSceneTree),
+                       scenic::Pose{},
+                       math::hdr::gCyan<float>);
     }
-    DBGDRAW.addBox(scenic::getAabb(mSceneTree),
-                   scenic::Pose{},
-                   math::hdr::gCyan<float>);
     DBGDRAW.endFrame();
-
     mDebugRenderer.render(DBGDRAW.mFrameCommands);
-
 }
 
 
@@ -445,6 +450,8 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
     ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
     ImGui::Checkbox("Raytrace Voxels", &mSceneControl.mRaytraceVoxels);
+    ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
+    ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
 
     DearImguiWitness witness;
 
