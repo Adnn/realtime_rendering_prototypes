@@ -58,6 +58,64 @@ Voxelizer::Voxelizer()
 }
 
 
+void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aGridDimension,
+                            const graphics::UniformBufferObject & aViewProjectionBuffer,
+                            const FrameGraph & aGraph)
+{
+    // Requirement because on the shader side, we have to treat the SSBO 
+    // as an array of uint (which are 4 bytes), and we store voxel per byte.
+    assert((aGridDimension % 4) == 0);
+
+    const math::Box<float> sceneAabb = scenic::getAabb(aScene);
+    // TODO: there is a duplication of the maxSide computation
+    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+
+    const math::Position<3, GLfloat> camOffset =
+        -sceneAabb.leftBottomZMin()
+        - math::Vec<3, GLfloat>{maxSide / 2, maxSide / 2, maxSide};
+    const GLfloat camScale = 1 / maxSide;
+
+    graphics::loadSingle(aViewProjectionBuffer,
+                         scenic::GpuViewProjectionBlock{
+                             prepareVoxelizationCamera(sceneAabb)},
+                         graphics::BufferHint::StreamDraw);
+
+    std::size_t storeByteSize = VoxelsSsbo_glsl::ComputeByteSize(aGridDimension);
+    mVoxelsByteSize = storeByteSize - offsetof(VoxelsSsbo_glsl, mVoxels);
+
+    // Immutable: should be done only once, cannot resize
+    //const GLbitfield flags = GL_MAP_READ_BIT;
+    //glNamedBufferStorage(mVoxelStore, mStoreByteSize, nullptr, flags);
+    // Mutable
+    // TODO: chose the correct usage when we do not read from client anymore
+    // (probably dynamic_copy)
+    glNamedBufferData(mVoxelStore, storeByteSize, nullptr, GL_STREAM_READ);
+
+    // Note: is it usefull for a buffer that was just created?
+    const std::uint8_t zero = 0;
+    glClearNamedBufferData(mVoxelStore, GL_R8, GL_RED, GL_UNSIGNED_BYTE, &zero);
+
+    // TODO: solve the warning regarding moving from video to host memory
+    // (try mapping unsynchronized)
+    // The grid dimension is the first data in the SSBO, we have to write it
+    glNamedBufferSubData(mVoxelStore, offsetof(VoxelsSsbo_glsl, mGridDimension),
+                         sizeof(GLuint), &aGridDimension);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, mVoxelStore);
+
+    glViewport(0, 0, aGridDimension, aGridDimension);
+
+    const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisProgram;
+    graphics::setUniform(program, "u_AabbDepth", maxSide);
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_CULL_FACE);
+
+    drawPass(program, aScene);
+}
+
+
 void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension,
                          const graphics::UniformBufferObject & aViewProjectionBuffer,
                          const FrameGraph & aGraph)

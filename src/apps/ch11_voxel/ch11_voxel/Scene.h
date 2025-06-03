@@ -49,6 +49,7 @@ struct Scene
         bool mRaytraceVoxels = true;
         bool mDrawBoundingBoxes = true;
         bool mVoxelPov = false;
+        bool mUseDominantAxis = true;
     };
 
     Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);

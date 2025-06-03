@@ -213,7 +213,14 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
     //
     if (mSceneControl.mShowVoxels)
     {
-        mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+        if (mSceneControl.mUseDominantAxis)
+        {
+            mVoxelizer.voxelizeDominantAxis(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+        }
+        else
+        {
+            mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+        }
 
         const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
         const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
@@ -451,9 +458,18 @@ void Scene::presentUi(bool * aOpen)
 
     // Scene control
     ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
-    ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
-    ImGui::Checkbox("Raytrace Voxels", &mSceneControl.mRaytraceVoxels);
     ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
+
+    ImGui::SeparatorText("Voxelization:");
+    ImGui::Checkbox("Dominant Axis Method", &mSceneControl.mUseDominantAxis);
+    ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
+    ImGui::Indent();
+    {
+        if (!mSceneControl.mShowVoxels) ImGui::BeginDisabled();
+        ImGui::Checkbox("Raytrace Voxels", &mSceneControl.mRaytraceVoxels);
+        if (!mSceneControl.mShowVoxels) ImGui::EndDisabled();
+    }
+    ImGui::Unindent();
     ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
 
     DearImguiWitness witness;
