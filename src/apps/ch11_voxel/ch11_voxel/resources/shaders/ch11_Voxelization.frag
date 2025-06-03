@@ -16,5 +16,5 @@ void main(void)
 	ivec3 voxel = ivec3( ivec2(gl_FragCoord.xy),
 				         max(0, (ub_GridDimension - 1) - z) );
 
-	setVoxelValue(voxel, 1);
+	markOccupiedAtomic(voxel);
 }

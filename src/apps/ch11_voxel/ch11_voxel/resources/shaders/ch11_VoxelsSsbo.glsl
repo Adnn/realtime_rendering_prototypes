@@ -35,6 +35,7 @@ uint getVoxelValue(ivec3 aVoxel)
 }
 
 
+// Set the 8-bit value from aValue
 void setVoxelValue(ivec3 aVoxel, uint aValue)
 {
 	uint idx = getVoxelTableIdx(aVoxel);
@@ -49,5 +50,12 @@ void setVoxelValue(ivec3 aVoxel, uint aValue)
 	//ub_Voxels[idx] = 0x01010101;
 }
 
+
+void markOccupiedAtomic(ivec3 aVoxel)
+{
+	uint idx = getVoxelTableIdx(aVoxel);
+	uint mask = 1u << ((aVoxel.z % gVoxelPerUint) * 8);
+	atomicOr(ub_Voxels[idx], mask);
+}
 
 #endif //VOXELSSSBO_GLSL_INCLUDE_GUARD
