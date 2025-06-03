@@ -70,15 +70,13 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     // TODO: there is a duplication of the maxSide computation
     const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
 
+    // We remap [[-halfSide, halfSide]^2, [-side, 0]] to [-1, 1]^3
+    // Note that we also inverse the sign on Z axis, to change handedness 
+    // (clip is left-handed)
     const math::Position<3, GLfloat> camOffset =
         -sceneAabb.leftBottomZMin()
-        - math::Vec<3, GLfloat>{maxSide / 2, maxSide / 2, maxSide};
-    const GLfloat camScale = 1 / maxSide;
-
-    graphics::loadSingle(aViewProjectionBuffer,
-                         scenic::GpuViewProjectionBlock{
-                             prepareVoxelizationCamera(sceneAabb)},
-                         graphics::BufferHint::StreamDraw);
+        - math::Vec<3, GLfloat>{maxSide / 2, maxSide / 2, maxSide / 2};
+    const math::Vec<3, GLfloat> camScale = {2 / maxSide, 2 / maxSide, -2 / maxSide};
 
     std::size_t storeByteSize = VoxelsSsbo_glsl::ComputeByteSize(aGridDimension);
     mVoxelsByteSize = storeByteSize - offsetof(VoxelsSsbo_glsl, mVoxels);
@@ -106,11 +104,45 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     glViewport(0, 0, aGridDimension, aGridDimension);
 
     const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisProgram;
-    graphics::setUniform(program, "u_AabbDepth", maxSide);
+    graphics::setUniform(program, "u_CameraOffset", camOffset);
+    graphics::setUniform(program, "u_CameraScale", camScale);
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDisable(GL_CULL_FACE);
+
+    drawPass(program, aScene);
+}
+
+
+void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuint aGridDimension,
+                                         const graphics::UniformBufferObject & aViewProjectionBuffer,
+                                         const FrameGraph & aGraph)
+{
+    const math::Box<float> sceneAabb = scenic::getAabb(aScene);
+    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+
+    // Not used by this draw pass, but will be used for debug drawing boxes
+    graphics::loadSingle(aViewProjectionBuffer,
+                         scenic::GpuViewProjectionBlock{
+                             prepareVoxelizationCamera(sceneAabb)},
+                         graphics::BufferHint::StreamDraw);
+
+    const math::Position<3, GLfloat> camOffset =
+        -sceneAabb.leftBottomZMin()
+        - math::Vec<3, GLfloat>{maxSide / 2, maxSide / 2, maxSide / 2};
+    const math::Vec<3, GLfloat> camScale = {2 / maxSide, 2 / maxSide, -2 / maxSide};
+
+    // Done by calling context
+    //glViewport();
+
+    const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisViewProgram;
+    graphics::setUniform(program, "u_CameraOffset", camOffset);
+    graphics::setUniform(program, "u_CameraScale", camScale);
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_CULL_FACE);
 
     drawPass(program, aScene);
 }

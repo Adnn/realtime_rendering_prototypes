@@ -40,6 +40,10 @@ struct Voxelizer
                               const graphics::UniformBufferObject & aViewProjectionBuffer,
                               const FrameGraph & aGraph);
 
+    void voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuint aGridDimension,
+                                  const graphics::UniformBufferObject & aViewProjectionBuffer,
+                                  const FrameGraph & aGraph);
+
     void voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension,
                   // TODO: take a FrameGraph (when the buffers are moved there)
                   const graphics::UniformBufferObject & aViewProjectionBuffer,

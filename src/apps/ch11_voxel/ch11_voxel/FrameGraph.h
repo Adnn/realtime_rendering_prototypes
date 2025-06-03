@@ -55,6 +55,7 @@ struct FrameGraph
         renderer::IntrospectProgram mVoxelizationProgram;
         renderer::IntrospectProgram mVoxelizationDominantAxisProgram;
         renderer::IntrospectProgram mVoxelizationViewProgram;
+        renderer::IntrospectProgram mVoxelizationDominantAxisViewProgram;
     };
 
 

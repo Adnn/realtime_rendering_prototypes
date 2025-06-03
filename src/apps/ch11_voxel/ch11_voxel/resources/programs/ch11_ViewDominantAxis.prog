@@ -1,0 +1,6 @@
+{
+    "vertex": "shaders/FullTransform.vert",
+    "geometry": "shaders/ch11_DominantAxisProjection.geom",
+    "fragment": "shaders/BlinnPhong.frag",
+    "defines":  ["ENTITIES"]
+}

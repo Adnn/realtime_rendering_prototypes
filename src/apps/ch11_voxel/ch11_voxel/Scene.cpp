@@ -383,7 +383,14 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
         {
             int min = *aBackbufferResolution.getMinMagnitudeElement();
             glViewport(0, 0, min, min);
-            mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+            if (mSceneControl.mUseDominantAxis)
+            {
+                mVoxelizer.voxelizeDominantAxisView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+            }
+            else
+            {
+                mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+            }
         }
         else
         {

@@ -33,6 +33,7 @@ namespace ad {
         const renderer::ReferencePath gVoxelizationProgram{"programs/ch11_Voxelization.prog"};
         const renderer::ReferencePath gVoxelizationDominantAxisProgram{"programs/ch11_VoxelizationDominantAxis.prog"};
         const renderer::ReferencePath gVoxelizationViewProgram{"programs/ch11_View.prog"};
+        const renderer::ReferencePath gVoxelizationDominantAxisViewProgram{"programs/ch11_ViewDominantAxis.prog"};
 
 
     } // unnamed namespace
@@ -79,7 +80,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mRayTraceVoxels{ aEngine.loadProgram(renderer::ReferencePath{ gRayTraceVoxelsProgramPath }) },
     mVoxelizationProgram{ aEngine.loadProgram(gVoxelizationProgram) },
     mVoxelizationDominantAxisProgram{ aEngine.loadProgram(gVoxelizationDominantAxisProgram) },
-    mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) }
+    mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) },
+    mVoxelizationDominantAxisViewProgram{ aEngine.loadProgram(gVoxelizationDominantAxisViewProgram) }
 
 {}
 
