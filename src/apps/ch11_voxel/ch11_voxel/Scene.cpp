@@ -215,6 +215,10 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
     {
         mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
 
+        const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
+        const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+        mVoxelSize = maxSide / gGridDimension;
+
         if (!mSceneControl.mRaytraceVoxels)
         {
             mObjectsCount = std::pow(gGridDimension, 3);
@@ -234,9 +238,6 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
             // Ensure the vector can fit all objects and point lights
             mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
 
-            const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
-            const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-            mVoxelSize = maxSide / gGridDimension;
             const auto scaling = math::trans3d::scaleUniform(mVoxelSize / 2);
             math::Vec<3, float> stride{mVoxelSize, mVoxelSize, mVoxelSize};
             math::Vec<3, float> baseOffset =

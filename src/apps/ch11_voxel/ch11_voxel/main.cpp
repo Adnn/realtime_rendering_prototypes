@@ -30,7 +30,10 @@ int main(int argc, const char* argv[])
         ad::graphics::ApplicationGlfw application("ch11_voxel", 1080, 600,
                                                   ad::graphics::ApplicationFlag::None,
                                                   4, 6,
-                                                  { {GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET} });
+                                                  {
+                                                      {GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET},
+                                                      //{GLFW_OPENGL_DEBUG_CONTEXT, true},
+                                                  });
 
         // Sanity checks: the context is robust and lose context as requested
         {

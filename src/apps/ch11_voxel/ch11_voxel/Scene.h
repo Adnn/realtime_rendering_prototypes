@@ -46,7 +46,7 @@ struct Scene
     {
         bool mShowPunctualLights = false;
         bool mShowVoxels = false;
-        bool mRaytraceVoxels = false;
+        bool mRaytraceVoxels = true;
         bool mDrawBoundingBoxes = true;
         bool mVoxelPov = false;
     };

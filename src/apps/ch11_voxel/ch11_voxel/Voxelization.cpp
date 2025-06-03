@@ -54,6 +54,7 @@ std::size_t VoxelsSsbo_glsl::ComputeByteSize(GLuint aGridDimension)
 Voxelizer::Voxelizer()
 {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, mVoxelStore); // Generate the buffer
+    glObjectLabel(GL_BUFFER, mVoxelStore, -1, "ssbo_voxel_store");
 }
 
 
