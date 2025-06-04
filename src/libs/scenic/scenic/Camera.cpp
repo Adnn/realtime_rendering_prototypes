@@ -201,6 +201,7 @@ void OrbitalControl::callbackCursorPosition(double xpos, double ypos)
 
 void OrbitalControl::update(float aViewHeightInWorld, int aWindowHeight)
 {
+    assert(aWindowHeight != 0);
     mOrbital.pan(mDragVector_cursor * aViewHeightInWorld / aWindowHeight);
     mDragVector_cursor = {0.f, 0.f};
 }

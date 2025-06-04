@@ -49,14 +49,17 @@ int main(int argc, const char * argv[])
 
         while(application.nextFrame())
         {
-            application.getAppInterface()->clear();
-            scene.step(timer, application.getAppInterface()->getWindowSize());
-            scene.render(application.getAppInterface()->getFramebufferSize());
-            timer.mark(glfwGetTime());
+            if (application.getAppInterface()->isWindowOnDisplay())
+            {
+                application.getAppInterface()->clear();
+                scene.step(timer, application.getAppInterface()->getWindowSize());
+                scene.render(application.getAppInterface()->getFramebufferSize());
 
-            ad::imguiui::newFrame();
-            ui.present("Root", scene);
-            ad::imguiui::renderFrame();
+                ad::imguiui::newFrame();
+                ui.present("Root", scene);
+                ad::imguiui::renderFrame();
+            }
+            timer.mark(glfwGetTime());
         }
     }
     catch(const std::exception & e)

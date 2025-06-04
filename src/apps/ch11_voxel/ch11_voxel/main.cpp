@@ -11,15 +11,6 @@
 #include <spdlog/spdlog.h>
 
 
-// TODOS:
-// * Merge back serializeTexture()
-// * Histogram computation for textures content (compute shaders)
-// * Depth texture linearization for display
-// * Render SSAO pass without rendering geometry (with the position buffer instead)
-// * Bilateralize the filter
-// * Attempt to accept larger noise textures
-// * Provide the viewport and the samples in UBOs
-
 int main(int argc, const char* argv[])
 {
     try
@@ -60,13 +51,16 @@ int main(int argc, const char* argv[])
 
         while(application.nextFrame())
         {
-            scene.step(timer, application.getAppInterface()->getWindowSize());
-            scene.render(application.getAppInterface()->getFramebufferSize());
-            timer.mark(glfwGetTime());
+            if (application.getAppInterface()->isWindowOnDisplay())
+            {
+                scene.step(timer, application.getAppInterface()->getWindowSize());
+                scene.render(application.getAppInterface()->getFramebufferSize());
 
-            ad::imguiui::newFrame();
-            ui.present("Root", scene);
-            ad::imguiui::renderFrame();
+                ad::imguiui::newFrame();
+                ui.present("Root", scene);
+                ad::imguiui::renderFrame();
+            }
+            timer.mark(glfwGetTime());
 
             // If an error occurs, such as infinite loop in a shader causing the driver to timeout
             // it seems to only be catched at this point, not immediately after the triggering drawcall.
