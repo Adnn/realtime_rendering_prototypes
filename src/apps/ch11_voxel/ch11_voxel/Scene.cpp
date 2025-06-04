@@ -213,7 +213,7 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
     //
     if (mSceneControl.mShowVoxels)
     {
-        if (mSceneControl.mUseDominantAxis)
+        if (mVoxelizer.mControl.mUseDominantAxis)
         {
             mVoxelizer.voxelizeDominantAxis(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
         }
@@ -383,7 +383,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
         {
             int min = *aBackbufferResolution.getMinMagnitudeElement();
             glViewport(0, 0, min, min);
-            if (mSceneControl.mUseDominantAxis)
+            if (mVoxelizer.mControl.mUseDominantAxis)
             {
                 mVoxelizer.voxelizeDominantAxisView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
             }
@@ -468,7 +468,8 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
 
     ImGui::SeparatorText("Voxelization:");
-    ImGui::Checkbox("Dominant Axis Method", &mSceneControl.mUseDominantAxis);
+    ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
+    ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
     ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
     ImGui::Indent();
     {

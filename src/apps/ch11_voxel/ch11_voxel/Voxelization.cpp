@@ -58,9 +58,24 @@ Voxelizer::Voxelizer()
 }
 
 
+Guard Voxelizer::guardConservativeRasterization()
+{
+    if (mControl.mConservativeRasterization
+        && GLAD_GL_NV_conservative_raster)
+    {
+        glEnable(GL_CONSERVATIVE_RASTERIZATION_NV);
+        return Guard{[]() { glDisable(GL_CONSERVATIVE_RASTERIZATION_NV); }};
+    }
+    else
+    {
+        return Guard{[]() {}};
+    }
+}
+
+
 void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                            const graphics::UniformBufferObject & aViewProjectionBuffer,
-                            const FrameGraph & aGraph)
+                                     const graphics::UniformBufferObject & aViewProjectionBuffer,
+                                     const FrameGraph & aGraph)
 {
     // Requirement because on the shader side, we have to treat the SSBO 
     // as an array of uint (which are 4 bytes), and we store voxel per byte.
@@ -111,6 +126,8 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     glDepthMask(GL_FALSE);
     glDisable(GL_CULL_FACE);
 
+    auto rasterizationGuard = guardConservativeRasterization();
+                
     drawPass(program, aScene);
 }
 
@@ -200,6 +217,8 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDisable(GL_CULL_FACE);
+
+    auto rasterizationGuard = guardConservativeRasterization();
 
     drawPass(program, aScene);
 

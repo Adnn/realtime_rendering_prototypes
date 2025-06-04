@@ -157,8 +157,13 @@ void main(void)
 			//
 			// Traversal phase
 			//
-			while(maxCw(currentVoxel) < ub_GridDimension && minCw(currentVoxel) >= 0)
+			#define MAX_STEPS (ub_GridDimension * 2)
+			// TODO: is it solving the crash? if so, understand why
+			uint stp = 0;
+			while(maxCw(currentVoxel) < ub_GridDimension && minCw(currentVoxel) >= 0
+				&& stp < MAX_STEPS)
 			{
+				++stp;
 				if (isVoxelOccupied(currentVoxel))
 				{
 					out_Color = colorHitFace(mask);

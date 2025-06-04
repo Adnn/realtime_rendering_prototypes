@@ -33,6 +33,12 @@ struct VoxelsSsbo_glsl
 
 struct Voxelizer
 {
+    struct VoxelizerControl
+    {
+        bool mUseDominantAxis = true;
+        bool mConservativeRasterization = false;
+    };
+
     Voxelizer();
 
     void voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aGridDimension,
@@ -54,6 +60,9 @@ struct Voxelizer
                   const graphics::UniformBufferObject & aViewProjectionBuffer,
                   const FrameGraph & aGraph);
 
+    Guard guardConservativeRasterization();
+
+    VoxelizerControl mControl;
     graphics::Buffer<graphics::BufferType::ShaderStorage> mVoxelStore;
     GLsizeiptr mVoxelsByteSize;
     graphics::VertexArrayObject mDummyVao;
