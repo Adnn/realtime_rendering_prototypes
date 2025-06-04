@@ -37,6 +37,7 @@ struct Voxelizer
     {
         bool mUseDominantAxis = true;
         bool mConservativeRasterization = false;
+        bool mConservativeDepthRange = false;
     };
 
     Voxelizer();

@@ -470,6 +470,7 @@ void Scene::presentUi(bool * aOpen)
     ImGui::SeparatorText("Voxelization:");
     ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
     ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
+    ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
     ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
     ImGui::Indent();
     {

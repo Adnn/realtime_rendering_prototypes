@@ -157,7 +157,7 @@ void main(void)
 			//
 			// Traversal phase
 			//
-			#define MAX_STEPS (ub_GridDimension * 2)
+			#define MAX_STEPS (ub_GridDimension * 3)
 			// TODO: is it solving the crash? if so, understand why
 			uint stp = 0;
 			while(maxCw(currentVoxel) < ub_GridDimension && minCw(currentVoxel) >= 0

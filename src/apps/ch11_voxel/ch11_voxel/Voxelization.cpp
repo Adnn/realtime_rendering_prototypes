@@ -121,6 +121,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisProgram;
     graphics::setUniform(program, "u_CameraOffset", camOffset);
     graphics::setUniform(program, "u_CameraScale", camScale);
+    graphics::setUniform(program, "u_ConservativeDepthRange", mControl.mConservativeDepthRange);
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
