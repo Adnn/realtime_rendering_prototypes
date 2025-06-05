@@ -102,7 +102,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     // Mutable
     // TODO: chose the correct usage when we do not read from client anymore
     // (probably dynamic_copy)
-    glNamedBufferData(mVoxelStore, storeByteSize, nullptr, GL_STREAM_READ);
+    glNamedBufferData(mVoxelStore, storeByteSize, nullptr, mControl.mCpuReadVoxels ? GL_STREAM_READ : GL_DYNAMIC_COPY);
 
     // Note: is it usefull for a buffer that was just created?
     const std::uint8_t zero = 0;
@@ -123,13 +123,21 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     graphics::setUniform(program, "u_CameraScale", camScale);
     graphics::setUniform(program, "u_ConservativeDepthRange", mControl.mConservativeDepthRange);
 
+    // Disable all operations on the Framebuffer
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    //glStencilMask(0);
+
     glDisable(GL_CULL_FACE);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     auto rasterizationGuard = guardConservativeRasterization();
                 
     drawPass(program, aScene);
+
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
 
 
@@ -160,7 +168,7 @@ void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuin
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-    glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
 
     drawPass(program, aScene);
 }
@@ -192,7 +200,7 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
     // Mutable
     // TODO: chose the correct usage when we do not read from client anymore
     // (probably dynamic_copy)
-    glNamedBufferData(mVoxelStore, storeByteSize, nullptr, GL_STREAM_READ);
+    glNamedBufferData(mVoxelStore, storeByteSize, nullptr, mControl.mCpuReadVoxels ? GL_DYNAMIC_READ : GL_DYNAMIC_COPY);
 
     // Note: is it usefull for a buffer that was just created?
     const std::uint8_t zero = 0;
@@ -215,9 +223,15 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
     glGenQueries(1, &query);
     glBeginQuery(GL_FRAGMENT_SHADER_INVOCATIONS, query);
 
+    // Disable all operations on the Framebuffer
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    //glStencilMask(0);
+
     glDisable(GL_CULL_FACE);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     auto rasterizationGuard = guardConservativeRasterization();
 
@@ -227,6 +241,8 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
     GLuint64 fragmentInvocations = 0;
     glGetQueryObjectui64v(query, GL_QUERY_RESULT, &fragmentInvocations);
     std::cerr << "Voxelization FS invocations: " << fragmentInvocations << std::endl;
+
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
 
 void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
@@ -255,7 +271,7 @@ void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimen
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-    glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
 
     drawPass(program, aScene);
 

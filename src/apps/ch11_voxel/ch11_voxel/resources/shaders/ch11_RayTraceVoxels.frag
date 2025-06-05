@@ -117,7 +117,7 @@ void main(void)
 			//
 			vec3 entry_world = rayOrigin_world + t * rayDir_world;
 			vec3 entry_aabb = entry_world - u_AabbMin;
-			ivec3 currentVoxel = ivec3(floor(entry_aabb / u_VoxelSize));
+			ivec3 currentVoxel = ivec3(entry_aabb / u_VoxelSize);
 			// Clamp to an actual voxel coordinate (rounding errors can introduce noise)
 			currentVoxel = clamp(currentVoxel, ivec3(0), ivec3(ub_GridDimension - 1));
 

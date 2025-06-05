@@ -57,6 +57,8 @@ struct Scene
 
     void loadPrograms();
 
+    void voxelize();
+
     void step(
         const graphics::Timer & aTimer,
         math::Size<2, int> aWindowResolution);
@@ -77,6 +79,7 @@ struct Scene
     SceneControl mSceneControl;
     scenic::TreeInteractionState mSceneTreeGuiState;
     debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
+    bool mVoxelizationRequest = true;
     Voxelizer mVoxelizer;
     float mVoxelSize{0.f};
 

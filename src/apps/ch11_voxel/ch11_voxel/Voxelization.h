@@ -38,6 +38,8 @@ struct Voxelizer
         bool mUseDominantAxis = true;
         bool mConservativeRasterization = false;
         bool mConservativeDepthRange = false;
+        // Not intended for GUI, but internal value updated depending on the usage context
+        bool mCpuReadVoxels = false;
     };
 
     Voxelizer();

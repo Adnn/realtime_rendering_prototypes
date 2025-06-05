@@ -32,7 +32,7 @@
 
 namespace ad {
 
-constexpr unsigned int gGridDimension = 64;
+constexpr unsigned int gGridDimension = 512;
 
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
@@ -170,6 +170,36 @@ renderer::LightsDataCommon transformLightsData(
 }
 
 
+void Scene::voxelize()
+{
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "voxelization");
+
+    const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
+    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+    mVoxelSize = maxSide / gGridDimension;
+
+    mVoxelizer.mControl.mCpuReadVoxels = !mSceneControl.mRaytraceVoxels;
+
+    if (mVoxelizer.mControl.mUseDominantAxis)
+    {
+        mVoxelizer.voxelizeDominantAxis(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+    }
+    else
+    {
+        mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+    }
+
+    //mVoxelizer.prepareMipmap(gGridDimension);
+
+    // This is actually required to guarantee all writes are visible to subsequent
+    // shader reads
+    // TODO: place this barrier more tightly
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    glPopDebugGroup();
+}
+
+
 void Scene::step(const graphics::Timer & /*aTimer*/,
                  math::Size<2, int> aWindowResolution)
 {
@@ -208,76 +238,65 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
 
-    //
-    // Voxelization
-    //
-    if (mSceneControl.mShowVoxels)
+    if(mVoxelizationRequest)
     {
-        if (mVoxelizer.mControl.mUseDominantAxis)
-        {
-            mVoxelizer.voxelizeDominantAxis(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
-        }
-        else
-        {
-            mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
-        }
+        voxelize();
+        mVoxelizationRequest = false;
+    }
 
+    if (mSceneControl.mShowVoxels && !mSceneControl.mRaytraceVoxels)
+    {
         const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
-        const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-        mVoxelSize = maxSide / gGridDimension;
 
-        if (!mSceneControl.mRaytraceVoxels)
+        mObjectsCount = std::pow(gGridDimension, 3);
+        std::uint8_t * buffer =
+            (std::uint8_t *)glMapNamedBufferRange(mVoxelizer.mVoxelStore,
+                                                  offsetof(VoxelsSsbo_glsl, mVoxels),
+                                                  mVoxelizer.mVoxelsByteSize,
+                                                  GL_MAP_READ_BIT);
+
+        //std::cerr << "From " << fragmentInvocations << " FS invocations: ";
+        //for (unsigned int i = 0; i != mVoxelizer.mVoxelsByteSize; ++i)
+        //{
+        //    std::cerr << (unsigned)buffer[i] << " ";
+        //}
+        //std::cerr << std::endl;
+
+        // Ensure the vector can fit all objects and point lights
+        mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
+
+        const auto scaling = math::trans3d::scaleUniform(mVoxelSize / 2);
+        math::Vec<3, float> stride{mVoxelSize, mVoxelSize, mVoxelSize};
+        math::Vec<3, float> baseOffset =
+            sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
+        unsigned int voxelIdx = 0;
+        unsigned int entityIdx = 0;
+
+        for (unsigned int y = 0; y != gGridDimension; ++y)
         {
-            mObjectsCount = std::pow(gGridDimension, 3);
-            std::uint8_t * buffer =
-                (std::uint8_t *)glMapNamedBufferRange(mVoxelizer.mVoxelStore,
-                                                      offsetof(VoxelsSsbo_glsl, mVoxels),
-                                                      mVoxelizer.mVoxelsByteSize,
-                                                      GL_MAP_READ_BIT);
-
-            //std::cerr << "From " << fragmentInvocations << " FS invocations: ";
-            //for (unsigned int i = 0; i != mVoxelizer.mVoxelsByteSize; ++i)
-            //{
-            //    std::cerr << (unsigned)buffer[i] << " ";
-            //}
-            //std::cerr << std::endl;
-
-            // Ensure the vector can fit all objects and point lights
-            mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
-
-            const auto scaling = math::trans3d::scaleUniform(mVoxelSize / 2);
-            math::Vec<3, float> stride{mVoxelSize, mVoxelSize, mVoxelSize};
-            math::Vec<3, float> baseOffset =
-                sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
-            unsigned int voxelIdx = 0;
-            unsigned int entityIdx = 0;
-
-            for (unsigned int y = 0; y != gGridDimension; ++y)
+            for (unsigned int x = 0; x != gGridDimension; ++x)
             {
-                for (unsigned int x = 0; x != gGridDimension; ++x)
+                for (unsigned int z = 0; z != gGridDimension; ++z)
                 {
-                    for (unsigned int z = 0; z != gGridDimension; ++z)
+                    if (buffer[voxelIdx] == 1)
                     {
-                        if (buffer[voxelIdx] == 1)
-                        {
-                            auto & entity = mEntities.mEntities[entityIdx];
-                            entity.mLocalToWorld =
-                                scaling
-                                * math::trans3d::translate(
-                                    baseOffset
-                                    + stride.cwMul({(float)x, (float)y, float(z)}));
-                            entity.mColorFactor = math::hdr::gWhite<float>;
-                            ++entityIdx;
-                        }
-                        ++voxelIdx;
+                        auto & entity = mEntities.mEntities[entityIdx];
+                        entity.mLocalToWorld =
+                            scaling
+                            * math::trans3d::translate(
+                                baseOffset
+                                + stride.cwMul({(float)x, (float)y, float(z)}));
+                        entity.mColorFactor = math::hdr::gWhite<float>;
+                        ++entityIdx;
                     }
+                    ++voxelIdx;
                 }
             }
-            glUnmapNamedBuffer(mVoxelizer.mVoxelStore);
-
-            // tighten the object count to just include populated entities
-            mObjectsCount = entityIdx;
         }
+        glUnmapNamedBuffer(mVoxelizer.mVoxelStore);
+
+        // tighten the object count to just include populated entities
+        mObjectsCount = entityIdx;
     }
 
     for (std::size_t lightIdx = 0; lightIdx != mLights.mPointCount; ++lightIdx)
@@ -316,12 +335,18 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
     glViewport(0, 0, aBackbufferResolution.width(), aBackbufferResolution.height());
     glClearColor(0.1f, 0.2f, 0.3f, 1.f);
+    // Required to actually clear the depth buffer
+    glDepthMask(GL_TRUE);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (mSceneControl.mShowVoxels)
     {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
         if (mSceneControl.mRaytraceVoxels)
         {
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "render_voxels_raytrace");
+
             glBindVertexArray(mGraph.mDummyVao);
 
             const auto & program = mGraph.mPrograms.mRayTraceVoxels;
@@ -349,9 +374,16 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             graphics::setUniform(program, "u_VoxelSize", mVoxelSize);
 
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+            glPopDebugGroup();
         }
         else
         {
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "render_voxels_mesh");
+
+            glEnable(GL_DEPTH_TEST);
+            glEnable(GL_CULL_FACE);
+
             const auto & program = mGraph.mPrograms.mBlinnPhong;
             glUseProgram(program);
 
@@ -375,6 +407,8 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
                     throw std::logic_error{"Who is not using indexed rendering?"};
                 }
             }
+
+            glPopDebugGroup();
         }
     }
     else
@@ -468,9 +502,9 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
 
     ImGui::SeparatorText("Voxelization:");
-    ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
-    ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
-    ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
+    mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
+    mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
+    mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
     ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
     ImGui::Indent();
     {
