@@ -37,11 +37,11 @@ struct Voxelizer
     struct VoxelizerControl
     {
         bool mUseDominantAxis = true;
-        bool mConservativeRasterization = false;
+        bool mConservativeRasterization = true;
         bool mConservativeDepthRange = false;
         // Not intended for GUI, but internal value updated depending on the usage context
         bool mCpuReadVoxels = false;
-        bool mLinearFiltering = false;
+        bool mLinearFiltering = true;
     };
 
     Voxelizer();

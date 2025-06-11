@@ -12,3 +12,6 @@ Rasterizer,”
   http://www.cse.yorku.ca/~amana/research/grid.pdf
   * Fast and simple voxel traversal algorithm (3D DDA). 
 	Used to render a dense voxel grid via raytracing.
+
+* Building an Orthonormal Basis, Revisited,
+  https://graphics.pixar.com/library/OrthonormalB/paper.pdf

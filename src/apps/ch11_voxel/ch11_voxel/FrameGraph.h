@@ -33,7 +33,8 @@ struct FrameGraph
          }; 
 
         decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
-        math::Radian<GLfloat> mConeAperture = math::Degree<GLfloat>{20.f};
+        math::Radian<GLfloat> mConeAperture = math::Degree<GLfloat>{30.f};
+        bool mGridAlign = false;
     };
 
     FrameGraph(math::Size<2, int> aFrameSize);

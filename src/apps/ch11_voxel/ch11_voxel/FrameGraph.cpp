@@ -143,6 +143,7 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_AabbMin", aabb.leftBottomZMin());
 
     graphics::setUniform(program, "u_TanHalfAperture", mFrameControl.mConeAperture.data());
+    graphics::setUniform(program, "u_GridAlign", mFrameControl.mGridAlign);
 
 
     passForward(aSceneTree, program);
@@ -173,7 +174,10 @@ void FrameGraph::appendUi()
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
     ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mConeAperture.data(), 0.f, 180.f);
+
+    ImGui::Checkbox("Grid Aligned Trace Origin", &mFrameControl.mGridAlign);
 }
+
 
 
 } // namespace ad
