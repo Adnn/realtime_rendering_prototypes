@@ -32,7 +32,8 @@
 
 namespace ad {
 
-constexpr unsigned int gGridDimension = 512;
+// TODO: make user controlled
+constexpr unsigned int gGridDimension = 256;
 
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
@@ -45,10 +46,13 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Mat/meetmat_2.glb"}};
 //constexpr float gModelScale = 0.1f;
 
-const renderer::ReferencePath gModelPaths[] = {
-    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
-};
+const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza/sponza.obj"}};
 constexpr float gModelScale = 0.01f;
+
+//const renderer::ReferencePath gModelPaths[] = {
+//    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
+//};
+//constexpr float gModelScale = 0.01f;
 
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/4x4_cube/4x4_cube.gltf"}};
 //constexpr float gModelScale = 1.f;
@@ -176,7 +180,7 @@ void Scene::voxelize()
 
     const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
     const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-    mVoxelSize = maxSide / gGridDimension;
+    mVoxelizer.mVoxelSize = maxSide / gGridDimension;
 
     mVoxelizer.mControl.mCpuReadVoxels = !mSceneControl.mRaytraceVoxels;
 
@@ -189,7 +193,7 @@ void Scene::voxelize()
         mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
     }
 
-    //mVoxelizer.prepareMipmap(gGridDimension);
+    mVoxelizer.prepareMipmap(gGridDimension);
 
     // This is actually required to guarantee all writes are visible to subsequent
     // shader reads
@@ -244,7 +248,7 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
         mVoxelizationRequest = false;
     }
 
-    if (mSceneControl.mShowVoxels && !mSceneControl.mRaytraceVoxels)
+    if (mSceneControl.showVoxels() && !mSceneControl.mRaytraceVoxels)
     {
         const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
 
@@ -265,8 +269,9 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
         // Ensure the vector can fit all objects and point lights
         mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
 
-        const auto scaling = math::trans3d::scaleUniform(mVoxelSize / 2);
-        math::Vec<3, float> stride{mVoxelSize, mVoxelSize, mVoxelSize};
+        float voxelSize = mVoxelizer.mVoxelSize;
+        const auto scaling = math::trans3d::scaleUniform(voxelSize / 2);
+        math::Vec<3, float> stride{voxelSize, voxelSize, voxelSize};
         math::Vec<3, float> baseOffset =
             sceneAabb.mPosition.as<math::Vec>() + stride / 2.f;
         unsigned int voxelIdx = 0;
@@ -339,7 +344,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     glDepthMask(GL_TRUE);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (mSceneControl.mShowVoxels)
+    if (mSceneControl.showVoxels())
     {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -371,7 +376,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             };
             graphics::setUniform(program, "u_ImagePlane_view", imagePlaneSize);
 
-            graphics::setUniform(program, "u_VoxelSize", mVoxelSize);
+            graphics::setUniform(program, "u_VoxelSize", mVoxelizer.mVoxelSize);
 
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -411,25 +416,26 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             glPopDebugGroup();
         }
     }
-    else
+    else if (mSceneControl.mVoxelPov)
     {
-        if (mSceneControl.mVoxelPov)
+        int min = *aBackbufferResolution.getMinMagnitudeElement();
+        glViewport(0, 0, min, min);
+        if (mVoxelizer.mControl.mUseDominantAxis)
         {
-            int min = *aBackbufferResolution.getMinMagnitudeElement();
-            glViewport(0, 0, min, min);
-            if (mVoxelizer.mControl.mUseDominantAxis)
-            {
-                mVoxelizer.voxelizeDominantAxisView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
-            }
-            else
-            {
-                mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
-            }
+            mVoxelizer.voxelizeDominantAxisView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
         }
         else
         {
-            mGraph.renderSimple(mSceneTree);
+            mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
         }
+    }
+    else if (mSceneControl.mMode == SceneControl::Mode::ConeTrace)
+    {
+        mGraph.renderConeTrace(mSceneTree, mVoxelizer);
+    }
+    else
+    {
+        mGraph.renderSimple(mSceneTree);
     }
 
     //
@@ -498,6 +504,16 @@ void Scene::presentUi(bool * aOpen)
     }
 
     // Scene control
+    imguiui::addComboContinuousEnum<SceneControl::Mode::_End>(
+        "Mode", mSceneControl.mMode);
+    ImGui::Indent();
+    {
+        if (!mSceneControl.showVoxels()) ImGui::BeginDisabled();
+        ImGui::Checkbox("Raytrace Voxels", &mSceneControl.mRaytraceVoxels);
+        if (!mSceneControl.showVoxels()) ImGui::EndDisabled();
+    }
+    ImGui::Unindent();
+
     ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
     ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
 
@@ -505,14 +521,7 @@ void Scene::presentUi(bool * aOpen)
     mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
     mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
     mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
-    ImGui::Checkbox("Show Voxels", &mSceneControl.mShowVoxels);
-    ImGui::Indent();
-    {
-        if (!mSceneControl.mShowVoxels) ImGui::BeginDisabled();
-        ImGui::Checkbox("Raytrace Voxels", &mSceneControl.mRaytraceVoxels);
-        if (!mSceneControl.mShowVoxels) ImGui::EndDisabled();
-    }
-    ImGui::Unindent();
+    mVoxelizationRequest |= ImGui::Checkbox("Trace linear filtering", &mVoxelizer.mControl.mLinearFiltering);
     ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
 
     DearImguiWitness witness;
@@ -562,5 +571,20 @@ void Scene::presentUi(bool * aOpen)
 
     ImGui::End();
 }
+
+
+std::string to_string(Scene::SceneControl::Mode aValue)
+{
+#define STR(enumerator) case Scene::SceneControl::Mode::enumerator: return #enumerator
+    switch (aValue)
+    {
+        STR(FullScene);
+        STR(ConeTrace);
+        STR(Voxels);
+    default:
+        throw std::logic_error{ "Unhandled mode." };
+    }
+}
+
 
 } // namespace ad

@@ -282,4 +282,62 @@ void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimen
 }
 
 
+void Voxelizer::prepareMipmap(GLuint aGridDimension)
+{
+    mOccupancy = {GL_TEXTURE_3D};
+    // For creation
+    graphics::bind(mOccupancy);
+
+    if (mControl.mLinearFiltering)
+    {
+        glTextureParameteri(mOccupancy, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(mOccupancy, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    GLsizei levels = GLsizei(std::log2(aGridDimension)) + 1;
+    glTextureStorage3D(mOccupancy, levels, GL_RGBA8, aGridDimension, aGridDimension, aGridDimension);
+
+    std::uint8_t * buffer =
+        (std::uint8_t *)glMapNamedBufferRange(mVoxelStore,
+                                              offsetof(VoxelsSsbo_glsl, mVoxels),
+                                              mVoxelsByteSize,
+                                              GL_MAP_READ_BIT);
+    std::vector<math::sdr::Rgba> textureData;
+    textureData.reserve(mVoxelsByteSize);
+    // Need to reorder: the buffer is stored Z-first
+    //for (std::size_t idx = 0; idx != mVoxelsByteSize; ++idx)
+    //{
+    //    textureData.push_back({0, 0, 0, 
+    //                          (std::uint8_t)((buffer[idx] == 1) ? 255 : 0)});
+    //}
+
+    unsigned int zStride = 1;
+    unsigned int xStride = aGridDimension * zStride;
+    unsigned int yStride = aGridDimension * xStride;
+
+    // The buffer is stored Z-first, whereas the 3D textures are Z-last
+    // We could either sample Z-first in the shader, or fix it here
+    for (unsigned int z = 0; z != aGridDimension; ++z)
+    {
+        for (unsigned int y = 0; y != aGridDimension; ++y)
+        {
+            for (unsigned int x = 0; x != aGridDimension; ++x)
+            {
+                std::size_t idx = z * zStride + y * yStride + x * xStride;
+                textureData.push_back({0, 0, 0, 
+                                      (std::uint8_t)((buffer[idx] == 1) ? 255 : 0)});
+            }
+        }
+    }
+
+    glUnmapNamedBuffer(mVoxelStore);
+
+    glTextureSubImage3D(mOccupancy, 0,
+                        0, 0, 0, aGridDimension, aGridDimension, aGridDimension,
+                        GL_RGBA, GL_UNSIGNED_BYTE, textureData.data());
+
+    glGenerateTextureMipmap(mOccupancy);
+}
+
+
 } // namespace ad

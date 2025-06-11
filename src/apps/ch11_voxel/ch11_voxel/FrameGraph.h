@@ -18,6 +18,8 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
               const scenic::SceneTree& aSceneTree);
 
 
+struct Voxelizer;
+
 
 struct FrameGraph
 {
@@ -31,6 +33,7 @@ struct FrameGraph
          }; 
 
         decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+        math::Radian<GLfloat> mConeAperture = math::Degree<GLfloat>{20.f};
     };
 
     FrameGraph(math::Size<2, int> aFrameSize);
@@ -38,8 +41,14 @@ struct FrameGraph
     void resizeFrame(math::Size<2, int> aRenderResolution);
 
     void renderSimple(const scenic::SceneTree & aSceneTree);
+    // TODO: It is unclear wether this is better to take a Voxelizer owning the voxel related resources
+    // or that this would own all resources, and the voxelizer would have a reference to the FrameGraph
+    // (second might be better so voxelizer could access other resources)
+    void renderConeTrace(const scenic::SceneTree & aSceneTree,
+                         Voxelizer & aVoxelizer);
 
-    void passBlinnPhong(const scenic::SceneTree & aSceneTree);
+    void passForward(const scenic::SceneTree & aSceneTree,
+                     const renderer::IntrospectProgram & aProgram);
 
     void loadPrograms();
 
@@ -50,6 +59,7 @@ struct FrameGraph
         ProgramStore(Engine & aEngine);
 
         renderer::IntrospectProgram mBlinnPhong;
+        renderer::IntrospectProgram mConeTrace;
         renderer::IntrospectProgram mRayTraceVoxels;
 
         renderer::IntrospectProgram mVoxelizationProgram;

@@ -1,8 +1,10 @@
 #include "FrameGraph.h"
 
-#include "log/Logging.h"
 #include "SetupDrawing.h"
 #include "UniformSetterWitness.h"
+#include "Voxelization.h"
+
+#include "log/Logging.h"
 
 #include <handy/vector_utils.h>
 
@@ -28,6 +30,7 @@ namespace ad {
 
 
         const std::filesystem::path gBlinnPhongProgramPath = "programs/RenderModel_BlinnPhong.prog";
+        const std::filesystem::path gConeTraceProgramPath = "programs/ch11_ConeTrace.prog";
         const std::filesystem::path gRayTraceVoxelsProgramPath = "programs/ch11_RayTraceVoxels.prog";
 
         const renderer::ReferencePath gVoxelizationProgram{"programs/ch11_Voxelization.prog"};
@@ -77,6 +80,7 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
 
 FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mBlinnPhong{ aEngine.loadProgram(renderer::ReferencePath{ gBlinnPhongProgramPath }) },
+    mConeTrace{ aEngine.loadProgram(renderer::ReferencePath{ gConeTraceProgramPath }) },
     mRayTraceVoxels{ aEngine.loadProgram(renderer::ReferencePath{ gRayTraceVoxelsProgramPath }) },
     mVoxelizationProgram{ aEngine.loadProgram(gVoxelizationProgram) },
     mVoxelizationDominantAxisProgram{ aEngine.loadProgram(gVoxelizationDominantAxisProgram) },
@@ -123,11 +127,30 @@ void FrameGraph::loadPrograms()
 
 void FrameGraph::renderSimple(const scenic::SceneTree & aSceneTree)
 {
-    passBlinnPhong(aSceneTree);
+    passForward(aSceneTree, mPrograms.mBlinnPhong);
 }
 
 
-void FrameGraph::passBlinnPhong(const scenic::SceneTree & aSceneTree)
+void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
+                                 Voxelizer & aVoxelizer)
+{
+    const auto & program = mPrograms.mConeTrace;
+    glBindTextureUnit(10, aVoxelizer.mOccupancy);
+
+    graphics::setUniform(program, "u_VoxelsAlbedoTexture", 10);
+    graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
+    math::Box<float> aabb = scenic::getAabb(aSceneTree);
+    graphics::setUniform(program, "u_AabbMin", aabb.leftBottomZMin());
+
+    graphics::setUniform(program, "u_TanHalfAperture", mFrameControl.mConeAperture.data());
+
+
+    passForward(aSceneTree, program);
+}
+
+
+void FrameGraph::passForward(const scenic::SceneTree & aSceneTree,
+                             const renderer::IntrospectProgram & aProgram)
 {
     glPolygonMode(GL_FRONT_AND_BACK, *mFrameControl.mPolygonMode);
     glEnable(GL_CULL_FACE);
@@ -135,9 +158,7 @@ void FrameGraph::passBlinnPhong(const scenic::SceneTree & aSceneTree)
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
 
-    const auto& program = mPrograms.mBlinnPhong;
-
-    drawPass(program, aSceneTree);
+    drawPass(aProgram, aSceneTree);
 }
 
 
@@ -150,6 +171,8 @@ void FrameGraph::appendUi()
                       FrameControl::gPolygonModes.begin(),
                       FrameControl::gPolygonModes.end(),
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
+
+    ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mConeAperture.data(), 0.f, 180.f);
 }
 
 

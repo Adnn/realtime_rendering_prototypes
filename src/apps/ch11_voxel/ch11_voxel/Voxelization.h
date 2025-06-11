@@ -3,6 +3,7 @@
 
 #include <engine/IntrospectProgram.h>
 
+#include <renderer/Texture.h>
 #include <renderer/UniformBuffer.h>
 
 
@@ -40,6 +41,7 @@ struct Voxelizer
         bool mConservativeDepthRange = false;
         // Not intended for GUI, but internal value updated depending on the usage context
         bool mCpuReadVoxels = false;
+        bool mLinearFiltering = false;
     };
 
     Voxelizer();
@@ -63,11 +65,15 @@ struct Voxelizer
                   const graphics::UniformBufferObject & aViewProjectionBuffer,
                   const FrameGraph & aGraph);
 
+    void prepareMipmap(GLuint aGridDimension);
+
     Guard guardConservativeRasterization();
 
     VoxelizerControl mControl;
     graphics::Buffer<graphics::BufferType::ShaderStorage> mVoxelStore;
     GLsizeiptr mVoxelsByteSize;
+    float mVoxelSize{0.f}; // World units
+    graphics::Texture mOccupancy{GL_TEXTURE_3D};
     graphics::VertexArrayObject mDummyVao;
 };
 

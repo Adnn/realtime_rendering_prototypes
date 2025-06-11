@@ -44,9 +44,24 @@ struct Scene
 {
     struct SceneControl
     {
-        bool mShowPunctualLights = false;
-        bool mShowVoxels = false;
+        enum class Mode 
+        {
+            FullScene,
+            ConeTrace,
+            Voxels,
+            _End/* keep last */
+        };
+
+        bool showVoxels() const
+        {
+            return mMode == Mode::Voxels;
+        };
+
+        Mode mMode{ Mode::FullScene };
+        //bool mShowVoxels = false;
         bool mRaytraceVoxels = true;
+
+        bool mShowPunctualLights = false;
         bool mDrawBoundingBoxes = true;
         bool mVoxelPov = false;
     };
@@ -81,7 +96,6 @@ struct Scene
     debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
     bool mVoxelizationRequest = true;
     Voxelizer mVoxelizer;
-    float mVoxelSize{0.f};
 
     std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
 
@@ -136,6 +150,9 @@ struct Scene
          },
     };
 };
+
+
+std::string to_string(Scene::SceneControl::Mode aValue);
 
 
 } // namespace ad
