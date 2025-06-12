@@ -72,8 +72,8 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
             {
                 throw std::logic_error{ "Who is not using indexed rendering?" };
             }
-            baseInstance += instanceCount;
         }
+        baseInstance += instanceCount;
     }
 }
 
