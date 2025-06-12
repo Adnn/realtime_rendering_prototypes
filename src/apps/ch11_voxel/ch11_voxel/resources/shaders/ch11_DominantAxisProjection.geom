@@ -8,10 +8,12 @@ layout(triangle_strip, max_vertices = 3) out;
 in vec3 ex_Position_world[];
 
 out vec3 ex_Position_grid;
+
 // usefull for a debug camera fragment shader
 out vec3 ex_Position_view;
 out vec4 ex_Color;
 out vec3 ex_Normal_view;
+out vec2 ex_Uv01;
 
 uniform vec3 u_CameraOffset;
 uniform vec3 u_CameraScale;
@@ -63,6 +65,10 @@ void main(void)
 		ex_Position_view = position_view.xyz;
 
 		ex_Normal_view = normalize(triangleNormal);
+
+		// TODO: this is non-sense, it should forward the actual value
+		// but we have a naming clash
+		ex_Uv01 = vec2(0, 0);
 
 		EmitVertex();
 	}

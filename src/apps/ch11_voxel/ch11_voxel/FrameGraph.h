@@ -15,7 +15,8 @@
 namespace ad {
 
 void drawPass(const renderer::IntrospectProgram & aProgram,
-              const scenic::SceneTree& aSceneTree);
+              const scenic::SceneTree & aSceneTree,
+              const Engine & aEngine);
 
 
 struct Voxelizer;

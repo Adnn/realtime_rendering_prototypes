@@ -4,7 +4,6 @@ set(${TARGET_NAME}_HEADERS
     DebugDrawing.h
     Engine.h
     FrameGraph.h
-    Material.h
     Scene.h
     SetupDrawing.h
     ShaderConstants.h

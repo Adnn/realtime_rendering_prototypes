@@ -17,5 +17,9 @@ struct Context
 
 void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelFile, Context& aContext, float aGlobalScale = 1.0f);
 
+void appendTextures(const std::filesystem::path & aPrefix, 
+                    TexturePaths & aAddedPaths,
+                    ModelStorage & aStorage);
+
 
 } // namespce ad::scenic

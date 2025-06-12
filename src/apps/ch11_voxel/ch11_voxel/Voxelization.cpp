@@ -135,7 +135,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
 
     auto rasterizationGuard = guardConservativeRasterization();
                 
-    drawPass(program, aScene);
+    drawPass(program, aScene, aGraph.mEngine);
 
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
@@ -170,7 +170,7 @@ void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuin
     glDepthMask(GL_TRUE);
     glDisable(GL_CULL_FACE);
 
-    drawPass(program, aScene);
+    drawPass(program, aScene, aGraph.mEngine);
 }
 
 
@@ -235,7 +235,7 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
 
     auto rasterizationGuard = guardConservativeRasterization();
 
-    drawPass(program, aScene);
+    drawPass(program, aScene, aGraph.mEngine);
 
     glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
     GLuint64 fragmentInvocations = 0;
@@ -273,7 +273,7 @@ void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimen
     glDepthMask(GL_TRUE);
     glDisable(GL_CULL_FACE);
 
-    drawPass(program, aScene);
+    drawPass(program, aScene, aGraph.mEngine);
 
     glEndQuery(GL_FRAGMENT_SHADER_INVOCATIONS);
     GLuint64 fragmentInvocations = 0;

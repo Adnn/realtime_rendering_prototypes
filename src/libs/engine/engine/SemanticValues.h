@@ -18,7 +18,7 @@ namespace semantic
     SEM(Normal);
     SEM(Position);
     SEM(Tangent);
-    SEM(Uv01);
+    SEM(Uv01); // 2 channels: UV_0 and UV_1
 
     #undef SEM
 

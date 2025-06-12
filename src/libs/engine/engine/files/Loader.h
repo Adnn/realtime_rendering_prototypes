@@ -29,6 +29,15 @@ struct ReferencePath
 // TODO: Move to a lower-level library (e.g. renderer/DdsGL.h)
 graphics::Texture loadDds(const std::filesystem::path & aDds);
 
+enum class ColorSpace
+{
+    Linear,
+    sRGB,
+};
+
+graphics::Texture loadTexture(const std::filesystem::path & aImagePath,
+                              ColorSpace aSourceColorSpace);
+
 
 struct Loader
 {

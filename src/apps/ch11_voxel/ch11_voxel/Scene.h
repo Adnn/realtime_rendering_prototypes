@@ -3,7 +3,6 @@
 
 #include "Engine.h"
 #include "FrameGraph.h"
-#include "Material.h"
 #include "Voxelization.h"
 
 #include "debug/DebugRenderer.h"
@@ -87,6 +86,7 @@ struct Scene
     FrameGraph mGraph;
 
     scenic::SceneTree mSceneTree;
+    scenic::GenericMaterialsBlock_glsl & mMaterials;
     scenic::OrbitalCamera mOrbitalCamera;
     //scenic::Environment mEnvironment;
     scenic::Object mSphere{ scenic::makeSphere(4) };
@@ -110,12 +110,7 @@ struct Scene
     // The count of entities to be rendered that are not lights
     // (i.e.: this is the index of the first light in the entities buffer)
     unsigned int mObjectsCount = 0;
-    PhongMaterialsBlock_glsl mMaterials{
-        .mCount = 1,
-        .mMaterials = {
-            makePhongMaterial(scenic::hdr::gBrickAlbedo),
-        },
-    };
+
     renderer::LightsDataCommon mLights{
         .mDirectionalCount = 0,
         .mPointCount = 1,

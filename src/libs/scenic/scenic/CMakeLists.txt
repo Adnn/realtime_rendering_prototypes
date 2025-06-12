@@ -8,6 +8,7 @@ set(${TARGET_NAME}_HEADERS
     ColorPalettes.h
     Hierarchy.h
     LoadScene.h
+    Material.h
     Model.h
     Pose.h
     Shapes.h

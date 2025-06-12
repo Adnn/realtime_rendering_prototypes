@@ -2,6 +2,7 @@
 
 
 #include "Hierarchy.h"
+#include "Material.h"
 #include "Pose.h"
 
 #include <engine/Semantic.h>
@@ -9,6 +10,7 @@
 #include <math/Box.h>
 
 #include <renderer/BufferBase.h>
+#include <renderer/Texture.h>
 #include <renderer/VertexSpecification.h>
 
 #include <unordered_map>
@@ -20,6 +22,7 @@ namespace ad::scenic {
 template <class T>
 class Handle
 {
+public:
     std::vector<std::remove_cv_t<T>>::size_type mIndex;
 };
 
@@ -104,6 +107,11 @@ struct MeshPart
 };
 
 
+struct Material
+{
+    Handle<const GenericMaterial_glsl> mSurfaceParameters;
+};
+
 // Note: A representation of a mesh that owns an individual buffer for each vertex attribute
 //       This is simpler to implement (and manage lifetimes) than a shared buffer approach
 //       At the cost of leading to a distinct VAO per mesh (so state change, plus distinct draw calls).
@@ -131,6 +139,8 @@ struct MeshPart_Naive
     GLuint mIndicesCount = 0;   
 
     math::Box<float> mAabb;
+
+    Material mMaterial;
 };
 
 
@@ -171,9 +181,15 @@ SceneTree & mergeScenes(SceneTree & aBaseTree,
                         Node::Index aParent = Node::gInvalidIndex);
 
 
+using TexturePaths = std::vector<std::string>;
+// TODO: rename, this is more general than models
 struct ModelStorage
 {
     std::vector<VertexStream> mVertexStreams;
+    GenericMaterialsBlock_glsl mMaterials;
+
+    std::vector<graphics::Texture> mTextures;
+    TexturePaths mTexturePaths;
 };
 
 

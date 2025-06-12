@@ -29,7 +29,7 @@ namespace ad {
     namespace {
 
 
-        const std::filesystem::path gBlinnPhongProgramPath = "programs/RenderModel_BlinnPhong.prog";
+        const std::filesystem::path gBlinnPhongProgramPath = "programs/ch11_RenderModel_BlinnPhong.prog";
         const std::filesystem::path gConeTraceProgramPath = "programs/ch11_ConeTrace.prog";
         const std::filesystem::path gRayTraceVoxelsProgramPath = "programs/ch11_RayTraceVoxels.prog";
 
@@ -44,19 +44,34 @@ namespace ad {
 
 
 void drawPass(const renderer::IntrospectProgram & aProgram, 
-              const scenic::SceneTree & aSceneTree)
+              const scenic::SceneTree & aSceneTree,
+              const Engine & aEngine)
 {
     // We populated the per-instance buffer in the order of the objects map iteration
     // We keep track of the base-instance to access the correct index in the shader
     GLuint baseInstance = 0;
     const GLuint instanceCount = 1;
     glUseProgram(aProgram);
+
+    const GLuint diffuseTextureUnit = 0;
+    graphics::setUniform(aProgram, "u_AlbedoTexture", diffuseTextureUnit);
+
     for (const auto & [nodeIdx, object] : aSceneTree.mObjectsMap)
     {
         for (const scenic::MeshPart_Naive & part : object.mParts)
         {
             graphics::VertexArrayObject vao = prepareVAO(aProgram, part);
             glBindVertexArray(vao);
+
+            scenic::GenericMaterial_glsl material =
+                aEngine.mContext.mStorage.mMaterials.mMaterials[part.mMaterial.mSurfaceParameters.mIndex];
+
+            glBindTextureUnit(diffuseTextureUnit,
+                              aEngine.mContext.mStorage.mTextures.at(material.mDiffuseMap.mTextureIndex));
+
+            // TODO: move in the per logic entity buffer
+            graphics::setUniform(aProgram, "u_MaterialIdx",
+                                 (GLuint)part.mMaterial.mSurfaceParameters.mIndex);
 
             if (scenic::useElementIndices(part))
             {
@@ -159,7 +174,7 @@ void FrameGraph::passForward(const scenic::SceneTree & aSceneTree,
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
 
-    drawPass(aProgram, aSceneTree);
+    drawPass(aProgram, aSceneTree, mEngine);
 }
 
 

@@ -7,6 +7,7 @@
 layout(location=0) in vec3 ve_Position;
 layout(location=1) in vec3 ve_Normal;
 layout(location=2) in vec4 ve_Color;
+layout(location=3) in vec2 ve_Uv01;
 
 #if defined(ENTITIES)
 	// Note: currently replaced by gl_InstanceID because we have 1:1 mapping between instances and entities
@@ -28,6 +29,7 @@ out vec3 ex_Normal_world;
 out vec3 ex_Position_world;
 out vec3 ex_Normal_view;
 out vec3 ex_Position_view;
+out vec2 ex_Uv01;
 
 
 void main(void)
@@ -50,6 +52,8 @@ void main(void)
 	ex_Position_world = position_world.xyz;
 	vec4 position_view = ub_worldToCamera * position_world;
 	ex_Position_view = position_view.xyz;
+
+	ex_Uv01 = ve_Uv01;
 
 	gl_Position = ub_projection * position_view;
 }

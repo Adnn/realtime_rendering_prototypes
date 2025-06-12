@@ -120,7 +120,8 @@ Scene::Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aI
         std::bind(&Scene::onFramebufferResize, this, std::placeholders::_1))},
     mLightProgram{ mGraph.mEngine.loadProgram(renderer::ReferencePath{gLightProgramPath}) },
     mGraph(aAppInterface.getFramebufferSize()),
-    mSceneTree{ prepareSceneTree(mGraph.mEngine) }
+    mSceneTree{ prepareSceneTree(mGraph.mEngine) },
+    mMaterials{mGraph.mEngine.mContext.mStorage.mMaterials}
     //, mEnvironment{ scenic::prepareEnvironment(gEnvMapPath, mGraph.mEngine.mLoader) }
 {
     mOrbitalCamera.reset(math::getRatio<GLfloat>(aAppInterface.getWindowSize()));
