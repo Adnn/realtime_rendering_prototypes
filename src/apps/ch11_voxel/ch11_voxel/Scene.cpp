@@ -378,6 +378,8 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
 
             graphics::setUniform(program, "u_VoxelSize", mVoxelizer.mVoxelSize);
 
+            // TODO: Remove once fragment shader write the correct depth
+            glDepthMask(GL_FALSE);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
             glPopDebugGroup();
