@@ -46,8 +46,11 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Mat/meetmat_2.glb"}};
 //constexpr float gModelScale = 0.1f;
 
-const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza/sponza.obj"}};
-constexpr float gModelScale = 0.01f;
+//const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza/sponza.obj"}};
+//constexpr float gModelScale = 0.01f;
+
+const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza-gltf/glTF/Sponza.gltf"}};
+constexpr float gModelScale = 1.f;
 
 //const renderer::ReferencePath gModelPaths[] = {
 //    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
@@ -67,6 +70,8 @@ std::filesystem::path getCacheModel(renderer::ReferencePath aModel)
 }
 
 
+const bool gAssetCaching = false;
+
 scenic::SceneTree prepareSceneTree(Engine & aEngine)
 {
     scenic::SceneTree scene{
@@ -78,7 +83,7 @@ scenic::SceneTree prepareSceneTree(Engine & aEngine)
         scenic::SceneTree modelScene;
 
         std::filesystem::path cacheCandidate = getCacheModel(reference);
-        if (std::filesystem::is_regular_file(cacheCandidate))
+        if (std::filesystem::is_regular_file(cacheCandidate) && gAssetCaching)
         {
             ADLOG(info)("Loading model from runtime archive for '{}'.", reference.mPath);
             scenic::Serializer serializer;
@@ -94,10 +99,13 @@ scenic::SceneTree prepareSceneTree(Engine & aEngine)
                               aEngine.mContext,
                               gModelScale);
 
-            std::filesystem::create_directories(cacheCandidate.parent_path());
-            scenic::FileOutput archive{ cacheCandidate };
-            scenic::Serializer serializer;
-            serializer.serial(archive, modelScene);
+            if (gAssetCaching)
+            {
+                std::filesystem::create_directories(cacheCandidate.parent_path());
+                scenic::FileOutput archive{cacheCandidate};
+                scenic::Serializer serializer;
+                serializer.serial(archive, modelScene);
+            }
         }
         scenic::mergeScenes(scene, modelScene, scene.mTree.mFirstRoot);
     }

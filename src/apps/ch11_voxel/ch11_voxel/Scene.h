@@ -132,10 +132,10 @@ struct Scene
          },
         .mPointLights = {
             renderer::PointLight_glsl{
-                .mPosition = {0.0f, 1.7f, 1.0f},
+                .mPosition = {0.0f, 4.0f, 0.0f},
                 .mRadius{
-                    .mMin = 0.25f,
-                    .mMax = 5.f,
+                    .mMin = 0.5f,
+                    .mMax = 30.f,
                 },
                 .mColors = renderer::LightColors_glsl{} * 20.f,
             },
