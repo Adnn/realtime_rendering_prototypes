@@ -53,8 +53,10 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
     const GLuint instanceCount = 1;
     glUseProgram(aProgram);
 
-    const GLuint diffuseTextureUnit = 0;
+    const GLint diffuseTextureUnit = 0;
+    const GLint mraoTextureUnit = 2;
     graphics::setUniform(aProgram, "u_AlbedoTexture", diffuseTextureUnit);
+    graphics::setUniform(aProgram, "u_MraoTexture", mraoTextureUnit);
 
     for (const auto & [nodeIdx, object] : aSceneTree.mObjectsMap)
     {
@@ -63,11 +65,28 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
             graphics::VertexArrayObject vao = prepareVAO(aProgram, part);
             glBindVertexArray(vao);
 
+            // TODO: make that usable
             scenic::GenericMaterial_glsl material =
-                aEngine.mContext.mStorage.mMaterials.mMaterials[part.mMaterial.mSurfaceParameters.mIndex];
+                get(aEngine.mContext.mStorage, part.mMaterial.mSurfaceParameters);
 
-            glBindTextureUnit(diffuseTextureUnit,
-                              aEngine.mContext.mStorage.mTextures.at(material.mDiffuseMap.mTextureIndex));
+            // TODO: handle the no-entry texture (and non-textured stuff in shader)
+            if (auto idx = material.mDiffuseMap.mTextureIndex;
+                idx != scenic::TextureInput::gNoEntry)
+            {
+                glBindTextureUnit(diffuseTextureUnit,
+                                  aEngine.mContext.mStorage.mTextures.at(idx));
+            }
+            graphics::setUniform(aProgram, "u_DiffuseUvChannel",
+                                 (GLuint)material.mDiffuseMap.mUVAttributeIndex);
+
+            if (auto idx = material.mMetallicRoughnessAoMap.mTextureIndex;
+                idx != scenic::TextureInput::gNoEntry)
+            {
+                glBindTextureUnit(mraoTextureUnit,
+                                  aEngine.mContext.mStorage.mTextures.at(idx));
+            }
+            graphics::setUniform(aProgram, "u_MraoUvChannel",
+                                 (GLuint)material.mMetallicRoughnessAoMap.mUVAttributeIndex);
 
             // TODO: move in the per logic entity buffer
             graphics::setUniform(aProgram, "u_MaterialIdx",

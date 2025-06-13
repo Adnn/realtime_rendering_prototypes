@@ -177,7 +177,7 @@ namespace {
         }
         graphics::replaceSubset(mesh.mIndexBuffer, 0, std::span{ indexBuffer.get(), mesh.mIndicesCount });
 
-        mesh.mMaterial.mSurfaceParameters.mIndex = aMesh->mMaterialIndex + aMaterialOffset;
+        mesh.mMaterial.mSurfaceParameters = aMesh->mMaterialIndex + aMaterialOffset;
 
 #if 0
         // Vertices
@@ -451,7 +451,7 @@ namespace {
 
     TextureInput readTextureParameters(const aiMaterial * aAiMaterial, 
                                        aiTextureType aTextureType,
-                                       std::vector<std::string> & aTexturePaths)
+                                       TexturePaths & aTexturePaths)
     {
         // For the moment, we handle a single texture in the pack (or none)
         assert(aAiMaterial->GetTextureCount(aTextureType) <= 1);
@@ -470,7 +470,21 @@ namespace {
                 .mUVAttributeIndex = 0, // a default,
                                         // see: https://assimp-docs.readthedocs.io/en/latest/usage/use_the_lib.html#how-to-map-uv-channels-to-textures-matkey-uvwsrc
             };
-            aTexturePaths.push_back(texPath.C_Str());
+
+            renderer::ColorSpace colorSpace = [&]()
+                {
+                    switch (aTextureType)
+                    {
+                    case aiTextureType_DIFFUSE:
+                        return renderer::ColorSpace::sRGB;
+                    case aiTextureType_NORMALS:
+                    case aiTextureType_METALNESS:
+                        return renderer::ColorSpace::Linear;
+                    default:
+                        throw std::invalid_argument{"Extend the handled texture mappings"};
+                    }
+                }();
+            aTexturePaths.emplace_back(texPath.C_Str(), colorSpace);
 
             unsigned int aiIndex;
             if(aAiMaterial->Get(_AI_MATKEY_UVWSRC_BASE, aTextureType, indexInStack, aiIndex) == AI_SUCCESS)
@@ -520,6 +534,11 @@ namespace {
 
             genericMaterial.mDiffuseMap = 
                 readTextureParameters(material, aiTextureType_DIFFUSE,
+                                      aTexturePaths);
+
+            // Empirically, it seems the MRAO map corresponds to Assimp's Metalness
+            genericMaterial.mMetallicRoughnessAoMap = 
+                readTextureParameters(material, aiTextureType_METALNESS,
                                       aTexturePaths);
 
             if(material->Get(AI_MATKEY_SHININESS, genericMaterial.mSpecularExponent) == AI_SUCCESS)
@@ -662,19 +681,19 @@ void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelF
 
 
 void appendTextures(const std::filesystem::path & aPrefix, 
-                     TexturePaths & aAddedPaths,
+                     TexturePaths & aTextureSources,
                      ModelStorage & aStorage)
 {
-    for (const auto & path : aAddedPaths)
+    for (const auto & tex : aTextureSources)
     {
         // TODO: handle color space correctly
         // TODO: it would be much better to loadDds, even if we have to process them as we go
-        aStorage.mTextures.push_back(loadTexture(aPrefix / path, renderer::ColorSpace::sRGB));
+        aStorage.mTextures.push_back(loadTexture(aPrefix / tex.first, tex.second));
 
         glTextureParameteri(aStorage.mTextures.back(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTextureParameteri(aStorage.mTextures.back(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
-    std::move(aAddedPaths.begin(), aAddedPaths.end(),
+    std::move(aTextureSources.begin(), aTextureSources.end(),
               std::back_inserter(aStorage.mTexturePaths));
 }
 

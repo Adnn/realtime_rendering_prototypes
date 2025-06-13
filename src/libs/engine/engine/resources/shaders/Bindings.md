@@ -17,5 +17,7 @@ Waiting for a better solution, here are our hardcoded bindings
 ## Textures
 
 * 0: Albedo / Diffuse
+* 1: Normal
+* 2: Metallic-Roughness Ambient-Occlusion
 * 5: Skybox
 * 10: Voxels albedo / occupancy

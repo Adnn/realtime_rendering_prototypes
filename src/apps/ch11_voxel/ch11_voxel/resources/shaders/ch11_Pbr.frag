@@ -31,6 +31,10 @@ out vec4 out_Color;
 
 uniform sampler2D u_AmbientOcclusion;
 uniform sampler2D u_DiffuseTexture;
+uniform sampler2D u_MraoTexture;
+
+uniform uint u_DiffuseUvChannel;
+uniform uint u_MraoUvChannel;
 
 uniform ivec2 u_FramebufferSize;
 uniform bool u_ApplyAo = false;
@@ -106,10 +110,17 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
 
 void main(void)
 {
+    const uint gNoTextureChannel = uint(-1);
+
     MaterialGeneric material = ub_MaterialGeneric[u_MaterialIdx];
 
     // TODO: multiply by albedo texture
-    vec4 albedo = ex_Color * texture(u_DiffuseTexture, ex_Uv01);
+    vec4 albedo = ex_Color;
+    
+    if(u_DiffuseUvChannel != gNoTextureChannel)
+    {
+        albedo *= texture(u_DiffuseTexture, ex_Uv01);
+	}
 
     // alpha testing for cutout
     if (albedo.a < 0.5)
@@ -135,6 +146,14 @@ void main(void)
     //float roughness = material.roughness;
     float metallic = 0.0;
     float roughness = 0.5;
+
+    if(u_MraoUvChannel != gNoTextureChannel)
+    {
+        vec4 mrao = texture(u_MraoTexture, ex_Uv01);
+        // glTF sponza channel order
+        metallic = mrao.b;
+        roughness = mrao.g;
+	}
 
     // Handle alpha
     // We assume the roughness, not alpha, is provided even in 3rd party assets.
