@@ -29,7 +29,7 @@ namespace ad {
     namespace {
 
 
-        const std::filesystem::path gBlinnPhongProgramPath = "programs/ch11_RenderModel_BlinnPhong.prog";
+        const std::filesystem::path gBlinnPhongProgramPath = "programs/ch11_RenderModel_Pbr.prog";
         const std::filesystem::path gConeTraceProgramPath = "programs/ch11_ConeTrace.prog";
         const std::filesystem::path gRayTraceVoxelsProgramPath = "programs/ch11_RayTraceVoxels.prog";
 

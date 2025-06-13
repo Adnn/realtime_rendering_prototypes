@@ -1,0 +1,5 @@
+{
+    "vertex": "shaders/FullTransform.vert",
+    "fragment": "shaders/ch11_Pbr.frag",
+    "defines":  ["ENTITIES"]
+}
