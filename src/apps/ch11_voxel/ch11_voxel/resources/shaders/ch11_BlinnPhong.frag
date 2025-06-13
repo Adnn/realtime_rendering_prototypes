@@ -51,7 +51,9 @@ void main(void)
         * texture(u_DiffuseTexture, ex_Uv01)
         ;
 
+	//
     // alpha testing for cutout
+    //
     if (albedo.a < 0.5)
     {
         discard;

@@ -134,6 +134,34 @@ namespace {
                                          GL_STATIC_DRAW));
         }
 
+        // Tangents and Bitangents
+        // TODO: we have to be more dynamic in what we accept as input, but it will require better shader handling
+        assert(aMesh->mTangents && aMesh->mBitangents);
+        {
+            AttributeDescription attribute{
+                .mSemantic = renderer::semantic::gTangent,
+                .mDimension = 3,
+                .mComponentType = GL_FLOAT,
+            };
+
+            mesh.mSemanticToAttribute.insert(
+                makeLoadedAccessor_Naive(attribute,
+                                         std::span{ aMesh->mTangents, aMesh->mNumVertices },
+                                         GL_STATIC_DRAW));
+        }
+        {
+            AttributeDescription attribute{
+                .mSemantic = renderer::semantic::gBitangent,
+                .mDimension = 3,
+                .mComponentType = GL_FLOAT,
+            };
+
+            mesh.mSemanticToAttribute.insert(
+                makeLoadedAccessor_Naive(attribute,
+                                         std::span{ aMesh->mBitangents, aMesh->mNumVertices },
+                                         GL_STATIC_DRAW));
+        }
+
         // UV channels
         // TODO: handle multiple UV channels when they show-up
         // packing 2 channels per 4 component attributes
@@ -535,7 +563,9 @@ namespace {
             genericMaterial.mDiffuseMap = 
                 readTextureParameters(material, aiTextureType_DIFFUSE,
                                       aTexturePaths);
-
+            genericMaterial.mNormalMap = 
+                readTextureParameters(material, aiTextureType_NORMALS,
+                                      aTexturePaths);
             // Empirically, it seems the MRAO map corresponds to Assimp's Metalness
             genericMaterial.mMetallicRoughnessAoMap = 
                 readTextureParameters(material, aiTextureType_METALNESS,

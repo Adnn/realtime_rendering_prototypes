@@ -23,22 +23,27 @@
 
 
 in vec4 ex_Color;
-in vec3 ex_Normal_view;
 in vec3 ex_Position_view;
+in vec3 ex_Normal_view;
+in vec3 ex_Tangent_view;
+in vec3 ex_Bitangent_view;
 in vec2 ex_Uv01;
 
 out vec4 out_Color;
 
 uniform sampler2D u_AmbientOcclusion;
 uniform sampler2D u_DiffuseTexture;
+uniform sampler2D u_NormalTexture;
 uniform sampler2D u_MraoTexture;
 
 uniform uint u_DiffuseUvChannel;
+uniform uint u_NormalUvChannel;
 uniform uint u_MraoUvChannel;
 
 uniform ivec2 u_FramebufferSize;
 uniform bool u_ApplyAo = false;
 uniform bool u_ApplyEnvironment;
+uniform bool u_ApplyNormalMap = true;
 uniform uint u_MaterialIdx;
 
 
@@ -122,15 +127,63 @@ void main(void)
         albedo *= texture(u_DiffuseTexture, ex_Uv01);
 	}
 
+    //
     // alpha testing for cutout
+    //
     if (albedo.a < 0.5)
     {
         discard;
     }
 
+
+    //
+    // Normals
+    //
+    vec3 shadingNormal_view;
+    if(u_NormalUvChannel != gNoTextureChannel && u_ApplyNormalMap)
+    {
+		// MikkT see: http://www.mikktspace.com/
+
+		// Fetch from normal map, and remap from [0, 1]^3 to [-1, 1]^3.
+		vec3 normal_tbn = 
+			texture(u_NormalTexture, ex_Uv01).xyz
+			* 2 - vec3(1);
+
+		vec3 normal_view = ex_Normal_view;
+		vec3 tangent_view = ex_Tangent_view;
+		//#define COMPUTE_BITANGENT
+		#ifdef COMPUTE_BITANGENT
+			// TODO handle handedness, which should be -1 or 1
+			//float handedness
+			//vec3 bitangent_cam = cross(normal_cam, tangent_cam) * handedness;
+		#else
+			vec3 bitangent_view = ex_Bitangent_view;
+		#endif
+
+		#define NORMALIZE_TBN
+		#ifdef NORMALIZE_TBN
+			// Despite MikkT guideline, if the tangent and normal were not normalized
+			// the result was be abherent with sample gltf assets (e.g. avocado, sponza) 
+			normal_view    = normalize(normal_view);
+			tangent_view   = normalize(tangent_view);
+			bitangent_view = normalize(bitangent_view);
+		#endif
+
+		vec3 bumpNormal_cam = normalize(
+			  normal_tbn.x * tangent_view
+			+ normal_tbn.y * bitangent_view
+			+ normal_tbn.z * normal_view
+		);
+
+		shadingNormal_view = bumpNormal_cam;
+
+	}
+    else
+    {
+		shadingNormal_view = normalize(ex_Normal_view);
+    }
+
     vec3 viewDir_view = normalize(-ex_Position_view);
-    // TODO: normal mapping
-    vec3 shadingNormal_view = normalize(ex_Normal_view);
 
     // Accumulators for the lights contributions
     vec3 diffuseAccum = vec3(0.);

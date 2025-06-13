@@ -54,8 +54,10 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
     glUseProgram(aProgram);
 
     const GLint diffuseTextureUnit = 0;
+    const GLint normalTextureUnit = 1;
     const GLint mraoTextureUnit = 2;
     graphics::setUniform(aProgram, "u_AlbedoTexture", diffuseTextureUnit);
+    graphics::setUniform(aProgram, "u_NormalTexture", normalTextureUnit);
     graphics::setUniform(aProgram, "u_MraoTexture", mraoTextureUnit);
 
     for (const auto & [nodeIdx, object] : aSceneTree.mObjectsMap)
@@ -78,6 +80,15 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
             }
             graphics::setUniform(aProgram, "u_DiffuseUvChannel",
                                  (GLuint)material.mDiffuseMap.mUVAttributeIndex);
+
+            if (auto idx = material.mNormalMap.mTextureIndex;
+                idx != scenic::TextureInput::gNoEntry)
+            {
+                glBindTextureUnit(normalTextureUnit,
+                                  aEngine.mContext.mStorage.mTextures.at(idx));
+            }
+            graphics::setUniform(aProgram, "u_NormalUvChannel",
+                                 (GLuint)material.mNormalMap.mUVAttributeIndex);
 
             if (auto idx = material.mMetallicRoughnessAoMap.mTextureIndex;
                 idx != scenic::TextureInput::gNoEntry)
