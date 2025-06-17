@@ -10,6 +10,8 @@
 
 #include <engine/files/Loader.h>
 
+#include <handy/StringUtilities.h>
+
 #include <math/Box.h>
 
 #include <assimp/DefaultLogger.hpp> 
@@ -17,6 +19,7 @@
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
 
+#include <fmt/ranges.h>
 #include <fmt/std.h>
 
 #include <set>
@@ -477,9 +480,48 @@ namespace {
         return result;
     }
 
+
+    struct DdsTracking
+    {
+        void append(std::string aPath, aiTextureType aTextureType)
+        {
+            switch (aTextureType)
+            {
+            case aiTextureType_DIFFUSE:
+                mDiffuse.push_back(std::move(aPath));
+                break;
+            case aiTextureType_NORMALS:
+                mNormal.push_back(std::move(aPath));
+                break;
+            case aiTextureType_METALNESS:
+                mMrao.push_back(std::move(aPath));
+                break;
+            default:
+                throw std::invalid_argument{"Extend the handled texture mappings"};
+            }
+        }
+
+        void dump(std::ostream && aOut)
+        {
+            aOut << "{\"diffuse\":\n[\"";
+            join(aOut, mDiffuse.begin(), mDiffuse.end(), "\",\n\"");
+            aOut << "\"],\n\n\"normal\":\n[\"";
+            join(aOut, mNormal.begin(), mNormal.end(), "\",\n\"");
+            aOut << "\"],\n\n\"mrao\":\n[\"";
+            join(aOut, mMrao.begin(), mMrao.end(), "\",\n\"");
+            aOut << "\"]}";
+        }
+
+        std::vector<std::string> mDiffuse;
+        std::vector<std::string> mNormal;
+        std::vector<std::string> mMrao;
+    };
+
+
     TextureInput readTextureParameters(const aiMaterial * aAiMaterial, 
                                        aiTextureType aTextureType,
-                                       TexturePaths & aTexturePaths)
+                                       TexturePaths & aTexturePaths,
+                                       DdsTracking & aTracking)
     {
         // For the moment, we handle a single texture in the pack (or none)
         assert(aAiMaterial->GetTextureCount(aTextureType) <= 1);
@@ -513,6 +555,7 @@ namespace {
                     }
                 }();
             aTexturePaths.emplace_back(texPath.C_Str(), colorSpace);
+            aTracking.append(texPath.C_Str(), aTextureType);
 
             unsigned int aiIndex;
             if(aAiMaterial->Get(_AI_MATKEY_UVWSRC_BASE, aTextureType, indexInStack, aiIndex) == AI_SUCCESS)
@@ -531,11 +574,12 @@ namespace {
     }
 
 
-    void loadMaterials(const aiScene * aScene, 
-                       Context & aContext,
-                       TexturePaths & aTexturePaths)
+    DdsTracking loadMaterials(const aiScene * aScene, 
+                              Context & aContext,
+                              TexturePaths & aTexturePaths)
     {
         auto & materials = aContext.mStorage.mMaterials;
+        DdsTracking tracking;
 
         for (std::size_t materialIdx = 0;
              materialIdx != aScene->mNumMaterials;
@@ -562,14 +606,14 @@ namespace {
 
             genericMaterial.mDiffuseMap = 
                 readTextureParameters(material, aiTextureType_DIFFUSE,
-                                      aTexturePaths);
+                                      aTexturePaths, tracking);
             genericMaterial.mNormalMap = 
                 readTextureParameters(material, aiTextureType_NORMALS,
-                                      aTexturePaths);
+                                      aTexturePaths, tracking);
             // Empirically, it seems the MRAO map corresponds to Assimp's Metalness
             genericMaterial.mMetallicRoughnessAoMap = 
                 readTextureParameters(material, aiTextureType_METALNESS,
-                                      aTexturePaths);
+                                      aTexturePaths, tracking);
 
             if(material->Get(AI_MATKEY_SHININESS, genericMaterial.mSpecularExponent) == AI_SUCCESS)
             {
@@ -597,6 +641,7 @@ namespace {
 
             //normalizeColorFactors(genericMaterial);
         }
+        return tracking;
     }
 
 
@@ -705,7 +750,8 @@ void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelF
 
     TexturePaths pathsInModel;
     // TODO: texture offset when writing indices
-    loadMaterials(scene, aContext, pathsInModel);
+    DdsTracking tracking = loadMaterials(scene, aContext, pathsInModel);
+    tracking.dump(std::ofstream{aModelFile.parent_path() / "sorted_textures.json"});
     appendTextures(aModelFile.parent_path(), pathsInModel, aContext.mStorage);
 }
 
@@ -716,9 +762,14 @@ void appendTextures(const std::filesystem::path & aPrefix,
 {
     for (const auto & tex : aTextureSources)
     {
-        // TODO: handle color space correctly
-        // TODO: it would be much better to loadDds, even if we have to process them as we go
-        aStorage.mTextures.push_back(loadTexture(aPrefix / tex.first, tex.second));
+        std::filesystem::path imagePath = aPrefix / tex.first;
+        auto ddsCandidate{imagePath};
+        ddsCandidate.replace_extension(".dds");
+
+        aStorage.mTextures.push_back(
+            (is_regular_file(ddsCandidate) ?
+             renderer::loadDds(ddsCandidate)
+             : renderer::loadTexture(imagePath, tex.second)));
 
         glTextureParameteri(aStorage.mTextures.back(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTextureParameteri(aStorage.mTextures.back(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);

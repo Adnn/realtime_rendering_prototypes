@@ -190,7 +190,7 @@ using TexturePaths = std::vector<std::pair<std::string, renderer::ColorSpace>>;
 // TODO: rename, this is more general than models
 struct ModelStorage
 {
-    std::vector<VertexStream> mVertexStreams;
+    //std::vector<VertexStream> mVertexStreams;
     GenericMaterialsBlock_glsl mMaterials;
 
     std::vector<graphics::Texture> mTextures;

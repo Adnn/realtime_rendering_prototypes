@@ -2,6 +2,16 @@
 
 ## Voxels & Voxel Cone Tracing Global Illuminatin (VXGI)
 
+Implements voxelization pipeline, accumulations in voxel space,
+and cone tracing to achieve different GI effects.
+
+### DDS textures
+
+The loader will attempt to load a texture with the `.dds` extension first.
+It also outputs a JSON file listing all textures by category, under `sorted_textures.json`.
+
+This file can be used to convert textures to DDS format, using the `convert_dds.py` script.
+
 ## References (number is the id from the book)
 
 * 306: Crassin, Cyril, and Simon Green, “Octree-Based Sparse Voxelization Using the GPU Hardware

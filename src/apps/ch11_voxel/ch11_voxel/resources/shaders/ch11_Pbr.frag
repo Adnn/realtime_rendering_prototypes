@@ -142,12 +142,23 @@ void main(void)
     vec3 shadingNormal_view;
     if(u_NormalUvChannel != gNoTextureChannel && u_ApplyNormalMap)
     {
-		// MikkT see: http://www.mikktspace.com/
+		#define BC5_RGTC;
+		#if defined(BC5_RGTC)
+			// Fetch from Red-Green channels, and remap from [0, 1]^2 to [-1, 1]^2.
+			vec2 normalXY = 
+				texture(u_NormalTexture, ex_Uv01).xy
+				* 2.0 - vec2(1.0);
 
-		// Fetch from normal map, and remap from [0, 1]^3 to [-1, 1]^3.
-		vec3 normal_tbn = 
-			texture(u_NormalTexture, ex_Uv01).xyz
-			* 2 - vec3(1);
+			// Derives the third component from the two others, assuming the source normal map data was normalized
+			vec3 normal_tbn = vec3(normalXY, sqrt(1.0 - dot(normalXY, normalXY)));
+		#else
+			// Fetch from normal map, and remap from [0, 1]^3 to [-1, 1]^3.
+			vec3 normal_tbn = 
+				texture(u_NormalTexture, ex_Uv01).xyz
+				* 2 - vec3(1);
+		#endif //BC5_RGTC
+
+		// MikkT see: http://www.mikktspace.com/
 
 		vec3 normal_view = ex_Normal_view;
 		vec3 tangent_view = ex_Tangent_view;
