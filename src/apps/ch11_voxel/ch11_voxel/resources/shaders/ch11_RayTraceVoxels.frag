@@ -16,6 +16,8 @@ uniform ivec2 u_FramebufferSize;
 // Size of the image plane at a distance 1 from the camera origin
 uniform vec2 u_ImagePlane_view;
 
+uniform usampler3D u_VoxelsAlbedoTexture;
+
 out vec4 out_Color;
 
 
@@ -166,8 +168,14 @@ void main(void)
 				++stp;
 				if (isVoxelOccupied(currentVoxel))
 				{
-					out_Color = colorHitFace(mask);
-					break;
+					#if defined(FEAT_OCCUPANCY)
+						out_Color = colorHitFace(mask);
+					#else
+						out_Color = vec4(
+							vec3(texelFetch(u_VoxelsAlbedoTexture, currentVoxel, 0).rgb) / 255, 
+							1);
+					#endif // OCCUPANCY
+						break;
 				}
 
 				if (tMax.x < tMax.y) 

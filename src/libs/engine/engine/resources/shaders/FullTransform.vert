@@ -26,7 +26,13 @@ layout(location=5) in vec2 ve_Uv01;
 
 
 // Output interpolated for fragment shader
+// Note: we duplicate outputs that are of interest to the geometry shader.
+//   This ways the geometry stage is optional,:
+//     - vertex still defines ex_ as output, so it can be directly followed by fragment expecting ex_ as input
+//     - geometry can use gi_ as input, and define ex_ as output (no clashing in the names)  
+//     - we wishfully expect the linker to prune the unused outputs
 out vec4 ex_Color;
+out vec4 gi_Color;
 out vec3 ex_Position_world;
 out vec3 ex_Normal_world;
 out vec3 ex_Position_view;
@@ -34,6 +40,7 @@ out vec3 ex_Normal_view;
 out vec3 ex_Tangent_view;
 out vec3 ex_Bitangent_view;
 out vec2 ex_Uv01;
+out vec2 gi_Uv01;
 
 
 void main(void)
@@ -46,6 +53,7 @@ void main(void)
 			* ve_Color
 		#endif
 		;
+	gi_Color = ex_Color;
 
 	// TODO: handle non-uniform scaling with dedicated normal transform
 	vec4 normal_world = getModelTransform() * vec4(ve_Normal, 0);
@@ -64,6 +72,7 @@ void main(void)
 	ex_Position_view = position_view.xyz;
 
 	ex_Uv01 = ve_Uv01;
+	gi_Uv01 = ex_Uv01;
 
 	gl_Position = ub_projection * position_view;
 }

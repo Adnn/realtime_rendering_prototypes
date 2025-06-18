@@ -119,9 +119,7 @@ void main(void)
 
     MaterialGeneric material = ub_MaterialGeneric[u_MaterialIdx];
 
-    // TODO: multiply by albedo texture
     vec4 albedo = ex_Color;
-    
     if(u_DiffuseUvChannel != gNoTextureChannel)
     {
         albedo *= texture(u_DiffuseTexture, ex_Uv01);

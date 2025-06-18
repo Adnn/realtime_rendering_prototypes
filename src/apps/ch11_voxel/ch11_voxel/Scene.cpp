@@ -208,6 +208,7 @@ void Scene::voxelize()
     // shader reads
     // TODO: place this barrier more tightly
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
     glPopDebugGroup();
 }
@@ -386,6 +387,9 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             graphics::setUniform(program, "u_ImagePlane_view", imagePlaneSize);
 
             graphics::setUniform(program, "u_VoxelSize", mVoxelizer.mVoxelSize);
+
+            glBindTextureUnit(0, mVoxelizer.mAlbedo);
+            graphics::setUniform(program, "u_VoxelsAlbedoTexture", 0);
 
             // TODO: Remove once fragment shader write the correct depth
             glDepthMask(GL_FALSE);

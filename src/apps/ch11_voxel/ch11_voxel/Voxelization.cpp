@@ -116,12 +116,37 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, mVoxelStore);
 
+    // 3D textures
+    const GLint gAlbedoImageUnit = 0;
+    const GLenum gImageFormat = GL_RGBA8UI;
+    const GLenum gAccessFormat = GL_R32UI;
+
+    mAlbedo = {GL_TEXTURE_3D};
+    {
+        // For creation
+        graphics::bind(mAlbedo);
+        glObjectLabel(GL_TEXTURE, mAlbedo, -1, "voxels_albedo");
+
+        // non-normalized integer texture should not use filtering
+        glTextureParameteri(mAlbedo, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(mAlbedo, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        const GLsizei gLevels = 1;
+        glTextureStorage3D(mAlbedo, gLevels, gImageFormat, aGridDimension, aGridDimension, aGridDimension);
+    }
+
+    // The image binding is not layered (GL_FALSE), and the texture does not have array layers:
+    // layer parameter must be 0
+    glBindImageTexture(gAlbedoImageUnit, mAlbedo, 0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
+
     glViewport(0, 0, aGridDimension, aGridDimension);
 
     const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisProgram;
     graphics::setUniform(program, "u_CameraOffset", camOffset);
     graphics::setUniform(program, "u_CameraScale", camScale);
     graphics::setUniform(program, "u_ConservativeDepthRange", mControl.mConservativeDepthRange);
+
+    graphics::setUniform(program, "u_AlbedoImage", gAlbedoImageUnit);
 
     // Disable all operations on the Framebuffer
     glDisable(GL_DEPTH_TEST);
@@ -137,6 +162,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
                 
     drawPass(program, aScene, aGraph.mEngine);
 
+    glBindImageTexture(gAlbedoImageUnit, 0, 0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
 

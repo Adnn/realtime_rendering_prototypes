@@ -6,6 +6,8 @@ layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
 
 in vec3 ex_Position_world[];
+in vec4 gi_Color[];
+in vec2 gi_Uv01[];
 
 out vec3 ex_Position_grid;
 
@@ -44,7 +46,7 @@ void main(void)
 			position_view = vec3(-position_view.z,
 								 +position_view.y,
 								 +position_view.x);
-			ex_Color = vec4(1.0, 0.0, 0.0, 1);
+			//ex_Color = vec4(1.0, 0.0, 0.0, 1);
 		}
 		// Y dominant
 		else if(absNormal.y > absNormal.z)
@@ -52,13 +54,14 @@ void main(void)
 			position_view = vec3(+position_view.x,
 								 -position_view.z,
 								 +position_view.y);
-			ex_Color = vec4(0.0, 1.0, 0.0, 1);
+			//ex_Color = vec4(0.0, 1.0, 0.0, 1);
 		}
 		// Otherwise, Z dominant, which is already correctly aligned
 		else
 		{
-			ex_Color = vec4(0, 0, 1, 1);
+			//ex_Color = vec4(0, 0, 1, 1);
 		}
+		ex_Color = gi_Color[idx];
 
 		// With the dominant axis along Z, scale the voxelized volume to clip space
 		gl_Position = vec4(position_view * u_CameraScale, 1);
@@ -68,7 +71,7 @@ void main(void)
 
 		// TODO: this is non-sense, it should forward the actual value
 		// but we have a naming clash
-		ex_Uv01 = vec2(0, 0);
+		ex_Uv01 = gi_Uv01[idx];
 
 		EmitVertex();
 	}

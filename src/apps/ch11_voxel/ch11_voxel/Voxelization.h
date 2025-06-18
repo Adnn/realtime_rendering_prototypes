@@ -74,6 +74,7 @@ struct Voxelizer
     GLsizeiptr mVoxelsByteSize;
     float mVoxelSize{0.f}; // World units
     graphics::Texture mOccupancy{GL_TEXTURE_3D};
+    graphics::Texture mAlbedo{GL_TEXTURE_3D};
     graphics::VertexArrayObject mDummyVao;
 };
 
