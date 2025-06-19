@@ -172,15 +172,24 @@ void main(void)
 				++stp;
 				if (isVoxelOccupied(currentVoxel))
 				{
+					// TODO: offer GUI control of the display mode
 					#if defined(FEAT_OCCUPANCY)
 						out_Color = colorHitFace(mask);
 					#else
-						out_Color = vec4(
-							vec3(texelFetch(u_VoxelsAlbedoTexture, currentVoxel, 0).rgb) 
-							* factorHitFace(mask)
-							/ 255,  // RGBA8UI texture is not-normalized
-							1)
-							;
+						#define TEXELFETCH_ALBEDO
+						#if defined(TEXELFETCH_ALBEDO)
+							out_Color = vec4(
+								vec3(texelFetch(u_VoxelsAlbedoTexture, currentVoxel, 0).rgb) 
+									* factorHitFace(mask)
+									/ 255,  // RGBA8UI texture is not-normalized
+								1);
+						#else
+							out_Color = vec4(
+								vec3(texture(u_VoxelsAlbedoTexture, vec3(currentVoxel)/ub_GridDimension).rgb)
+									* factorHitFace(mask)
+									/ 255, 
+								1);
+						#endif //TEXELFETCH_ALBEDO
 					#endif // OCCUPANCY
 						break;
 				}
