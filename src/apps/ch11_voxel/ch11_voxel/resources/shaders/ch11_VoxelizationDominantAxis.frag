@@ -102,7 +102,8 @@ void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo)
 	// see: https://github.com/jose-villegas/VCTRenderer/blob/7ae9788f25ef46ab4f9ece2e8cbcf158934ec3a0/engine/assets/shaders/voxelization.frag#L111-L112
 	vec4 premultipliedAlpha = vec4(
 		unmultipliedAlbedo.rgb * unmultipliedAlbedo.a,
-		1); // Count as 1 sample in the average, see cumulative average implementation
+		//1); // Count as 1 sample in the average, see cumulative average implementation
+		unmultipliedAlbedo.a); // Actually, weighting the cumulative average avoids over-darkening in zones with low-alpha
 	imageAtomicRGBA8Avg(u_AlbedoImage, aGridCoordinate, premultipliedAlpha);
 #endif
 }
@@ -116,6 +117,12 @@ void main(void)
     if(u_DiffuseUvChannel != gNoTextureChannel)
     {
         albedo *= texture(u_DiffuseTexture, ex_Uv01);
+	}
+	// Alpha testing
+	if (albedo.a < 0.5)
+	{
+		discard;
+		return;
 	}
 
 	if(u_ConservativeDepthRange)

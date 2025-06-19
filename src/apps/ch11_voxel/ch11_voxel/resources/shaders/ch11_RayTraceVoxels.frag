@@ -52,6 +52,10 @@ vec4 colorHitFace(bvec3 aMask)
 	return vec4(vec3(dot(vec3(aMask), vec3(0.25, 0.5, 0.75))), 1);
 }
 
+float factorHitFace(bvec3 aMask)
+{
+	return dot(vec3(aMask), vec3(0.5, 0.75, 1));
+}
 
 void main(void)
 {
@@ -172,8 +176,11 @@ void main(void)
 						out_Color = colorHitFace(mask);
 					#else
 						out_Color = vec4(
-							vec3(texelFetch(u_VoxelsAlbedoTexture, currentVoxel, 0).rgb) / 255, 
-							1);
+							vec3(texelFetch(u_VoxelsAlbedoTexture, currentVoxel, 0).rgb) 
+							* factorHitFace(mask)
+							/ 255,  // RGBA8UI texture is not-normalized
+							1)
+							;
 					#endif // OCCUPANCY
 						break;
 				}
