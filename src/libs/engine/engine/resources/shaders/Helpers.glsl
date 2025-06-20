@@ -41,15 +41,15 @@ float minCw(vec4 v)
 
 // Remaps a vector from symmetric domain [-amplitude, amplitude]^3 to [0, 1]^3.
 // Notably useful to display unit direction vectors as colors.
-vec3 mapToRgb(vec3 aInput, float aAmplitude)
+vec3 mapToUnit(vec3 aInput, float aAmplitude)
 {
     return (aInput + vec3(aAmplitude)) / (2 * aAmplitude);
 }
 
 // Remaps a unit vector from [-1, 1]^3 to [0, 1]^3.
-vec3 mapToRgb(vec3 aInput)
+vec3 mapToUnit(vec3 aInput)
 {
-    return mapToRgb(aInput, 1);
+    return mapToUnit(aInput, 1);
 }
 
 

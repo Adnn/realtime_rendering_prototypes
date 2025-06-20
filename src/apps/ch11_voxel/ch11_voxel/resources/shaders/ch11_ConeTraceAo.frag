@@ -127,7 +127,7 @@ void revisedONB(vec3 n, out vec3 b1, out vec3 b2)
 
 void main(void)
 {
-	out_Color = vec4(mapToRgb(ex_Normal_world), 1);
+	out_Color = vec4(mapToUnit(ex_Normal_world), 1);
 	//return;
 
 	// Sample the 3D texture at the fragment position

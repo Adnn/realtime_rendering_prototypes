@@ -8,6 +8,7 @@ layout(triangle_strip, max_vertices = 3) out;
 in vec3 ex_Position_world[];
 in vec4 gi_Color[];
 in vec2 gi_Uv01[];
+in vec3 gi_Normal_view[];
 
 out vec3 ex_Position_grid;
 
@@ -15,6 +16,7 @@ out vec3 ex_Position_grid;
 out vec3 ex_Position_view;
 out vec4 ex_Color;
 out vec3 ex_Normal_view;
+out vec3 ex_Normal_world;
 out vec2 ex_Uv01;
 
 uniform vec3 u_CameraOffset;
@@ -67,7 +69,8 @@ void main(void)
 		gl_Position = vec4(position_view * u_CameraScale, 1);
 		ex_Position_view = position_view.xyz;
 
-		ex_Normal_view = normalize(triangleNormal);
+		ex_Normal_world = normalize(triangleNormal);
+		ex_Normal_view = gi_Normal_view[idx];
 
 		// TODO: this is non-sense, it should forward the actual value
 		// but we have a naming clash

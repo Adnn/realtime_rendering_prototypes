@@ -37,6 +37,7 @@ out vec3 ex_Position_world;
 out vec3 ex_Normal_world;
 out vec3 ex_Position_view;
 out vec3 ex_Normal_view;
+out vec3 gi_Normal_view;
 out vec3 ex_Tangent_view;
 out vec3 ex_Bitangent_view;
 out vec2 ex_Uv01;
@@ -59,6 +60,7 @@ void main(void)
 	vec4 normal_world = getModelTransform() * vec4(ve_Normal, 0);
 	ex_Normal_world = normal_world.xyz;
 	ex_Normal_view = vec3(ub_worldToCamera * normal_world);
+	gi_Normal_view = ex_Normal_view;
 
     // Tangents are transformed like positions, by the localToCamera matrix (unlike normals)
     // see: https://www.pbr-book.org/3ed-2018/Geometry_and_Transformations/Applying_Transformations

@@ -15,6 +15,9 @@ namespace ad {
 
 namespace {
 
+constexpr GLint gAlbedoImageUnit = 0;
+constexpr GLint gNormalImageUnit = 1;
+constexpr GLint gIrradianceImageUnit = 2;
 
 scenic::Camera prepareVoxelizationCamera(math::Box<float> aAabb)
 {
@@ -40,6 +43,24 @@ scenic::Camera prepareVoxelizationCamera(math::Box<float> aAabb)
 }
 
 
+graphics::Texture prepare3dTexture(GLenum aImageFormat, GLuint aGridDimension, const char * aName)
+{
+    graphics::Texture texture{GL_TEXTURE_3D};
+    // For creation
+    graphics::bind(texture);
+    glObjectLabel(GL_TEXTURE, texture, -1, aName);
+
+    // non-normalized integer texture should not use filtering
+    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    const GLsizei gLevels = 1;
+    glTextureStorage3D(texture, gLevels, aImageFormat,
+                       aGridDimension, aGridDimension, aGridDimension);
+
+    return texture;
+}
+
 } // unnamed namespace
 
 
@@ -55,6 +76,9 @@ Voxelizer::Voxelizer()
 {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, mVoxelStore); // Generate the buffer
     glObjectLabel(GL_BUFFER, mVoxelStore, -1, "ssbo_voxel_store");
+
+    glBindBuffer(mVoxelizationViewBuffer.GLTarget_v, mVoxelizationViewBuffer); // For creation
+    glObjectLabel(GL_BUFFER, mVoxelizationViewBuffer, -1, "VoxelizationViewProjection");
 }
 
 
@@ -72,24 +96,29 @@ Guard Voxelizer::guardConservativeRasterization()
     }
 }
 
+void Voxelizer::recordSceneAabb(const scenic::SceneTree & aScene, GLuint aGridDimension)
+{
+    mSceneAabb = scenic::getAabb(aScene);
+    const float maxSide = *mSceneAabb.mDimension.getMaxMagnitudeElement();
+    mVoxelSize = maxSide / aGridDimension;
+}
 
-void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                                     const graphics::UniformBufferObject & aViewProjectionBuffer,
+
+void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
+                                     GLuint aGridDimension,
                                      const FrameGraph & aGraph)
 {
     // Requirement because on the shader side, we have to treat the SSBO 
     // as an array of uint (which are 4 bytes), and we store voxel per byte.
     assert((aGridDimension % 4) == 0);
 
-    const math::Box<float> sceneAabb = scenic::getAabb(aScene);
-    // TODO: there is a duplication of the maxSide computation
-    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+    const float maxSide = *mSceneAabb.mDimension.getMaxMagnitudeElement();
 
     // We remap [[-halfSide, halfSide]^2, [-side, 0]] to [-1, 1]^3
     // Note that we also inverse the sign on Z axis, to change handedness 
     // (clip is left-handed)
     const math::Position<3, GLfloat> camOffset =
-        -sceneAabb.leftBottomZMin()
+        -mSceneAabb.leftBottomZMin()
         - math::Vec<3, GLfloat>{maxSide / 2, maxSide / 2, maxSide / 2};
     const math::Vec<3, GLfloat> camScale = {2 / maxSide, 2 / maxSide, -2 / maxSide};
 
@@ -117,27 +146,16 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, mVoxelStore);
 
     // 3D textures
-    const GLint gAlbedoImageUnit = 0;
     const GLenum gImageFormat = GL_RGBA8UI;
     const GLenum gAccessFormat = GL_R32UI;
 
-    mAlbedo = {GL_TEXTURE_3D};
-    {
-        // For creation
-        graphics::bind(mAlbedo);
-        glObjectLabel(GL_TEXTURE, mAlbedo, -1, "voxels_albedo");
-
-        // non-normalized integer texture should not use filtering
-        glTextureParameteri(mAlbedo, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTextureParameteri(mAlbedo, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        const GLsizei gLevels = 1;
-        glTextureStorage3D(mAlbedo, gLevels, gImageFormat, aGridDimension, aGridDimension, aGridDimension);
-    }
+    mAlbedo = prepare3dTexture(gImageFormat, aGridDimension, "voxels_albedo");
+    mNormals = prepare3dTexture(gImageFormat, aGridDimension, "voxels_normal");
 
     // The image binding is not layered (GL_FALSE), and the texture does not have array layers:
     // layer parameter must be 0
-    glBindImageTexture(gAlbedoImageUnit, mAlbedo, 0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
+    glBindImageTexture(gAlbedoImageUnit, mAlbedo,  0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
+    glBindImageTexture(gNormalImageUnit, mNormals, 0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
 
     glViewport(0, 0, aGridDimension, aGridDimension);
 
@@ -145,8 +163,10 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
     graphics::setUniform(program, "u_CameraOffset", camOffset);
     graphics::setUniform(program, "u_CameraScale", camScale);
     graphics::setUniform(program, "u_ConservativeDepthRange", mControl.mConservativeDepthRange);
+    graphics::setUniform(program, "u_AverageSamples", mControl.mAverageSamples);
 
     graphics::setUniform(program, "u_AlbedoImage", gAlbedoImageUnit);
+    graphics::setUniform(program, "u_NormalsImage", gNormalImageUnit);
 
     // Disable all operations on the Framebuffer
     glDisable(GL_DEPTH_TEST);
@@ -168,20 +188,24 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aG
 
 
 void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                                         const graphics::UniformBufferObject & aViewProjectionBuffer,
                                          const FrameGraph & aGraph)
 {
-    const math::Box<float> sceneAabb = scenic::getAabb(aScene);
-    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+    const float maxSide = *mSceneAabb.mDimension.getMaxMagnitudeElement();
 
     // Not used by this draw pass, but will be used for debug drawing boxes
-    graphics::loadSingle(aViewProjectionBuffer,
+    graphics::loadSingle(mVoxelizationViewBuffer,
                          scenic::GpuViewProjectionBlock{
-                             prepareVoxelizationCamera(sceneAabb)},
+                             prepareVoxelizationCamera(mSceneAabb)},
                          graphics::BufferHint::StreamDraw);
 
+    // We need to restore the previously bound viewprojection,
+    // corresponding to the camera and assumed present by most of the code
+    graphics::ScopedBind boundViewProjection{
+        mVoxelizationViewBuffer,
+        graphics::BindingIndex{ 0 }};
+
     const math::Position<3, GLfloat> camOffset =
-        -sceneAabb.leftBottomZMin()
+        -mSceneAabb.leftBottomZMin()
         - math::Vec<3, GLfloat>{maxSide / 2, maxSide / 2, maxSide / 2};
     const math::Vec<3, GLfloat> camScale = {2 / maxSide, 2 / maxSide, -2 / maxSide};
 
@@ -201,21 +225,25 @@ void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuin
 
 
 void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                         const graphics::UniformBufferObject & aViewProjectionBuffer,
                          const FrameGraph & aGraph)
 {
     // Requirement because on the shader side, we have to treat the SSBO 
     // as an array of uint (which are 4 bytes), and we store voxel per byte.
     assert((aGridDimension % 4) == 0);
 
-    const math::Box<float> sceneAabb = scenic::getAabb(aScene);
-    // TODO: there is a duplication of the maxSide computation
-    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
+    const float maxSide = *mSceneAabb.mDimension.getMaxMagnitudeElement();
 
-    graphics::loadSingle(aViewProjectionBuffer,
+    // Not used by this draw pass, but will be used for debug drawing boxes
+    graphics::loadSingle(mVoxelizationViewBuffer,
                          scenic::GpuViewProjectionBlock{
-                             prepareVoxelizationCamera(sceneAabb)},
+                             prepareVoxelizationCamera(mSceneAabb)},
                          graphics::BufferHint::StreamDraw);
+
+    // We need to restore the previously bound viewprojection,
+    // corresponding to the camera and assumed present by most of the code
+    graphics::ScopedBind boundViewProjection{
+        mVoxelizationViewBuffer,
+        graphics::BindingIndex{ 0 }};
 
     std::size_t storeByteSize = VoxelsSsbo_glsl::ComputeByteSize(aGridDimension);
     mVoxelsByteSize = storeByteSize - offsetof(VoxelsSsbo_glsl, mVoxels);
@@ -272,19 +300,22 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
 }
 
 void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                             const graphics::UniformBufferObject & aViewProjectionBuffer,
                              const FrameGraph & aGraph)
 {
     // Requirement because on the shader side, we have to treat the SSBO 
     // as an array of uint (which are 4 bytes), and we store voxel per byte.
     assert((aGridDimension % 4) == 0);
 
-    const math::Box<float> sceneAabb = scenic::getAabb(aScene);
-    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-    graphics::loadSingle(aViewProjectionBuffer,
+    graphics::loadSingle(mVoxelizationViewBuffer,
                          scenic::GpuViewProjectionBlock{
-                             prepareVoxelizationCamera(sceneAabb)},
+                             prepareVoxelizationCamera(mSceneAabb)},
                          graphics::BufferHint::StreamDraw);
+
+    // We need to restore the previously bound viewprojection,
+    // corresponding to the camera and assumed present by most of the code
+    graphics::ScopedBind boundViewProjection{
+        mVoxelizationViewBuffer,
+        graphics::BindingIndex{ 0 }};
 
     // Done by calling context
     //glViewport(0, 0, aGridDimension, aGridDimension);
@@ -363,6 +394,35 @@ void Voxelizer::prepareMipmap(GLuint aGridDimension)
                         GL_RGBA, GL_UNSIGNED_BYTE, textureData.data());
 
     glGenerateTextureMipmap(mOccupancy);
+}
+
+
+void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGraph)
+{
+    const GLenum format = GL_RGBA8;
+    mIrradiance = prepare3dTexture(format, aGridDimension, "voxels_irradiance");
+    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 
+                       0, GL_FALSE, 0, 
+                       GL_WRITE_ONLY, format);
+
+    const auto & program = aGraph.mPrograms.mInjectIrradianceProgram;
+    glUseProgram(program);
+
+    glBindTextureUnit(0, mAlbedo);
+    glBindTextureUnit(1, mNormals);
+    graphics::setUniform(program, "u_AlbedoTexture", 0);
+    graphics::setUniform(program, "u_NormalsTexture", 1);
+    graphics::setUniform(program, "u_IrradianceImage", gIrradianceImageUnit);
+
+    graphics::setUniform(program, "u_VoxelSize", mVoxelSize);
+    graphics::setUniform(program, "u_AabbMin", mSceneAabb.leftBottomZMin());
+
+    const math::Vec<3, GLuint> totalInvocations{aGridDimension, aGridDimension, aGridDimension};
+    // TODO: synchronize with compute shader
+    const math::Vec<3, GLuint> workgroupSize{8u, 8u, 8u};
+    math::Vec<3, GLuint> numWorkgroups = totalInvocations.cwDiv(workgroupSize);
+
+    glDispatchCompute(numWorkgroups.x(), numWorkgroups.y(), numWorkgroups.z());
 }
 
 

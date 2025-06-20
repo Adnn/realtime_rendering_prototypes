@@ -1,0 +1,118 @@
+#version 460
+
+// TODO: profile different workgroup geometries
+// Maybe something more x oriented might be better for cache coherency
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+
+#include "ch11_VoxelsSsbo.glsl"
+
+#include "shaders/Helpers.glsl"
+#include "shaders/LightsBlock.glsl"
+#include "shaders/LightUtilities.glsl"
+#include "shaders/ViewProjectionBlock.glsl"
+
+
+uniform vec3 u_AabbMin;
+uniform float u_VoxelSize;
+
+uniform usampler3D u_AlbedoTexture;
+uniform usampler3D u_NormalsTexture;
+
+uniform writeonly restrict image3D u_IrradianceImage;
+
+
+vec3 injectDirectLight(vec3 aLightDir, vec3 aShadingNormal, LightColors aColors)
+{
+    float nDotL = dotPlus(aShadingNormal, aLightDir);
+    vec3 diffuse = nDotL * aColors.diffuse.rgb;
+    return diffuse;
+}
+
+
+vec3 voxelToWorld(ivec3 aGridPosition)
+{
+	// Offset by 0.5 to position at the voxel center
+    vec3 position_grid = vec3(aGridPosition) + 0.5;
+    return position_grid * u_VoxelSize + u_AabbMin;
+}
+
+
+void main()
+{
+    if(any(greaterThanEqual(gl_GlobalInvocationID, uvec3(ub_GridDimension))))
+    {
+        return;
+    }
+
+    ivec3 voxelCoord = ivec3(gl_GlobalInvocationID);
+
+    uvec4 voxelAlbedo = texelFetch(u_AlbedoTexture, voxelCoord, 0);
+    vec4 albedo = vec4(voxelAlbedo) / 255;
+
+    if (albedo.a == 0)
+    {
+        // Debug write
+		//imageStore(u_IrradianceImage, voxelCoord, vec4(0, 1, 1, 1));
+        return; // non-occupied
+    }
+
+    uvec4 voxelNormal = texelFetch(u_NormalsTexture, voxelCoord, 0);
+    // Remap from [-1, 1]^3 to [0, 1]^3
+    vec3 normal_world = ((vec3(voxelNormal.xyz) / 255) * 2) - 1;
+    normal_world = normalize(normal_world);
+	vec3 position_world = voxelToWorld(voxelCoord);
+
+    // Accumulator for irradiance
+    vec3 irradiance = vec3(0);
+
+    //
+    // Directional
+    //
+    for(uint directionalIdx = 0;
+        directionalIdx != ub_DirectionalCount.x;
+        ++directionalIdx)
+    {
+        DirectionalLight directional = ub_DirectionalLights[directionalIdx];
+        vec3 lightDir_cam = -directional.direction.xyz;
+        
+		// We need the light in in the same space as the normal
+		// TODO #perf: this info should be available in a buffer, not computed in each voxel
+		vec3 lightDir_world = normalize(mat3(ub_cameraToWorld) * lightDir_cam);
+
+        irradiance += 
+            injectDirectLight(normal_world, lightDir_world, directional.colors);
+    }
+
+    //
+    // Point
+    //
+
+	for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
+    {
+        PointLight point = ub_PointLights[pointIdx];
+
+		// TODO #perf: this info should be available in a buffer, not computed in each voxel
+        vec3 lightPos_world = (ub_cameraToWorld * vec4(point.position.xyz, 1)).xyz;
+        //vec3 lightPos_world = (ub_cameraToWorld * point.position).xyz;
+
+        vec3 lightRay_world = lightPos_world - position_world;
+        float r = sqrt(dot(lightRay_world, lightRay_world));
+        vec3 lightDir_world = lightRay_world / r;
+
+        float falloff = attenuatePoint(point, r);
+
+        irradiance += 
+            falloff
+            * injectDirectLight(normal_world, lightDir_world, point.colors)
+            ;
+    }
+
+    // Add ambient contribution
+    irradiance += ub_AmbientColor.rgb;
+    // Apply the voxel albedo to accumulated irradiance from all light sources
+    irradiance *= albedo.rgb;
+
+    // TODO: store correct occupancy (1 might be correct)
+    imageStore(u_IrradianceImage, voxelCoord, vec4(irradiance, 1));
+}

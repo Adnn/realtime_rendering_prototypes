@@ -3,6 +3,8 @@
 
 #include <engine/IntrospectProgram.h>
 
+#include <math/Box.h>
+
 #include <renderer/Texture.h>
 #include <renderer/UniformBuffer.h>
 
@@ -39,6 +41,7 @@ struct Voxelizer
         bool mUseDominantAxis = true;
         bool mConservativeRasterization = true;
         bool mConservativeDepthRange = false;
+        bool mAverageSamples = true;
         // Not intended for GUI, but internal value updated depending on the usage context
         bool mCpuReadVoxels = false;
         bool mLinearFiltering = true;
@@ -46,36 +49,38 @@ struct Voxelizer
 
     Voxelizer();
 
-    void voxelizeDominantAxis(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                              // TODO: take a FrameGraph (when the buffers are moved there)
-                              const graphics::UniformBufferObject & aViewProjectionBuffer,
+    void voxelizeDominantAxis(const scenic::SceneTree & aScene,
+                              GLuint aGridDimension,
                               const FrameGraph & aGraph);
 
     void voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                                  const graphics::UniformBufferObject & aViewProjectionBuffer,
                                   const FrameGraph & aGraph);
 
     void voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                  // TODO: take a FrameGraph (when the buffers are moved there)
-                  const graphics::UniformBufferObject & aViewProjectionBuffer,
                   const FrameGraph & aGraph);
 
     void voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                  // TODO: take a FrameGraph (when the buffers are moved there)
-                  const graphics::UniformBufferObject & aViewProjectionBuffer,
-                  const FrameGraph & aGraph);
+                      const FrameGraph & aGraph);
 
     void prepareMipmap(GLuint aGridDimension);
 
+    void injectIrradiance(GLuint aGridDimension, const FrameGraph & aGraph);
+
     Guard guardConservativeRasterization();
+
+    void recordSceneAabb(const scenic::SceneTree & aScene, GLuint aGridDimension);
 
     VoxelizerControl mControl;
     graphics::Buffer<graphics::BufferType::ShaderStorage> mVoxelStore;
     GLsizeiptr mVoxelsByteSize;
+    math::Box<float> mSceneAabb; // Note: we could only keep min corner
     float mVoxelSize{0.f}; // World units
     graphics::Texture mOccupancy{GL_TEXTURE_3D};
     graphics::Texture mAlbedo{GL_TEXTURE_3D};
+    graphics::Texture mNormals{GL_TEXTURE_3D};
+    graphics::Texture mIrradiance{GL_TEXTURE_3D};
     graphics::VertexArrayObject mDummyVao;
+    graphics::UniformBufferObject mVoxelizationViewBuffer;
 };
 
 

@@ -47,18 +47,30 @@ struct Scene
         {
             FullScene,
             ConeTrace,
-            Voxels,
+            VoxelsOccupancy,
+            VoxelsAlbedo,
+            VoxelsNormals,
+            VoxelsIrradiance,
             _End/* keep last */
+        };
+
+        bool showOccupancy() const
+        {
+            return mMode == Mode::VoxelsOccupancy;
         };
 
         bool showVoxels() const
         {
-            return mMode == Mode::Voxels;
+            return 
+                mMode == Mode::VoxelsOccupancy
+                || mMode == Mode::VoxelsAlbedo
+                || mMode == Mode::VoxelsNormals
+                || mMode == Mode::VoxelsIrradiance
+                ;
         };
 
         Mode mMode{ Mode::FullScene };
-        //bool mShowVoxels = false;
-        bool mRaytraceVoxels = true;
+        bool mCubeInstances = false;
 
         bool mShowPunctualLights = false;
         bool mDrawBoundingBoxes = true;

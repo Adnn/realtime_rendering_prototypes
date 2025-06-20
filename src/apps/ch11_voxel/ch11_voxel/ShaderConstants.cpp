@@ -1,6 +1,7 @@
 #include "ShaderConstants.h"
 
 #include "FrameGraph.h"
+#include "Scene.h"
 
 #include <engine/ShaderConstants.h>
 
@@ -15,8 +16,19 @@ namespace ad {
         {
             std::vector<graphics::MacroDefine> result = renderer::defineShaderConstants();
             result.emplace_back(
-                "CLIENT_MAX_MATERIALS " + std::to_string(scenic::gMaxMaterials)
-            );
+                "CLIENT_MAX_MATERIALS " + std::to_string(scenic::gMaxMaterials));
+            result.emplace_back(
+                "CLIENT_VOXEL_MODE_OCCUPANCY " 
+                + std::to_string((GLuint)Scene::SceneControl::Mode::VoxelsOccupancy));
+            result.emplace_back(
+                "CLIENT_VOXEL_MODE_ALBEDO " 
+                + std::to_string((GLuint)Scene::SceneControl::Mode::VoxelsAlbedo));
+            result.emplace_back(
+                "CLIENT_VOXEL_MODE_NORMALS " 
+                + std::to_string((GLuint)Scene::SceneControl::Mode::VoxelsNormals));
+            result.emplace_back(
+                "CLIENT_VOXEL_MODE_IRRADIANCE " 
+                + std::to_string((GLuint)Scene::SceneControl::Mode::VoxelsIrradiance));
             return result;
         }
             

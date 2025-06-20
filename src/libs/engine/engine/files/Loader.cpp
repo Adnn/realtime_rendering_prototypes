@@ -528,6 +528,10 @@ IntrospectProgram Loader::loadProgram(const ReferencePath & aProgFile,
         {
             stageEnumerator = GL_TESS_EVALUATION_SHADER;
         }
+        else if(shaderStage == "compute")
+        {
+            stageEnumerator = GL_COMPUTE_SHADER;
+        }
         else
         {
             ADLOG(critical)("Unable to map shader stage key '{}' to a program stage.", shaderStage);

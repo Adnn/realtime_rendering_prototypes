@@ -38,6 +38,8 @@ namespace ad {
         const renderer::ReferencePath gVoxelizationViewProgram{"programs/ch11_View.prog"};
         const renderer::ReferencePath gVoxelizationDominantAxisViewProgram{"programs/ch11_ViewDominantAxis.prog"};
 
+        const renderer::ReferencePath gInjectIrradianceProgramPath{"programs/ch11_InjectIrradiance.prog"};
+
 
     } // unnamed namespace
 
@@ -130,8 +132,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mVoxelizationProgram{ aEngine.loadProgram(gVoxelizationProgram) },
     mVoxelizationDominantAxisProgram{ aEngine.loadProgram(gVoxelizationDominantAxisProgram) },
     mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) },
-    mVoxelizationDominantAxisViewProgram{ aEngine.loadProgram(gVoxelizationDominantAxisViewProgram) }
-
+    mVoxelizationDominantAxisViewProgram{ aEngine.loadProgram(gVoxelizationDominantAxisViewProgram) },
+    mInjectIrradianceProgram{ aEngine.loadProgram(gInjectIrradianceProgramPath) }
 {}
 
 
@@ -203,7 +205,10 @@ void FrameGraph::passForward(const scenic::SceneTree & aSceneTree,
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-
+    // We are alpha-testing in the fragment shader
+    // and unless we sort the geometry, alpha blending will likely blend with wrong background
+    glDisable(GL_BLEND);
+ 
     drawPass(aProgram, aSceneTree, mEngine);
 }
 

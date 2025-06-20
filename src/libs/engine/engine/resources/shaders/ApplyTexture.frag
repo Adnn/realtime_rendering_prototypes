@@ -42,7 +42,7 @@ void main(void)
 			out_Color = vec4(vec3(linearizeDepth(value.r)), 1);
 			break;
 		case MODE_DIRECTION:
-			out_Color = vec4(mapToRgb(value.rgb), 1);
+			out_Color = vec4(mapToUnit(value.rgb), 1);
 			break;
 		case MODE_DEPTH_FROM_POSITION:
 			out_Color = vec4(

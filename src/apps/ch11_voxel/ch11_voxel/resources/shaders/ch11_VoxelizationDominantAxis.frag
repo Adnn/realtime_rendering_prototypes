@@ -7,6 +7,8 @@
 
 #include "ch11_VoxelsSsbo.glsl"
 
+#include "shaders/Helpers.glsl"
+
 
 /// See: Crassin, Cyril, and Simon Green. “Octree-Based Sparse Voxelization Using the GPU Hardware Rasterizer.” In OpenGL Insights, edited by Patrick Cozzi and Christophe Riccio, 303–20. A K Peters/CRC Press, 2012.
 /// Listing 22.2
@@ -69,7 +71,7 @@ void imageAtomicRGBA8Avg(layout(r32ui) volatile coherent restrict uimage3D grid,
 
 in vec3 ex_Position_grid;
 in vec4 ex_Color;
-in vec3 ex_Normal_view;
+in vec3 ex_Normal_world;
 in vec2 ex_Uv01;
 
 uniform sampler2D u_DiffuseTexture;
@@ -79,6 +81,7 @@ uniform uint u_DiffuseUvChannel;
 uniform uint u_NormalUvChannel;
 
 uniform bool u_ConservativeDepthRange;
+uniform bool u_AverageSamples = true;
 
 
 // * coherent: memory accesses are coherant with similar access from other shader invocations
@@ -86,26 +89,54 @@ uniform bool u_ConservativeDepthRange;
 // * restrict: there is no access aliasing (no other image variable access the same data)
 //   shader exection by some other source than the executing shader.
 layout(r32ui) uniform coherent volatile restrict uimage3D u_AlbedoImage;
+layout(r32ui) uniform coherent volatile restrict uimage3D u_NormalsImage;
 
 
-void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo)
+void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo, vec3 aNormal)
 {
 	markOccupiedAtomic(aGridCoordinate);
-//#define DEBUG_ALBEDO
-#if defined(DEBUG_ALBEDO)
-	imageAtomicExchange(
-		u_AlbedoImage, 
-		aGridCoordinate, 
-		convVec4ToRGBA8(unmultipliedAlbedo * 255));
-#else
-	// For correct color averaging, the alpha must be premultiplied to linear space colors (already linear)
-	// see: https://github.com/jose-villegas/VCTRenderer/blob/7ae9788f25ef46ab4f9ece2e8cbcf158934ec3a0/engine/assets/shaders/voxelization.frag#L111-L112
-	vec4 premultipliedAlpha = vec4(
-		unmultipliedAlbedo.rgb * unmultipliedAlbedo.a,
-		//1); // Count as 1 sample in the average, see cumulative average implementation
-		unmultipliedAlbedo.a); // Actually, weighting the cumulative average avoids over-darkening in zones with low-alpha
-	imageAtomicRGBA8Avg(u_AlbedoImage, aGridCoordinate, premultipliedAlpha);
-#endif
+
+	vec3 remappedNormal = mapToUnit(aNormal);
+
+	if(u_AverageSamples)
+	{
+		//#define PREMULTIPLY_ALPHA
+		#if defined(PREMULTIPLY_ALPHA)
+			// For correct color averaging, the alpha must be premultiplied to linear space colors (already linear)
+			// see: https://github.com/jose-villegas/VCTRenderer/blob/7ae9788f25ef46ab4f9ece2e8cbcf158934ec3a0/engine/assets/shaders/voxelization.frag#L111-L112
+			vec4 albedo = vec4(
+				unmultipliedAlbedo.rgb * unmultipliedAlbedo.a,
+				unmultipliedAlbedo.a); // Actually, weighting the cumulative average avoids over-darkening in zones with low-alpha
+		#else
+			// Sadly, the above solution has major drawback:
+			// * an alpha < 1 will be truncated to 0 by convVec4ToRGBA8()
+			//   This does result in incorrect weightin, and potential divide by zero
+			// * setting alpha to 1 (to count as 1 whole sample) with premultiplying
+			//   will overdarken the texels where a lot of low alpha pixels are present
+			// Note: this darkeking might be mitigated during the cone-trace
+			// if we forward some notion of coverage related to those low-alpha
+			vec4 albedo = vec4(
+				unmultipliedAlbedo.rgb,
+				1); // Count as 1 sample in the average, see cumulative average implementation
+		#endif
+		imageAtomicRGBA8Avg(u_AlbedoImage, aGridCoordinate, albedo);
+
+		// Each normal count as 1 sample in the average, so alpha is set to 1.
+		// See cumulative average implementation
+		vec4 normalSample = vec4(remappedNormal, 1);
+		imageAtomicRGBA8Avg(u_NormalsImage, aGridCoordinate, normalSample);
+	}
+	else
+	{
+		imageAtomicExchange(
+			u_AlbedoImage, 
+			aGridCoordinate, 
+			convVec4ToRGBA8(unmultipliedAlbedo * 255));
+		imageAtomicExchange(
+			u_NormalsImage, 
+			aGridCoordinate, 
+			convVec4ToRGBA8(vec4(remappedNormal, 0) * 255));
+	}
 }
 
 
@@ -122,8 +153,9 @@ void main(void)
 	if (albedo.a < 0.5)
 	{
 		discard;
-		return;
 	}
+
+	vec3 normal = normalize(ex_Normal_world);
 
 	if(u_ConservativeDepthRange)
 	{
@@ -141,13 +173,13 @@ void main(void)
 		for (int z = int(zMin); z <= int(zMax); ++z)
 		{
 			// Truncate the floats toward zero (equivalent to floor() on Z+)
-			recordVoxel(ivec3(ivec2(ex_Position_grid.xy), z), albedo);
+			recordVoxel(ivec3(ivec2(ex_Position_grid.xy), z), albedo, normal);
 		}
 	}
 	else
 	{
 		// Truncates toward zero, as needed (equivalent to floor in Z+)
 		ivec3 voxel = ivec3(ex_Position_grid);
-		recordVoxel(voxel, albedo);
+		recordVoxel(voxel, albedo, normal);
 	}
 }

@@ -187,19 +187,18 @@ void Scene::voxelize()
 {
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "voxelization");
 
-    const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
-    const float maxSide = *sceneAabb.mDimension.getMaxMagnitudeElement();
-    mVoxelizer.mVoxelSize = maxSide / gGridDimension;
+    // Note: should be called directly in the voxelize() function(s)
+    mVoxelizer.recordSceneAabb(mSceneTree, gGridDimension);
 
-    mVoxelizer.mControl.mCpuReadVoxels = !mSceneControl.mRaytraceVoxels;
+    mVoxelizer.mControl.mCpuReadVoxels = mSceneControl.mCubeInstances;
 
     if (mVoxelizer.mControl.mUseDominantAxis)
     {
-        mVoxelizer.voxelizeDominantAxis(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+        mVoxelizer.voxelizeDominantAxis(mSceneTree, gGridDimension, mGraph);
     }
     else
     {
-        mVoxelizer.voxelize(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+        mVoxelizer.voxelize(mSceneTree, gGridDimension, mGraph);
     }
 
     mVoxelizer.prepareMipmap(gGridDimension);
@@ -210,6 +209,8 @@ void Scene::voxelize()
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
+    mVoxelizer.injectIrradiance(gGridDimension, mGraph);
+
     glPopDebugGroup();
 }
 
@@ -218,6 +219,14 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
                  math::Size<2, int> aWindowResolution)
 {
     mOrbitalCamera.update(aWindowResolution.height());
+
+    //
+    // Camera
+    //
+    changeAspectRatio(mOrbitalCamera.mCamera, math::getRatio<GLfloat>(aWindowResolution));
+    graphics::loadSingle(mViewProjectionBuffer,
+                         mOrbitalCamera.getViewProjectionBlock(),
+                         graphics::BufferHint::StreamDraw);
 
     //
     // Materials
@@ -258,9 +267,9 @@ void Scene::step(const graphics::Timer & /*aTimer*/,
         mVoxelizationRequest = false;
     }
 
-    if (mSceneControl.showVoxels() && !mSceneControl.mRaytraceVoxels)
+    if (mSceneControl.showOccupancy() && mSceneControl.mCubeInstances)
     {
-        const math::Box<float> sceneAabb = scenic::getAabb(mSceneTree);
+        const math::Box<float> & sceneAabb = mVoxelizer.mSceneAabb;
 
         mObjectsCount = std::pow(gGridDimension, 3);
         std::uint8_t * buffer =
@@ -337,14 +346,6 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
 void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
 {
     //
-    // Camera
-    //
-    changeAspectRatio(mOrbitalCamera.mCamera, math::getRatio<GLfloat>(aBackbufferResolution));
-    graphics::loadSingle(mViewProjectionBuffer,
-                         mOrbitalCamera.getViewProjectionBlock(),
-                         graphics::BufferHint::StreamDraw);
-
-    //
     // Frame rendering
     //
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
@@ -358,46 +359,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-        if (mSceneControl.mRaytraceVoxels)
-        {
-            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "render_voxels_raytrace");
-
-            glBindVertexArray(mGraph.mDummyVao);
-
-            const auto & program = mGraph.mPrograms.mRayTraceVoxels;
-            glUseProgram(program);
-
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, mVoxelizer.mVoxelStore);
-
-            // TODO cache the aabb
-            math::Box<float> aabb = scenic::getAabb(mSceneTree);
-            graphics::setUniform(program, "u_AabbMin", aabb.leftBottomZMin());
-            graphics::setUniform(program, "u_AabbMax", aabb.rightTopZMax());
-
-            graphics::setUniform(program, "u_FramebufferSize", aBackbufferResolution);
-            
-            const graphics::PerspectiveParameters projectionParams =
-                std::get<graphics::PerspectiveParameters>
-                (mOrbitalCamera.mCamera.getProjectionParameters());
-            float imageHeight = 2 * tan(projectionParams.mVerticalFov / 2);
-            math::Size<2, float> imagePlaneSize{
-                projectionParams.mAspectRatio * imageHeight,
-                imageHeight
-            };
-            graphics::setUniform(program, "u_ImagePlane_view", imagePlaneSize);
-
-            graphics::setUniform(program, "u_VoxelSize", mVoxelizer.mVoxelSize);
-
-            glBindTextureUnit(0, mVoxelizer.mAlbedo);
-            graphics::setUniform(program, "u_VoxelsAlbedoTexture", 0);
-
-            // TODO: Remove once fragment shader write the correct depth
-            glDepthMask(GL_FALSE);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-            glPopDebugGroup();
-        }
-        else
+        if (mSceneControl.showOccupancy() && mSceneControl.mCubeInstances)
         {
             glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "render_voxels_mesh");
 
@@ -430,6 +392,52 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
 
             glPopDebugGroup();
         }
+        else
+        {
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "render_voxels_raytrace");
+
+            glBindVertexArray(mGraph.mDummyVao);
+
+            const auto & program = mGraph.mPrograms.mRayTraceVoxels;
+            glUseProgram(program);
+
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, mVoxelizer.mVoxelStore);
+
+            const math::Box<float> & aabb = mVoxelizer.mSceneAabb;
+            graphics::setUniform(program, "u_AabbMin", aabb.leftBottomZMin());
+            graphics::setUniform(program, "u_AabbMax", aabb.rightTopZMax());
+
+            graphics::setUniform(program, "u_FramebufferSize", aBackbufferResolution);
+            
+            const graphics::PerspectiveParameters projectionParams =
+                std::get<graphics::PerspectiveParameters>
+                (mOrbitalCamera.mCamera.getProjectionParameters());
+            float imageHeight = 2 * tan(projectionParams.mVerticalFov / 2);
+            math::Size<2, float> imagePlaneSize{
+                projectionParams.mAspectRatio * imageHeight,
+                imageHeight
+            };
+            graphics::setUniform(program, "u_ImagePlane_view", imagePlaneSize);
+
+            graphics::setUniform(program, "u_VoxelSize", mVoxelizer.mVoxelSize);
+
+            glBindTextureUnit(0, mVoxelizer.mAlbedo);
+            graphics::setUniform(program, "u_VoxelsAlbedoTexture", 0);
+            glBindTextureUnit(1, mVoxelizer.mNormals);
+            graphics::setUniform(program, "u_VoxelsNormalsTexture", 1);
+            glBindTextureUnit(2, mVoxelizer.mIrradiance);
+            graphics::setUniform(program, "u_VoxelsIrradianceTexture", 2);
+
+            graphics::setUniform(program, "u_VoxelMode",
+                                 static_cast<GLuint>(mSceneControl.mMode));
+
+            // TODO: Remove once fragment shader write the correct depth
+            glDepthMask(GL_FALSE);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+            glPopDebugGroup();
+        }
+        
     }
     else if (mSceneControl.mVoxelPov)
     {
@@ -437,11 +445,11 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
         glViewport(0, 0, min, min);
         if (mVoxelizer.mControl.mUseDominantAxis)
         {
-            mVoxelizer.voxelizeDominantAxisView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+            mVoxelizer.voxelizeDominantAxisView(mSceneTree, gGridDimension, mGraph);
         }
         else
         {
-            mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mViewProjectionBuffer, mGraph);
+            mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mGraph);
         }
     }
     else if (mSceneControl.mMode == SceneControl::Mode::ConeTrace)
@@ -523,9 +531,9 @@ void Scene::presentUi(bool * aOpen)
         "Mode", mSceneControl.mMode);
     ImGui::Indent();
     {
-        if (!mSceneControl.showVoxels()) ImGui::BeginDisabled();
-        ImGui::Checkbox("Raytrace Voxels", &mSceneControl.mRaytraceVoxels);
-        if (!mSceneControl.showVoxels()) ImGui::EndDisabled();
+        if (!mSceneControl.showOccupancy()) ImGui::BeginDisabled();
+        ImGui::Checkbox("Instantiate meshes", &mSceneControl.mCubeInstances);
+        if (!mSceneControl.showOccupancy()) ImGui::EndDisabled();
     }
     ImGui::Unindent();
 
@@ -533,9 +541,11 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
 
     ImGui::SeparatorText("Voxelization:");
+    mVoxelizationRequest |= ImGui::Button("Force voxelize");
     mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
     mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
     mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
+    mVoxelizationRequest |= ImGui::Checkbox("Average Samples in Voxel", &mVoxelizer.mControl.mAverageSamples);
     mVoxelizationRequest |= ImGui::Checkbox("Trace linear filtering", &mVoxelizer.mControl.mLinearFiltering);
     ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
 
@@ -544,8 +554,7 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Frame Graph"))
     {
-        mGraph.appendUi();
-    }
+        mGraph.appendUi(); }
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Materials"))
@@ -595,7 +604,10 @@ std::string to_string(Scene::SceneControl::Mode aValue)
     {
         STR(FullScene);
         STR(ConeTrace);
-        STR(Voxels);
+        STR(VoxelsOccupancy);
+        STR(VoxelsAlbedo);
+        STR(VoxelsNormals);
+        STR(VoxelsIrradiance);
     default:
         throw std::logic_error{ "Unhandled mode." };
     }
