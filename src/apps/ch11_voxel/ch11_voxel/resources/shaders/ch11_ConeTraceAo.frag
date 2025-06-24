@@ -2,6 +2,8 @@
 
 
 #include "ch11_VoxelsSsbo.glsl"
+#include "ch11_VoxelsUtilities.glsl"
+
 #include "shaders/Helpers.glsl"
 
 
@@ -9,6 +11,7 @@ in vec3 ex_Normal_world;
 in vec3 ex_Position_world;
 
 uniform sampler3D u_VoxelsAlbedoTexture;
+uniform sampler3D u_VoxelsIrradianceTexture;
 
 uniform float u_TanHalfAperture;
 
@@ -57,7 +60,7 @@ const float diffuseConeWeights[] =
 
 
 
-float traceCone(vec3 position_aabb, vec3 normal_aabb, vec3 coneAxis_aabb, float tanHalfAngle)
+vec4 traceCone(vec3 position_aabb, vec3 normal_aabb, vec3 coneAxis_aabb, float tanHalfAngle)
 {
 	// TODO: check reference implementation
 	const float maxDistance = 2;
@@ -74,6 +77,9 @@ float traceCone(vec3 position_aabb, vec3 normal_aabb, vec3 coneAxis_aabb, float 
 	{
 		position_aabb = (floor(position_aabb / u_VoxelSize) + vec3(0.5)) * u_VoxelSize;
 	}
+
+	// Note: Some implementation offset in the direction of the normal instead of the cone
+	// e.g. https://github.com/jose-villegas/VCTRenderer/blob/9ae0dbe5bd60e85514e3e582bf23f2868c6b51fc/engine/assets/shaders/light_pass.frag#L147
 	vec3 startPosition_aabb = position_aabb + normal_aabb * u_VoxelSize; 
 	//vec3 startPosition = position_aabb; // or grid centered?
 
@@ -82,26 +88,39 @@ float traceCone(vec3 position_aabb, vec3 normal_aabb, vec3 coneAxis_aabb, float 
 
 	// ambient occlusion
 	float occlusion = 0;
+	vec4 marchedIrradiance = vec4(0);
 
-	while(occlusion < 1.0f && t <= maxDistance)
+	while(marchedIrradiance.a < 1.0f && t <= maxDistance)
 	{
 		float coneDiameter = 2 * t * tanHalfAngle;
 		float mipLevel = log2(coneDiameter / u_VoxelSize);
 
 		vec3 samplePosition_aabb = startPosition_aabb + direction_aabb * t;
 		vec3 position_uvw = samplePosition_aabb / (u_VoxelSize * ub_GridDimension);
+		// TODO: rename, this is not albedo but occupancy atm
 		vec4 albedo = textureLod(u_VoxelsAlbedoTexture, position_uvw, mipLevel);
+		vec4 irradianceSample = textureLod(u_VoxelsIrradianceTexture, position_uvw, mipLevel);
 
-		// TODO: actual irradiance marching
-		// front to back
-		//coneSample += (1.0f - coneSample.a) * albedo;
+		// irradiance marching, front to back compositing
+		//#define GPU_GEMS_BTF
+		#if defined(GPU_GEMS_BTF)
+			// see chapter 6 of GPU GEMS chapter 39 volume rendering techniques
+			// https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-39-volume-rendering-techniques
+			marchedIrradiance += (1.0f - marchedIrradiance.a) * irradianceSample;
+		#else
+			// It seems the Crassin paper back-to-front composition is wrong
+			// the alpha should not be reapplied to previous occlusion
+			marchedIrradiance.rgb += 
+				(1 - marchedIrradiance.a) * irradianceSample.a * irradianceSample.rgb;
+			marchedIrradiance.a += (1 - marchedIrradiance.a) * irradianceSample.a;
+		#endif
 
 		occlusion += ((1.0f - occlusion) * albedo.a) / (1.0f + falloff * coneDiameter);
 		// march the cone
 		t += coneDiameter * samplingFactor;
 	}
 
-	return occlusion;
+	return vec4(marchedIrradiance.rgb, occlusion);
 }
 
 
@@ -151,20 +170,22 @@ void main(void)
 		mat3 tangentToWorld = mat3(tangent, bitangent, normal_world);
 
 		const uint coneCount = 6;
-		float occlusion = 0;
+		//float occlusion = 0;
+		vec4 accumulatedIrradiance;
 		for(uint i = 0; i != coneCount; ++i)
 		{
 			vec3 coneAxis_world = tangentToWorld * diffuseConeDirections[i];
 			// Note: The AABB is aligned on world axis, so directions are matching
-			occlusion += 
+			accumulatedIrradiance += 
 				traceCone(position_aabb, normal_world, coneAxis_world, u_TanHalfAperture)
-				* diffuseConeWeights[i]
+					* diffuseConeWeights[i]
 				;
 		}
 
 		// is the same direction in AABB.
 		//occlusion = traceCone(position_aabb, normal_world, normal_world, u_TanHalfAperture);
 
-		out_Color = vec4(vec3(1-occlusion), 1);
+		//out_Color = vec4(vec3(1-accumulatedIrradiance.a), 1);
+		out_Color = vec4(accumulatedIrradiance.rgb, 1);
 	}
 }

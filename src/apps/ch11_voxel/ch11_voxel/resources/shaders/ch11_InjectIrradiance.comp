@@ -6,6 +6,7 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 
 #include "ch11_VoxelsSsbo.glsl"
+#include "ch11_VoxelsUtilities.glsl"
 
 #include "shaders/Helpers.glsl"
 #include "shaders/LightsBlock.glsl"
@@ -27,14 +28,6 @@ vec3 injectDirectLight(vec3 aLightDir, vec3 aShadingNormal, LightColors aColors)
     float nDotL = dotPlus(aShadingNormal, aLightDir);
     vec3 diffuse = nDotL * aColors.diffuse.rgb;
     return diffuse;
-}
-
-
-vec3 voxelToWorld(ivec3 aGridPosition)
-{
-	// Offset by 0.5 to position at the voxel center
-    vec3 position_grid = vec3(aGridPosition) + 0.5;
-    return position_grid * u_VoxelSize + u_AabbMin;
 }
 
 
@@ -61,7 +54,7 @@ void main()
     // Remap from [-1, 1]^3 to [0, 1]^3
     vec3 normal_world = ((vec3(voxelNormal.xyz) / 255) * 2) - 1;
     normal_world = normalize(normal_world);
-	vec3 position_world = voxelToWorld(voxelCoord);
+	vec3 position_world = voxelToWorld(voxelCoord, u_VoxelSize, u_AabbMin);
 
     // Accumulator for irradiance
     vec3 irradiance = vec3(0);
@@ -87,7 +80,6 @@ void main()
     //
     // Point
     //
-
 	for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
     {
         PointLight point = ub_PointLights[pointIdx];

@@ -43,7 +43,10 @@ scenic::Camera prepareVoxelizationCamera(math::Box<float> aAabb)
 }
 
 
-graphics::Texture prepare3dTexture(GLenum aImageFormat, GLuint aGridDimension, const char * aName)
+graphics::Texture prepare3dTexture(GLenum aImageFormat,
+                                   GLuint aGridDimension,
+                                   GLsizei aLevels,
+                                   const char * aName)
 {
     graphics::Texture texture{GL_TEXTURE_3D};
     // For creation
@@ -54,8 +57,7 @@ graphics::Texture prepare3dTexture(GLenum aImageFormat, GLuint aGridDimension, c
     glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    const GLsizei gLevels = 1;
-    glTextureStorage3D(texture, gLevels, aImageFormat,
+    glTextureStorage3D(texture, aLevels, aImageFormat,
                        aGridDimension, aGridDimension, aGridDimension);
 
     return texture;
@@ -149,8 +151,8 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
     const GLenum gImageFormat = GL_RGBA8UI;
     const GLenum gAccessFormat = GL_R32UI;
 
-    mAlbedo = prepare3dTexture(gImageFormat, aGridDimension, "voxels_albedo");
-    mNormals = prepare3dTexture(gImageFormat, aGridDimension, "voxels_normal");
+    mAlbedo = prepare3dTexture(gImageFormat, aGridDimension, 1, "voxels_albedo");
+    mNormals = prepare3dTexture(gImageFormat, aGridDimension, 1, "voxels_normal");
 
     // The image binding is not layered (GL_FALSE), and the texture does not have array layers:
     // layer parameter must be 0
@@ -394,13 +396,25 @@ void Voxelizer::prepareMipmap(GLuint aGridDimension)
                         GL_RGBA, GL_UNSIGNED_BYTE, textureData.data());
 
     glGenerateTextureMipmap(mOccupancy);
+
+    glGenerateTextureMipmap(mIrradiance);
 }
 
 
 void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGraph)
 {
     const GLenum format = GL_RGBA8;
-    mIrradiance = prepare3dTexture(format, aGridDimension, "voxels_irradiance");
+    mIrradiance = prepare3dTexture(format,
+                                   aGridDimension,
+                                   graphics::countCompleteMipmaps({(int)aGridDimension, (int)aGridDimension}),
+                                   "voxels_irradiance");
+
+    if (mControl.mLinearFiltering)
+    {
+        glTextureParameteri(mIrradiance, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(mIrradiance, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
     glBindImageTexture(gIrradianceImageUnit, mIrradiance, 
                        0, GL_FALSE, 0, 
                        GL_WRITE_ONLY, format);

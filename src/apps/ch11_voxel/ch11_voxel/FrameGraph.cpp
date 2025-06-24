@@ -183,8 +183,9 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
 {
     const auto & program = mPrograms.mConeTrace;
     glBindTextureUnit(10, aVoxelizer.mOccupancy);
-
     graphics::setUniform(program, "u_VoxelsAlbedoTexture", 10);
+    glBindTextureUnit(11, aVoxelizer.mIrradiance);
+    graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
     math::Box<float> aabb = scenic::getAabb(aSceneTree);
     graphics::setUniform(program, "u_AabbMin", aabb.leftBottomZMin());
@@ -223,7 +224,7 @@ void FrameGraph::appendUi()
                       FrameControl::gPolygonModes.end(),
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
-    ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mConeAperture.data(), 0.f, 180.f);
+    ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mConeAperture.data(), 1.f, 180.f);
 
     ImGui::Checkbox("Grid Aligned Trace Origin", &mFrameControl.mGridAlign);
 }

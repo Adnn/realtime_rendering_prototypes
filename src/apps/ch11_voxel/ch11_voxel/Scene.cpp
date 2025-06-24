@@ -201,8 +201,6 @@ void Scene::voxelize()
         mVoxelizer.voxelize(mSceneTree, gGridDimension, mGraph);
     }
 
-    mVoxelizer.prepareMipmap(gGridDimension);
-
     // This is actually required to guarantee all writes are visible to subsequent
     // shader reads
     // TODO: place this barrier more tightly
@@ -210,6 +208,8 @@ void Scene::voxelize()
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
     mVoxelizer.injectIrradiance(gGridDimension, mGraph);
+
+    mVoxelizer.prepareMipmap(gGridDimension);
 
     glPopDebugGroup();
 }
