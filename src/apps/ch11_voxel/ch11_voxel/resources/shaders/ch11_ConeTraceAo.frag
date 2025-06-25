@@ -91,12 +91,21 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb, vec3 coneAxis_aabb, float t
 	float occlusion = 0;
 	vec4 marchedIrradiance = vec4(0);
 
+	const ivec3 fragment_grid = ivec3(position_aabb / u_VoxelSize);
+
 	while(marchedIrradiance.a < 1.0f && t <= maxDistance)
 	{
 		float coneDiameter = 2 * t * tanHalfAngle;
 		float mipLevel = log2(coneDiameter / u_VoxelSize);
 
 		vec3 samplePosition_aabb = startPosition_aabb + direction_aabb * t;
+
+		const ivec3 sample_grid = ivec3(samplePosition_aabb / u_VoxelSize);
+		if(sample_grid == fragment_grid)
+		{
+			return vec4(1, 0, 1, 1);
+		}
+
 		vec3 position_uvw = samplePosition_aabb / (u_VoxelSize * ub_GridDimension);
 		// TODO: rename, this is not albedo but occupancy atm
 		vec4 albedo = textureLod(u_VoxelsAlbedoTexture, position_uvw, mipLevel);
