@@ -42,6 +42,7 @@ struct Voxelizer
         bool mConservativeRasterization = true;
         bool mConservativeDepthRange = false;
         bool mAverageSamples = true;
+        bool mAverageNormalByAxis = true;
         // Not intended for GUI, but internal value updated depending on the usage context
         bool mCpuReadVoxels = false;
         bool mLinearFiltering = true;

@@ -546,6 +546,7 @@ void Scene::presentUi(bool * aOpen)
     mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
     mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
     mVoxelizationRequest |= ImGui::Checkbox("Average Samples in Voxel", &mVoxelizer.mControl.mAverageSamples);
+    mVoxelizationRequest |= ImGui::Checkbox("Average Normals by axis", &mVoxelizer.mControl.mAverageNormalByAxis);
     mVoxelizationRequest |= ImGui::Checkbox("Trace linear filtering", &mVoxelizer.mControl.mLinearFiltering);
     ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
 

@@ -5,6 +5,7 @@
 #include "ch11_VoxelsUtilities.glsl"
 
 #include "shaders/Helpers.glsl"
+#include "shaders/Gamma.glsl"
 
 
 in vec3 ex_Normal_world;
@@ -186,6 +187,6 @@ void main(void)
 		//occlusion = traceCone(position_aabb, normal_world, normal_world, u_TanHalfAperture);
 
 		//out_Color = vec4(vec3(1-accumulatedIrradiance.a), 1);
-		out_Color = vec4(accumulatedIrradiance.rgb, 1);
+		out_Color = correctGamma(vec4(accumulatedIrradiance.rgb, 1));
 	}
 }

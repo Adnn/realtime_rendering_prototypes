@@ -82,6 +82,7 @@ uniform uint u_NormalUvChannel;
 
 uniform bool u_ConservativeDepthRange;
 uniform bool u_AverageSamples = true;
+uniform bool u_AverageNormalByAxis;
 
 
 // * coherent: memory accesses are coherant with similar access from other shader invocations
@@ -95,6 +96,11 @@ layout(r32ui) uniform coherent volatile restrict uimage3D u_NormalsImage;
 void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo, vec3 aNormal)
 {
 	markOccupiedAtomic(aGridCoordinate);
+
+	if(u_AverageNormalByAxis)
+	{
+		aNormal = abs(aNormal);
+	}
 
 	vec3 remappedNormal = mapToUnit(aNormal);
 

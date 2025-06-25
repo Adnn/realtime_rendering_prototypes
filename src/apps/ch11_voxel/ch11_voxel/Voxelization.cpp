@@ -166,6 +166,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
     graphics::setUniform(program, "u_CameraScale", camScale);
     graphics::setUniform(program, "u_ConservativeDepthRange", mControl.mConservativeDepthRange);
     graphics::setUniform(program, "u_AverageSamples", mControl.mAverageSamples);
+    graphics::setUniform(program, "u_AverageNormalByAxis", mControl.mAverageNormalByAxis);
 
     graphics::setUniform(program, "u_AlbedoImage", gAlbedoImageUnit);
     graphics::setUniform(program, "u_NormalsImage", gNormalImageUnit);
@@ -430,6 +431,7 @@ void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
 
     graphics::setUniform(program, "u_VoxelSize", mVoxelSize);
     graphics::setUniform(program, "u_AabbMin", mSceneAabb.leftBottomZMin());
+    graphics::setUniform(program, "u_AverageNormalByAxis", mControl.mAverageNormalByAxis);
 
     const math::Vec<3, GLuint> totalInvocations{aGridDimension, aGridDimension, aGridDimension};
     // TODO: synchronize with compute shader

@@ -1,3 +1,7 @@
+#if !defined(GAMMA_GLSL_INCLUDE_GUARD)
+#define GAMMA_GLSL_INCLUDE_GUARD
+
+
 uniform float u_Gamma = 2.2;
 
 
@@ -13,3 +17,6 @@ vec4 correctGamma(vec4 aColor)
     // (The monitor will do the gamma expansion.)
     return vec4(correctGamma(aColor.xyz), aColor.w);
 }
+
+
+#endif // GAMMA_GLSL_INCLUDE_GUARD
