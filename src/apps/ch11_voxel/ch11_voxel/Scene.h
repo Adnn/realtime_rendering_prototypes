@@ -59,6 +59,11 @@ struct Scene
             return mMode == Mode::VoxelsOccupancy;
         };
 
+        bool showIrradiance() const
+        {
+            return mMode == Mode::VoxelsIrradiance;
+        };
+
         bool showVoxels() const
         {
             return 
@@ -70,6 +75,7 @@ struct Scene
         };
 
         Mode mMode{ Mode::FullScene };
+        GLint mMipmapLevel = 0;
         bool mCubeInstances = false;
 
         bool mShowPunctualLights = false;

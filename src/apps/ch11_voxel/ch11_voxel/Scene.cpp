@@ -430,6 +430,8 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
 
             graphics::setUniform(program, "u_VoxelMode",
                                  static_cast<GLuint>(mSceneControl.mMode));
+            graphics::setUniform(program, "u_VoxelMipmapLevel",
+                                 mSceneControl.mMipmapLevel);
 
             // TODO: Remove once fragment shader write the correct depth
             glDepthMask(GL_FALSE);
@@ -537,6 +539,22 @@ void Scene::presentUi(bool * aOpen)
     }
     ImGui::Unindent();
 
+    {
+        GLint levelCount = 1;
+        if (mSceneControl.showIrradiance())
+        {
+            glGetTextureParameteriv(mVoxelizer.mIrradiance, GL_TEXTURE_IMMUTABLE_LEVELS, &levelCount);
+        }
+        else
+        {
+            mSceneControl.mMipmapLevel = 0;
+        }
+        // see: https://github.com/ocornut/imgui/issues/3959#issuecomment-804105240
+        ImGuiSliderFlags flags = (levelCount == 1) ? ImGuiSliderFlags_ClampZeroRange : 0;
+        flags |= ImGuiSliderFlags_ClampOnInput;
+        ImGui::DragInt("Mipmap level", &mSceneControl.mMipmapLevel, .1f, 0, levelCount - 1, "%d", flags);
+    }
+
     ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
     ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
 
@@ -555,7 +573,8 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Frame Graph"))
     {
-        mGraph.appendUi(); }
+        mGraph.appendUi();
+    }
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Materials"))

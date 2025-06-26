@@ -18,10 +18,13 @@ uniform ivec2 u_FramebufferSize;
 // Size of the image plane at a distance 1 from the camera origin
 uniform vec2 u_ImagePlane_view;
 uniform uint u_VoxelMode;
+uniform int u_VoxelMipmapLevel;
 
 uniform usampler3D u_VoxelsAlbedoTexture;
 uniform usampler3D u_VoxelsNormalsTexture;
 uniform sampler3D u_VoxelsIrradianceTexture;
+
+const uniform vec4 u_MissColor = vec4(0.3, 0, 0, 1);
 
 out vec4 out_Color;
 
@@ -29,6 +32,19 @@ out vec4 out_Color;
 bool isVoxelOccupied(ivec3 aVoxel)
 {
     return getVoxelValue(aVoxel) == 1;
+}
+
+
+bool isTextureOccupied(ivec3 aVoxel, int aLevel)
+{
+	switch(u_VoxelMode)
+	{
+		case CLIENT_VOXEL_MODE_IRRADIANCE:
+			vec4 irradiance = texelFetch(u_VoxelsIrradianceTexture, aVoxel, aLevel);
+			return irradiance.a > 0;
+		default:
+			return false;
+	}
 }
 
 
@@ -100,12 +116,117 @@ vec4 fetchColor(ivec3 currentVoxel, bvec3 mask)
 		case CLIENT_VOXEL_MODE_IRRADIANCE:
         {
 			vec4 color = vec4(
-				vec3(texelFetch(u_VoxelsIrradianceTexture, currentVoxel, 0).rgb) 
+				vec3(texelFetch(u_VoxelsIrradianceTexture, currentVoxel, u_VoxelMipmapLevel).rgb) 
 					    * factorHitFace(mask),
 				     1);
 			return correctGamma(color);
 		}
 	}
+}
+
+
+/// @param aTestOnTexture: If true, test voxel "occupancy" directly on the texture dictated by mode
+/// otherwise, test it on the original voxels SSBBO (pure occupancy).
+/// Note: testing on the texture directly is required when handling mipmap levels.
+vec4 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb, 
+					float voxelSize, uint gridDimension,
+					inout bvec3 mask, bool aTestOnTexture)
+{
+	// see: "A Fast Voxel Traversal Algorithm for Ray Tracing", John Amanatides, Andrew Woo
+
+	// 
+	// Initialization phase
+	//
+	ivec3 currentVoxel = ivec3(aRayEntry_aabb / voxelSize);
+	// Clamp to an actual voxel coordinate (rounding errors can introduce noise)
+	currentVoxel = clamp(currentVoxel, ivec3(0), ivec3(gridDimension - 1));
+
+	// Direction the grid is visited in each coordinate
+	ivec3 step = ivec3(sign(aRayDir_aabb));
+
+	//#define INIT_SHADERTOY_FB39CA4
+	#if defined INIT_SHADERTOY_FB39CA4
+		// see: https://www.shadertoy.com/view/4dX3zl
+		vec3 tDelta = abs( vec3(length(aRayDir_aabb) * voxelSize) / aRayDir_aabb );
+		vec3 tMax = (step * (vec3(currentVoxel * voxelSize) - entry_aabb) + (step + 1) * 0.5 * voxelSize)
+					* tDelta;
+	#else // INIT_SHADERTOY_FB39CA4
+		// Advancing by tDelta results in next position being N_1 = (t + tDelta) * rayDir
+		// tDelta being 1/rayDir result in:
+		// N_1 = (t * rayDir) + (1/rayDir * rayDir) = N_0 + rayDir/rayDir,
+		// an increment of 1.
+		// Note: the absolute value ensure each component of tDelta are positive 
+		//       (even though the world direction could be negative)
+		vec3 tDelta = abs(voxelSize / aRayDir_aabb);
+
+		// Our grid is aligned to voxel corners: the boundaries' coordinates are
+		// the (scaled) voxel coordinates.
+		// Depending on rayDir's components sign, the next boundary is either:
+		// * the current voxel coordinates (negative dir component)
+		// * the next voxel coordinates (positive dir component).
+		// Note: remap `step` from [-1, 1] to [0, 1]
+		vec3 voxelBoundary_aabb = (currentVoxel + (step + 1.0) * 0.5) 
+								  * voxelSize; 
+
+		vec3 tMax = (voxelBoundary_aabb - aRayEntry_aabb) / aRayDir_aabb;
+		// Equivalent to (related to the shadertoy formula):
+		//vec3 tMax = (step * (voxelBoundary_aabb - entry_aabb)) * tDelta;
+	#endif // INIT_SHADERTOY_FB39CA4
+
+	//
+	// Traversal phase
+	//
+	const uint maxSteps = (gridDimension * 3);
+	// TODO: Having this max steps in place solve a potential hanging crash.
+	// Understand why and better address it
+	uint stp = 0;
+	while(maxCw(currentVoxel) < gridDimension && minCw(currentVoxel) >= 0
+		&& stp < maxSteps)
+	{
+		++stp;
+
+		if (!aTestOnTexture && isVoxelOccupied(currentVoxel))
+		{
+			return fetchColor(currentVoxel, mask);
+		}
+		else if (aTestOnTexture && isTextureOccupied(currentVoxel, u_VoxelMipmapLevel))
+		{
+			return fetchColor(currentVoxel, mask);
+		}
+
+		if (tMax.x < tMax.y) 
+		{
+			if (tMax.x < tMax.z) 
+			{
+				tMax.x += tDelta.x;
+				currentVoxel.x += step.x;
+				mask = bvec3(true, false, false);
+			}
+			else
+			{
+				tMax.z += tDelta.z;
+				currentVoxel.z += step.z;
+				mask = bvec3(false, false, true);
+			}
+		}
+		else 
+		{
+			if (tMax.y < tMax.z) 
+			{
+				tMax.y += tDelta.y;
+				currentVoxel.y += step.y;
+				mask = bvec3(false, true, false);
+			}
+			else 
+			{
+				tMax.z += tDelta.z;
+				currentVoxel.z += step.z;
+				mask = bvec3(false, false, true);
+			}            
+		}
+	}
+
+	return u_MissColor;
 }
 
 
@@ -141,7 +262,7 @@ void main(void)
 
 
     // In case we miss the AABB entirely, or do not hit any occupied voxel:
-    out_Color = vec4(0.3, 0, 0, 1);
+    out_Color = u_MissColor;
 
     // TODO: handle clipping planes
     if (tIn <= tOut && tOut >= 0)
@@ -167,99 +288,26 @@ void main(void)
         //#define DRAW_AABB
         #if defined(DRAW_AABB)
             out_Color = colorHitFace(mask);
-        #else    
-            // see: "A Fast Voxel Traversal Algorithm for Ray Tracing", John Amanatides, Andrew Woo
+        #else // DRAW_AABB 
+			vec3 entry_world = rayOrigin_world + t * rayDir_world;
+			vec3 entry_aabb = entry_world - u_AabbMin;
 
-            // 
-            // Initialization phase
-            //
-            vec3 entry_world = rayOrigin_world + t * rayDir_world;
-            vec3 entry_aabb = entry_world - u_AabbMin;
-            ivec3 currentVoxel = ivec3(entry_aabb / u_VoxelSize);
-            // Clamp to an actual voxel coordinate (rounding errors can introduce noise)
-            currentVoxel = clamp(currentVoxel, ivec3(0), ivec3(ub_GridDimension - 1));
+			int mipFactor = int(pow(2, u_VoxelMipmapLevel));
+			float voxelSize = u_VoxelSize * mipFactor;
+			uint gridDimension = ub_GridDimension / mipFactor;
 
-            // Direction the grid is visited in each coordinate
-            ivec3 step = ivec3(sign(rayDir_world));
-
-            //#define INIT_SHADERTOY_FB39CA4
-            #if defined INIT_SHADERTOY_FB39CA4
-                // see: https://www.shadertoy.com/view/4dX3zl
-                vec3 tDelta = abs( vec3(length(rayDir_world) * u_VoxelSize) / rayDir_world );
-                vec3 tMax = (step * (vec3(currentVoxel * u_VoxelSize) - entry_aabb) + (step + 1) * 0.5 * u_VoxelSize)
-                            * tDelta;
-            #else
-                // Advancing by tDelta results in next position being N_1 = (t + tDelta) * rayDir
-                // tDelta being 1/rayDir result in:
-                // N_1 = (t * rayDir) + (1/rayDir * rayDir) = N_0 + rayDir/rayDir,
-                // an increment of 1.
-                // Note: the absolute value ensure each component of tDelta are positive 
-                //       (even though the world direction could be negative)
-                vec3 tDelta = abs(u_VoxelSize / rayDir_world);
-
-                // Our grid is aligned to voxel corners: the boundaries' coordinates are
-                // the (scaled) voxel coordinates.
-                // Depending on rayDir's components sign, the next boundary is either:
-                // * the current voxel coordinates (negative dir component)
-                // * the next voxel coordinates (positive dir component).
-                // Note: remap `step` from [-1, 1] to [0, 1]
-                vec3 voxelBoundary_aabb = (currentVoxel + (step + 1.0) * 0.5) 
-                                          * u_VoxelSize; 
-
-                vec3 tMax = (voxelBoundary_aabb - entry_aabb) / rayDir_world;
-                // Equivalent to (related to the shadertoy formula):
-                //vec3 tMax = (step * (voxelBoundary_aabb - entry_aabb)) * tDelta;
-            #endif
-
-
-            //
-            // Traversal phase
-            //
-            #define MAX_STEPS (ub_GridDimension * 3)
-            // TODO: is it solving the crash? if so, understand why
-            uint stp = 0;
-            while(maxCw(currentVoxel) < ub_GridDimension && minCw(currentVoxel) >= 0
-                && stp < MAX_STEPS)
-            {
-                ++stp;
-
-                if (isVoxelOccupied(currentVoxel))
-                {
-                    out_Color = fetchColor(currentVoxel, mask);
-					break;
-                }
-
-                if (tMax.x < tMax.y) 
-                {
-                    if (tMax.x < tMax.z) 
-                    {
-                        tMax.x += tDelta.x;
-                        currentVoxel.x += step.x;
-                        mask = bvec3(true, false, false);
-                    }
-                    else
-                    {
-                        tMax.z += tDelta.z;
-                        currentVoxel.z += step.z;
-                        mask = bvec3(false, false, true);
-                    }
-                }
-                else 
-                {
-                    if (tMax.y < tMax.z) 
-                    {
-                        tMax.y += tDelta.y;
-                        currentVoxel.y += step.y;
-                        mask = bvec3(false, true, false);
-                    }
-                    else 
-                    {
-                        tMax.z += tDelta.z;
-                        currentVoxel.z += step.z;
-                        mask = bvec3(false, false, true);
-                    }            
-                }
-            }
-        #endif
+			if(u_VoxelMode == CLIENT_VOXEL_MODE_IRRADIANCE)
+			{
+                out_Color = traverseVoxels(entry_aabb, rayDir_world,
+										   voxelSize, gridDimension,
+										   mask, true/*test on texture*/);
+			}
+			else
+			{
+                out_Color = traverseVoxels(entry_aabb, rayDir_world,
+										   voxelSize, gridDimension,
+										   mask, false/*test on occupancy buffer*/);
+			}
+        #endif // DRAW_AABB
     }
 }
