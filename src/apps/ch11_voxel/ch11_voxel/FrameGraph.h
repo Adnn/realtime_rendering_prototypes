@@ -47,7 +47,8 @@ struct FrameGraph
     // or that this would own all resources, and the voxelizer would have a reference to the FrameGraph
     // (second might be better so voxelizer could access other resources)
     void renderConeTrace(const scenic::SceneTree & aSceneTree,
-                         Voxelizer & aVoxelizer);
+                         Voxelizer & aVoxelizer,
+                         GLuint aMode);
 
     void passForward(const scenic::SceneTree & aSceneTree,
                      const renderer::IntrospectProgram & aProgram);

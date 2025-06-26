@@ -18,6 +18,15 @@ namespace ad {
             result.emplace_back(
                 "CLIENT_MAX_MATERIALS " + std::to_string(scenic::gMaxMaterials));
             result.emplace_back(
+                "CLIENT_CONETRACE_AO " 
+                + std::to_string((GLuint)Scene::SceneControl::Mode::ConeTrace_AO));
+            result.emplace_back(
+                "CLIENT_CONETRACE_DIFFUSE " 
+                + std::to_string((GLuint)Scene::SceneControl::Mode::ConeTrace_Diffuse));
+            result.emplace_back(
+                "CLIENT_CONETRACE_SPECULAR " 
+                + std::to_string((GLuint)Scene::SceneControl::Mode::ConeTrace_Specular));
+            result.emplace_back(
                 "CLIENT_VOXEL_MODE_OCCUPANCY " 
                 + std::to_string((GLuint)Scene::SceneControl::Mode::VoxelsOccupancy));
             result.emplace_back(

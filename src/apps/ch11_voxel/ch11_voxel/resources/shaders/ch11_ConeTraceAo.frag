@@ -4,12 +4,23 @@
 #include "ch11_VoxelsSsbo.glsl"
 #include "ch11_VoxelsUtilities.glsl"
 
-#include "shaders/Helpers.glsl"
 #include "shaders/Gamma.glsl"
+#include "shaders/Helpers.glsl"
+#include "shaders/MaterialGenericBlock.glsl"
+#include "shaders/PbrUtilities.glsl"
+#include "shaders/ViewProjectionBlock.glsl"
 
-
+in vec4 ex_Color;
 in vec3 ex_Normal_world;
 in vec3 ex_Position_world;
+in vec2 ex_Uv01;
+
+uniform uint u_MaterialIdx;
+
+uniform uint u_MraoUvChannel;
+uniform uint u_DiffuseUvChannel;
+uniform sampler2D u_MraoTexture;
+uniform sampler2D u_DiffuseTexture;
 
 uniform sampler3D u_VoxelsAlbedoTexture;
 uniform sampler3D u_VoxelsIrradianceTexture;
@@ -19,6 +30,8 @@ uniform float u_TanHalfAperture;
 uniform float u_VoxelSize;
 uniform vec3 u_AabbMin;
 uniform bool u_GridAlign;
+
+uniform uint u_ConeTraceMode;
 
 out vec4 out_Color;
 
@@ -61,13 +74,20 @@ const float diffuseConeWeights[] =
 
 
 
+/// @return The irradiance accumulated along the march in .rgb, the ambient occlusion in .a
 vec4 traceCone(vec3 position_aabb, vec3 normal_aabb, vec3 coneAxis_aabb, float tanHalfAngle)
 {
 	// TODO: check reference implementation
-	const float maxDistance = 2;
+	//const float maxDistance = 2;
+	const float maxDistance = 10;
 
-	// TODO (I think this is beta in the explanation)
+	// A factor to implement the potential difference between d and d' in Crassin's paper.
+	// This is beta in the explanation here: https://github.com/jose-villegas/VCTRenderer?tab=readme-ov-file#4-voxel-cone-tracing
 	const float samplingFactor = 1;
+
+	// Initial offset, to mitigate self-sampling.
+	// The factor will be applied to the voxel size.
+	const float offsetFactor = 2;
 
 	// TODO determine good range
 	const float aoFalloff = 10;
@@ -81,11 +101,10 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb, vec3 coneAxis_aabb, float t
 
 	// Note: Some implementation offset in the direction of the normal instead of the cone
 	// e.g. https://github.com/jose-villegas/VCTRenderer/blob/9ae0dbe5bd60e85514e3e582bf23f2868c6b51fc/engine/assets/shaders/light_pass.frag#L147
-	vec3 startPosition_aabb = position_aabb + normal_aabb * u_VoxelSize; 
-	//vec3 startPosition = position_aabb; // or grid centered?
+	vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * u_VoxelSize; 
 
 	// Distance marched along the cone, in world unit
-	float t = 1.0 * u_VoxelSize; // Offset to limit self-sampling
+	float t = 1.0 * u_VoxelSize; // Another offset to limit self-sampling
 
 	// ambient occlusion
 	float occlusion = 0;
@@ -156,8 +175,23 @@ void revisedONB(vec3 n, out vec3 b1, out vec3 b2)
 
 void main(void)
 {
-	out_Color = vec4(mapToUnit(ex_Normal_world), 1);
-	//return;
+    const uint gNoTextureChannel = uint(-1);
+
+    //MaterialGeneric material = ub_MaterialGeneric[u_MaterialIdx];
+
+    vec4 albedo = ex_Color;
+    if(u_DiffuseUvChannel != gNoTextureChannel)
+    {
+        albedo *= texture(u_DiffuseTexture, ex_Uv01);
+	}
+
+    //
+    // alpha testing for cutout
+    //
+    if (albedo.a < 0.5)
+    {
+        discard;
+    }
 
 	// Sample the 3D texture at the fragment position
 	{
@@ -180,7 +214,6 @@ void main(void)
 		mat3 tangentToWorld = mat3(tangent, bitangent, normal_world);
 
 		const uint coneCount = 6;
-		//float occlusion = 0;
 		vec4 accumulatedIrradiance;
 		for(uint i = 0; i != coneCount; ++i)
 		{
@@ -192,10 +225,48 @@ void main(void)
 				;
 		}
 
-		// is the same direction in AABB.
-		//occlusion = traceCone(position_aabb, normal_world, normal_world, u_TanHalfAperture);
+		// Specular
+		vec4 specularIrradiance;
+		{
+			vec3 incident_world = ex_Position_world - getCameraPosition_world();
+			vec3 reflectionDir_world= reflect(incident_world, normal_world);
 
-		//out_Color = vec4(vec3(1-accumulatedIrradiance.a), 1);
-		out_Color = correctGamma(vec4(accumulatedIrradiance.rgb, 1));
+			float metallic = 0.0;
+			float roughness = 0.5;
+			if(u_MraoUvChannel != gNoTextureChannel)
+			{
+				vec4 mrao = texture(u_MraoTexture, ex_Uv01);
+				// glTF sponza channel order
+				metallic = mrao.b;
+				roughness = mrao.g;
+			}
+
+			// Handle alpha
+			float alpha = alphaFromRoughness(roughness);
+
+			// Heuristic to map roughness to cone aperture
+			const float maxHalfAngle = 1.262627f; // tan of this angle ~ Pi
+			// TODO: should we use roughness or alpha?
+			float halfAperture = maxHalfAngle * roughness;
+			float tanHalfAperture = max(tan(halfAperture), 0.0174533f);
+			specularIrradiance = traceCone(position_aabb,
+										   normal_world,
+										   reflectionDir_world,
+										   tanHalfAperture);
+
+		}
+
+		switch(u_ConeTraceMode)
+		{
+			case CLIENT_CONETRACE_AO:
+				out_Color = vec4(vec3(1-accumulatedIrradiance.a), 1);
+				break;
+			case CLIENT_CONETRACE_DIFFUSE:
+				out_Color = correctGamma(vec4(accumulatedIrradiance.rgb, 1));
+				break;
+			case CLIENT_CONETRACE_SPECULAR:
+				out_Color = correctGamma(vec4(specularIrradiance.rgb, 1));
+				break;
+		}
 	}
 }

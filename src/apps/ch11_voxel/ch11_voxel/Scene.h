@@ -46,7 +46,9 @@ struct Scene
         enum class Mode 
         {
             FullScene,
-            ConeTrace,
+            ConeTrace_AO,
+            ConeTrace_Diffuse,
+            ConeTrace_Specular,
             VoxelsOccupancy,
             VoxelsAlbedo,
             VoxelsNormals,
@@ -71,6 +73,15 @@ struct Scene
                 || mMode == Mode::VoxelsAlbedo
                 || mMode == Mode::VoxelsNormals
                 || mMode == Mode::VoxelsIrradiance
+                ;
+        };
+
+        bool showConeTrace() const
+        {
+            return 
+                mMode == Mode::ConeTrace_AO
+                || mMode == Mode::ConeTrace_Diffuse
+                || mMode == Mode::ConeTrace_Specular
                 ;
         };
 

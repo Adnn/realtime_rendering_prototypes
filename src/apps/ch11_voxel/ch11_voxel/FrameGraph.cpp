@@ -179,7 +179,7 @@ void FrameGraph::renderSimple(const scenic::SceneTree & aSceneTree)
 
 
 void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
-                                 Voxelizer & aVoxelizer)
+                                 Voxelizer & aVoxelizer, GLuint aMode)
 {
     const auto & program = mPrograms.mConeTrace;
     glBindTextureUnit(10, aVoxelizer.mOccupancy);
@@ -193,6 +193,7 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_TanHalfAperture", mFrameControl.mConeAperture.data());
     graphics::setUniform(program, "u_GridAlign", mFrameControl.mGridAlign);
 
+    graphics::setUniform(program, "u_ConeTraceMode", aMode);
 
     passForward(aSceneTree, program);
 }

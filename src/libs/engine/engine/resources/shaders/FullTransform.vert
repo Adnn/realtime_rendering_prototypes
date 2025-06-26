@@ -58,7 +58,7 @@ void main(void)
 
 	// TODO: handle non-uniform scaling with dedicated normal transform
 	vec4 normal_world = getModelTransform() * vec4(ve_Normal, 0);
-	ex_Normal_world = normal_world.xyz;
+	ex_Normal_world = normalize(normal_world.xyz);
 	ex_Normal_view = vec3(ub_worldToCamera * normal_world);
 	gi_Normal_view = ex_Normal_view;
 

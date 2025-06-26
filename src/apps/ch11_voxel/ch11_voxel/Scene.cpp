@@ -454,9 +454,9 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mGraph);
         }
     }
-    else if (mSceneControl.mMode == SceneControl::Mode::ConeTrace)
+    else if (mSceneControl.showConeTrace())
     {
-        mGraph.renderConeTrace(mSceneTree, mVoxelizer);
+        mGraph.renderConeTrace(mSceneTree, mVoxelizer, (GLuint)mSceneControl.mMode);
     }
     else
     {
@@ -623,7 +623,9 @@ std::string to_string(Scene::SceneControl::Mode aValue)
     switch (aValue)
     {
         STR(FullScene);
-        STR(ConeTrace);
+        STR(ConeTrace_AO);
+        STR(ConeTrace_Diffuse);
+        STR(ConeTrace_Specular);
         STR(VoxelsOccupancy);
         STR(VoxelsAlbedo);
         STR(VoxelsNormals);
