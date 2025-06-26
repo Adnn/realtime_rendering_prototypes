@@ -107,4 +107,24 @@ vec2 worldToEquirectangular(vec3 aWorldRay)
 }
 
 
+// see: Building an Orthonormal Basis, Revisited (Pixar)
+void revisedONB(vec3 n, out vec3 b1, out vec3 b2)
+{
+	if (n.z<0.0f)
+	{
+		const float a = 1.0f / (1.0f - n.z);
+		const float b = n.x * n.y * a;
+		b1 = vec3(1.0f - n.x * n.x * a, -b, n.x);
+		b2 = vec3(b, n.y * n.y*a - 1.0f, -n.y);
+	}
+	else
+	{
+		const float a = 1.0f / (1.0f + n.z);
+		const float b = -n.x * n.y * a;
+		b1 = vec3(1.0f - n.x * n.x * a, b, -n.x);
+		b2 = vec3(b, 1.0f - n.y * n.y * a, -n.y);
+	}
+}
+
+
 #endif //include guard
