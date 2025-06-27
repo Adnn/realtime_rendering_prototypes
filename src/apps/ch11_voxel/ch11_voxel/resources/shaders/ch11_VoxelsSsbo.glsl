@@ -58,4 +58,5 @@ void markOccupiedAtomic(ivec3 aVoxel)
 	atomicOr(ub_Voxels[idx], mask);
 }
 
+
 #endif //VOXELSSSBO_GLSL_INCLUDE_GUARD

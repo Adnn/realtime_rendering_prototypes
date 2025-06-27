@@ -1,5 +1,7 @@
 #version 460
 
+#include "ch11_VoxelConeTracing.glsl"
+
 #include "shaders/Gamma.glsl"
 #include "shaders/Helpers.glsl"
 #include "shaders/IblUtilities.glsl"
@@ -24,6 +26,7 @@
 
 in vec4 ex_Color;
 in vec3 ex_Position_view;
+in vec3 ex_Position_world;
 in vec3 ex_Normal_view;
 in vec3 ex_Tangent_view;
 in vec3 ex_Bitangent_view;
@@ -45,6 +48,9 @@ uniform bool u_ApplyAo = false;
 uniform bool u_ApplyEnvironment;
 uniform bool u_ApplyNormalMap = true;
 uniform uint u_MaterialIdx;
+
+uniform float u_VoxelSize;
+uniform vec3 u_AabbMin;
 
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
@@ -107,6 +113,59 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
         result.diffuse  = diffuseBrdf_weightedLambertian(F, aParams.diffuseColor)
                           * aColors.diffuse.rgb
                           * nDotL;
+    }
+
+    return result;
+}
+
+
+LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
+                                          vec3 aView_world,
+                                          vec3 aShadingNormal_world,
+                                          PbrParameters aParams,
+                                          out float aAmbientOcclusionFactor)
+{
+    LightContributions result;
+    vec3 F;
+
+    // Specular and Fresnel
+    {
+		vec3 reflectionDir = reflect(-aView_world, aShadingNormal_world);
+		vec3 lightDir = reflectionDir;
+
+		vec3 h = normalize(aView_world + lightDir);
+		float hDotL = dotPlus(h, lightDir);
+
+		// Fresnel term `F` describe how the wave-length dependent reflectance (proportion of reflected light)
+		// For microfacet BRDFs, we use dot(h, l), not dot(n, l), see: rtr 4th eq (9.63)
+		F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
+
+        float nDotL = max(0.001, dotPlus(aShadingNormal_world, lightDir));
+
+        result.specular = accumulateSpecularIndirect(
+                                aPosition_aabb,
+                                aShadingNormal_world,
+                                -aView_world,
+                                // TODO: should the function just take alpha directly?
+                                sqrt(aParams.alpha),
+                                u_VoxelSize).rgb
+                          * F
+                          * nDotL
+                          ;
+
+        //result.specular = vec3(F);
+    }
+
+    //// Diffuse
+    {
+		vec4 diffuse = accumulateDiffuseIndirect(aPosition_aabb,
+												 aShadingNormal_world,
+												 u_TanHalfAperture,
+												 u_VoxelSize);
+		aAmbientOcclusionFactor = diffuse.a;
+		result.diffuse = diffuse.rgb
+						 * (1 - F)
+						 ;
     }
 
     return result;
@@ -185,7 +244,6 @@ void main(void)
 		);
 
 		shadingNormal_view = bumpNormal_cam;
-
 	}
     else
     {
@@ -284,6 +342,29 @@ void main(void)
         diffuseAccum  += lighting.diffuse  * falloff;
         specularAccum += lighting.specular * falloff;
     }
+
+    //
+    // Indirect lighting (VXGI)
+    //
+	vec3 position_aabb = ex_Position_world - u_AabbMin;
+	vec3 view_world = normalize(getCameraPosition_world() -  ex_Position_world);
+    // TODO: Address this expensive calculation. Should everything happen in world space?
+	vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
+
+    float voxelAoFactor;
+
+	LightContributions indirect = 
+        applyIndirectLight_pbr(position_aabb,
+                               view_world,
+                               shadingNormal_world,
+                               pbrParameters,
+                               voxelAoFactor);
+
+	float indirectDiffuseFactor = 1;
+	float indirectSpecularFactor = 1;
+    diffuseAccum += indirect.diffuse * indirectDiffuseFactor * voxelAoFactor;
+    specularAccum += indirect.specular * indirectSpecularFactor;
+
 
     // Sum contributions
     // Note: the ambient term is a quick hack, to be removed when IBL is in place

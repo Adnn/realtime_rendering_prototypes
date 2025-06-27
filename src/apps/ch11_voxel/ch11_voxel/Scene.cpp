@@ -366,7 +366,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             glEnable(GL_DEPTH_TEST);
             glEnable(GL_CULL_FACE);
 
-            const auto & program = mGraph.mPrograms.mBlinnPhong;
+            const auto & program = mGraph.mPrograms.mPbr;
             glUseProgram(program);
 
             for (const scenic::MeshPart_Naive & part : mCube.mParts)
@@ -460,7 +460,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     }
     else
     {
-        mGraph.renderSimple(mSceneTree);
+        mGraph.renderSimple(mSceneTree, mVoxelizer);
     }
 
     //

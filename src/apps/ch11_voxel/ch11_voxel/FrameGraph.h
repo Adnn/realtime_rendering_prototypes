@@ -42,7 +42,9 @@ struct FrameGraph
 
     void resizeFrame(math::Size<2, int> aRenderResolution);
 
-    void renderSimple(const scenic::SceneTree & aSceneTree);
+    void renderSimple(const scenic::SceneTree & aSceneTree,
+                      Voxelizer & aVoxelizer);
+
     // TODO: It is unclear wether this is better to take a Voxelizer owning the voxel related resources
     // or that this would own all resources, and the voxelizer would have a reference to the FrameGraph
     // (second might be better so voxelizer could access other resources)
@@ -61,7 +63,7 @@ struct FrameGraph
     {
         ProgramStore(Engine & aEngine);
 
-        renderer::IntrospectProgram mBlinnPhong;
+        renderer::IntrospectProgram mPbr;
         renderer::IntrospectProgram mConeTrace;
         renderer::IntrospectProgram mRayTraceVoxels;
 

@@ -1,5 +1,5 @@
 {
     "vertex": "shaders/FullTransform.vert",
-    "fragment": "shaders/ch11_ConeTraceAo.frag",
+    "fragment": "shaders/ch11_ConeTrace.frag",
     "defines":  ["ENTITIES"]
 }

@@ -29,7 +29,7 @@ namespace ad {
     namespace {
 
 
-        const std::filesystem::path gBlinnPhongProgramPath = "programs/ch11_RenderModel_Pbr.prog";
+        const std::filesystem::path gPbrProgramPath = "programs/ch11_RenderModel_Pbr.prog";
         const std::filesystem::path gConeTraceProgramPath = "programs/ch11_ConeTrace.prog";
         const std::filesystem::path gRayTraceVoxelsProgramPath = "programs/ch11_RayTraceVoxels.prog";
 
@@ -126,7 +126,7 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
 
 
 FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
-    mBlinnPhong{ aEngine.loadProgram(renderer::ReferencePath{ gBlinnPhongProgramPath }) },
+    mPbr{ aEngine.loadProgram(renderer::ReferencePath{ gPbrProgramPath }) },
     mConeTrace{ aEngine.loadProgram(renderer::ReferencePath{ gConeTraceProgramPath }) },
     mRayTraceVoxels{ aEngine.loadProgram(renderer::ReferencePath{ gRayTraceVoxelsProgramPath }) },
     mVoxelizationProgram{ aEngine.loadProgram(gVoxelizationProgram) },
@@ -172,9 +172,20 @@ void FrameGraph::loadPrograms()
 }
 
 
-void FrameGraph::renderSimple(const scenic::SceneTree & aSceneTree)
+void FrameGraph::renderSimple(const scenic::SceneTree & aSceneTree,
+                              Voxelizer & aVoxelizer)
 {
-    passForward(aSceneTree, mPrograms.mBlinnPhong);
+    const auto & program = mPrograms.mPbr;
+
+    glBindTextureUnit(10, aVoxelizer.mOccupancy);
+    graphics::setUniform(program, "u_VoxelsAlbedoTexture", 10);
+    glBindTextureUnit(11, aVoxelizer.mIrradiance);
+    graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
+
+    graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
+    graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
+
+    passForward(aSceneTree, program);
 }
 
 
@@ -187,8 +198,7 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
-    math::Box<float> aabb = scenic::getAabb(aSceneTree);
-    graphics::setUniform(program, "u_AabbMin", aabb.leftBottomZMin());
+    graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
     graphics::setUniform(program, "u_TanHalfAperture", mFrameControl.mConeAperture.data());
     graphics::setUniform(program, "u_GridAlign", mFrameControl.mGridAlign);
