@@ -185,6 +185,10 @@ void FrameGraph::renderSimple(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
+    glProgramUniform4fv(program,
+                        glGetUniformLocation(program, "u_LightingFactors"),
+                        1, &mFrameControl.mDirectDiffuseFactor);
+
     passForward(aSceneTree, program);
 }
 
@@ -238,6 +242,12 @@ void FrameGraph::appendUi()
     ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mConeAperture.data(), 1.f, 180.f);
 
     ImGui::Checkbox("Grid Aligned Trace Origin", &mFrameControl.mGridAlign);
+
+    ImGui::SeparatorText("Lighting factors");
+    ImGui::SliderFloat("Direct diffuse", &mFrameControl.mDirectDiffuseFactor, 0.f, 4.f);
+    ImGui::SliderFloat("Direct specular", &mFrameControl.mDirectSpecularFactor, 0.f, 4.f);
+    ImGui::SliderFloat("Indirect diffuse", &mFrameControl.mIndirectDiffuseFactor, 0.f, 4.f);
+    ImGui::SliderFloat("Indirect specular", &mFrameControl.mIndirectSpecularFactor, 0.f, 4.f);
 }
 
 

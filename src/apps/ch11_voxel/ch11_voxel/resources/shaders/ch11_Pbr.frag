@@ -52,6 +52,9 @@ uniform uint u_MaterialIdx;
 uniform float u_VoxelSize;
 uniform vec3 u_AabbMin;
 
+// xy: direct diffuse, specular
+// zw: indirect diffuse, specular
+uniform vec4 u_LightingFactors;
 
 LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecularLightDir, vec3 aShadingNormal,
                                   PbrParameters aParams, LightColors aColors)
@@ -343,6 +346,9 @@ void main(void)
         specularAccum += lighting.specular * falloff;
     }
 
+    diffuseAccum *= u_LightingFactors.x;
+    specularAccum *= u_LightingFactors.y;
+
     //
     // Indirect lighting (VXGI)
     //
@@ -360,10 +366,14 @@ void main(void)
                                pbrParameters,
                                voxelAoFactor);
 
-	float indirectDiffuseFactor = 1;
-	float indirectSpecularFactor = 1;
-    diffuseAccum += indirect.diffuse * indirectDiffuseFactor * voxelAoFactor;
-    specularAccum += indirect.specular * indirectSpecularFactor;
+    diffuseAccum += 
+        indirect.diffuse * voxelAoFactor
+        * u_LightingFactors.z
+        ;
+    specularAccum += 
+        indirect.specular
+        * u_LightingFactors.w
+        ;
 
 
     // Sum contributions

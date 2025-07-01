@@ -36,6 +36,11 @@ struct FrameGraph
         decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
         math::Radian<GLfloat> mConeAperture = math::Degree<GLfloat>{30.f};
         bool mGridAlign = false;
+
+        float mDirectDiffuseFactor{1.0f};
+        float mDirectSpecularFactor{1.0f};
+        float mIndirectDiffuseFactor{1.0f};
+        float mIndirectSpecularFactor{1.0f};
     };
 
     FrameGraph(math::Size<2, int> aFrameSize);
