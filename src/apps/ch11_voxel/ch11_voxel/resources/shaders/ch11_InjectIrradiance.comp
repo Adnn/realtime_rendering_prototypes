@@ -5,6 +5,7 @@
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 
+#include "ch11_VoxelsRayTracing.glsl"
 #include "ch11_VoxelsSsbo.glsl"
 #include "ch11_VoxelsUtilities.glsl"
 
@@ -109,14 +110,29 @@ void main()
         vec3 lightPos_world = (ub_cameraToWorld * vec4(point.position.xyz, 1)).xyz;
         //vec3 lightPos_world = (ub_cameraToWorld * point.position).xyz;
 
+		ivec3 lightPos_grid = worldToVoxel(lightPos_world, u_VoxelSize, u_AabbMin);
+        // Set the light position to its voxel center
+        lightPos_world = voxelToWorld(lightPos_grid, u_VoxelSize, u_AabbMin);
+
         vec3 lightRay_world = lightPos_world - position_world;
         float r = sqrt(dot(lightRay_world, lightRay_world));
         vec3 lightDir_world = lightRay_world / r;
 
         float falloff = attenuatePoint(point, r);
 
+        bvec3 unusedMask;
+		ivec3 shadowingVoxel =
+			traverseVoxels(voxelCoord, lightDir_world, 
+						   //u_VoxelSize, ub_GridDimension,
+						   1, ub_GridDimension,
+						   unusedMask, false/*test on texture*/,
+						   lightPos_grid, true/*skip self*/);
+
+        float shadowFactor = (shadowingVoxel == ivec3(-1)) ? 1.f : 0.0f;
+
         irradiance += 
             falloff *
+            shadowFactor * 
             injectDirectLight(normal_world, lightDir_world, point.colors)
             ;
     }
