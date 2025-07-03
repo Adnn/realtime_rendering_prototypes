@@ -13,6 +13,7 @@ const std::vector<graphics::MacroDefine> & defineShaderConstants()
         //"CLIENT_MAX_JOINTS " + std::to_string(gMaxJoints),
         //"CLIENT_SDF_DOUBLE_SPREAD " + std::to_string(2 * arte::gSdfSpread),
         "CLIENT_MAX_LIGHTS " + std::to_string(gMaxLights),
+        "CLIENT_MAX_SHADOW_MAPS " + std::to_string(gMaxShadowMaps),
         //"CLIENT_MAX_SHADOW_LIGHTS " + std::to_string(gMaxShadowLights),
         //"CLIENT_CASCADES_PER_SHADOW " + std::to_string(gCascadesPerShadow),
     };

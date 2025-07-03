@@ -346,6 +346,13 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
 void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
 {
     //
+    // Shadow maps
+    // 
+
+    // TODO: limit to when light change
+    mShadow.renderShadowMaps(mSceneTree, mLights, mGraph);
+
+    //
     // Frame rendering
     //
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
@@ -460,7 +467,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     }
     else
     {
-        mGraph.renderSimple(mSceneTree, mVoxelizer);
+        mGraph.renderFinalScene(mSceneTree, mVoxelizer);
     }
 
     //

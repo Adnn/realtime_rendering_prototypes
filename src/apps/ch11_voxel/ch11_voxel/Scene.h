@@ -3,6 +3,7 @@
 
 #include "Engine.h"
 #include "FrameGraph.h"
+#include "Shadow.h"
 #include "Voxelization.h"
 
 #include "debug/DebugRenderer.h"
@@ -125,6 +126,7 @@ struct Scene
     debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
     bool mVoxelizationRequest = true;
     Voxelizer mVoxelizer;
+    Shadow mShadow;
 
     std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
 
@@ -141,17 +143,20 @@ struct Scene
     unsigned int mObjectsCount = 0;
 
     renderer::LightsDataCommon mLights{
-        .mDirectionalCount = 0,
-        .mPointCount = 1,
+        .mDirectionalCount = 1,
+        .mPointCount = 0,
         // We decode a sRGB 50% white (which is also perceptually ~50%)
         // to linear space for computation.
-        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.5f),
+        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.25f),
         .mDirectionalLights = {
             renderer::DirectionalLight_glsl{
-                .mDirection = math::UnitVec<3, float>{ {0.5f, 0.f, -0.5f} },
+                // Sponza: strong lighting of the first level
+                .mDirection = math::UnitVec<3, float>{ {0.1f, -0.85f, 0.51f} },
+                // Sponza: lighting down to the lower drapes
+                //.mDirection = math::UnitVec<3, float>{ {0.1f, -0.94f, 0.325f} },
                 // TODO: decode the srgb value to have it show correctly in Imgui
                 // (and have it perceptually proportional to the factor)
-                .mColors = renderer::LightColors_glsl{} * 0.2,
+                .mColors = renderer::LightColors_glsl{} * 0.5,
             },
          },
         .mPointLights = {

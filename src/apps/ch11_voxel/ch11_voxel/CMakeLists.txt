@@ -7,6 +7,7 @@ set(${TARGET_NAME}_HEADERS
     Scene.h
     SetupDrawing.h
     ShaderConstants.h
+    Shadow.h
     Ui.h
     UniformSetterWitness.h
     Voxelization.h
@@ -25,6 +26,7 @@ set(${TARGET_NAME}_SOURCES
     Scene.cpp
     SetupDrawing.cpp
     ShaderConstants.cpp
+    Shadow.cpp
     Voxelization.cpp
 
     debug/DebugDrawer.cpp

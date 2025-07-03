@@ -12,6 +12,13 @@ struct LightContributions
 };
 
 
+void scale(inout LightContributions aLightContribution, float aFactor)
+{
+    aLightContribution.diffuse  = aLightContribution.diffuse  * aFactor;
+    aLightContribution.specular = aLightContribution.specular * aFactor;
+}
+
+
 // Compute inverse-square light attenuation multiplied by a windowing function
 // see: rtr 4th p113 (5.14) 
 float attenuatePoint(PointLight aLight, float aRadius)

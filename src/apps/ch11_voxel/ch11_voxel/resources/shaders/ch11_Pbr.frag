@@ -24,6 +24,11 @@
 #endif //ENVIRONMENT_MAPPING
 
 
+#if defined(SHADOW_MAPPING)
+    #include "ch11_Shadow.glsl"
+#endif //SHADOW_MAPPING
+
+
 in vec4 ex_Color;
 in vec3 ex_Position_view;
 in vec3 ex_Position_world;
@@ -314,6 +319,10 @@ void main(void)
             applyLight_pbr(
                 viewDir_view, lightDir_view, lightDir_view, shadingNormal_view,
                 pbrParameters, directional.colors);
+
+		#if defined(SHADOW_MAPPING)
+			applyShadowToLighting(lighting, directionalIdx);
+		#endif // SHADOW_MAPPING
 
         diffuseAccum += lighting.diffuse;
         specularAccum += lighting.specular;

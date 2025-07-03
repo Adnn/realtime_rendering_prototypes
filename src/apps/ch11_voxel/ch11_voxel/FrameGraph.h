@@ -3,6 +3,7 @@
 
 #include "Engine.h"
 
+#include <renderer/UniformBuffer.h>
 #include <renderer/FrameBuffer.h>
 #include <renderer/Shading.h>
 #include <renderer/Texture.h>
@@ -41,14 +42,16 @@ struct FrameGraph
         float mDirectSpecularFactor{1.0f};
         float mIndirectDiffuseFactor{1.0f};
         float mIndirectSpecularFactor{1.0f};
+
+        math::Vec<2, GLfloat> mShadowScaleBias{1.f, 0.f};
     };
 
     FrameGraph(math::Size<2, int> aFrameSize);
 
     void resizeFrame(math::Size<2, int> aRenderResolution);
 
-    void renderSimple(const scenic::SceneTree & aSceneTree,
-                      Voxelizer & aVoxelizer);
+    void renderFinalScene(const scenic::SceneTree & aSceneTree,
+                          Voxelizer & aVoxelizer);
 
     // TODO: It is unclear wether this is better to take a Voxelizer owning the voxel related resources
     // or that this would own all resources, and the voxelizer would have a reference to the FrameGraph
@@ -56,6 +59,8 @@ struct FrameGraph
     void renderConeTrace(const scenic::SceneTree & aSceneTree,
                          Voxelizer & aVoxelizer,
                          GLuint aMode);
+
+    void renderDepth(const scenic::SceneTree & aSceneTree);
 
     void passForward(const scenic::SceneTree & aSceneTree,
                      const renderer::IntrospectProgram & aProgram);
@@ -71,6 +76,7 @@ struct FrameGraph
         renderer::IntrospectProgram mPbr;
         renderer::IntrospectProgram mConeTrace;
         renderer::IntrospectProgram mRayTraceVoxels;
+        renderer::IntrospectProgram mDepthMapping;
 
         renderer::IntrospectProgram mVoxelizationProgram;
         renderer::IntrospectProgram mVoxelizationDominantAxisProgram;
@@ -84,6 +90,11 @@ struct FrameGraph
     Engine mEngine;
     ProgramStore mPrograms;
     graphics::VertexArrayObject mDummyVao;
+
+    graphics::Texture mShadowMap;
+    graphics::FrameBuffer mShadowFramebuffer;
+    graphics::UniformBufferObject mLightViewProjectionUbo;
+
 
     FrameControl mFrameControl;
 

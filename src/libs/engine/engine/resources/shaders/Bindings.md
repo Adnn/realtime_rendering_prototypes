@@ -20,4 +20,5 @@ Waiting for a better solution, here are our hardcoded bindings
 * 1: Normal
 * 2: Metallic-Roughness Ambient-Occlusion
 * 5: Skybox
+* 6: Shadow map
 * 10: Voxels albedo / occupancy

@@ -32,6 +32,7 @@ namespace ad {
         const std::filesystem::path gPbrProgramPath = "programs/ch11_RenderModel_Pbr.prog";
         const std::filesystem::path gConeTraceProgramPath = "programs/ch11_ConeTrace.prog";
         const std::filesystem::path gRayTraceVoxelsProgramPath = "programs/ch11_RayTraceVoxels.prog";
+        const std::filesystem::path gDepthMappingProgramPath = "programs/ch11_DepthMapping.prog";
 
         const renderer::ReferencePath gVoxelizationProgram{"programs/ch11_Voxelization.prog"};
         const renderer::ReferencePath gVoxelizationDominantAxisProgram{"programs/ch11_VoxelizationDominantAxis.prog"};
@@ -40,6 +41,7 @@ namespace ad {
 
         const renderer::ReferencePath gInjectIrradianceProgramPath{"programs/ch11_InjectIrradiance.prog"};
 
+        const GLsizei gShadowMapSize = 2048;
 
     } // unnamed namespace
 
@@ -129,6 +131,7 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mPbr{ aEngine.loadProgram(renderer::ReferencePath{ gPbrProgramPath }) },
     mConeTrace{ aEngine.loadProgram(renderer::ReferencePath{ gConeTraceProgramPath }) },
     mRayTraceVoxels{ aEngine.loadProgram(renderer::ReferencePath{ gRayTraceVoxelsProgramPath }) },
+    mDepthMapping{ aEngine.loadProgram(renderer::ReferencePath{ gDepthMappingProgramPath }) },
     mVoxelizationProgram{ aEngine.loadProgram(gVoxelizationProgram) },
     mVoxelizationDominantAxisProgram{ aEngine.loadProgram(gVoxelizationDominantAxisProgram) },
     mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) },
@@ -138,7 +141,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
-    mPrograms{mEngine}
+    mPrograms{mEngine},
+    mShadowMap{GL_TEXTURE_2D}
 {
 
     //
@@ -158,6 +162,36 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     // Dummy VAO
     graphics::ScopedBind{ mDummyVao };
     glObjectLabel(GL_VERTEX_ARRAY, mDummyVao, -1, "dummy_vao");
+
+    // Shadow map
+    {
+        // For actual creation
+        graphics::ScopedBind{mShadowMap};
+        graphics::ScopedBind{mShadowFramebuffer};
+    }
+    glTextureStorage2D(mShadowMap, 1, GL_DEPTH_COMPONENT24, gShadowMapSize, gShadowMapSize);
+    glObjectLabel(GL_TEXTURE, mShadowMap, -1, "shadow_map");
+    {
+        GLint isSuccess;
+        glGetTextureParameteriv(mShadowMap, GL_TEXTURE_IMMUTABLE_FORMAT, &isSuccess);
+        assert(isSuccess);
+    }
+
+    glTextureParameteri(mShadowMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(mShadowMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTextureParameterfv(mShadowMap, GL_TEXTURE_BORDER_COLOR,
+                         math::hdr::Rgba_f{1.f, 0.f, 0.f, 0.f}.data());
+    glTextureParameteri(mShadowMap, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(mShadowMap, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+
+    glNamedFramebufferTexture(mShadowFramebuffer, GL_DEPTH_ATTACHMENT, mShadowMap, 0);
+    assert(glCheckNamedFramebufferStatus(mShadowFramebuffer, GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+    // Light view projection UBO
+    glBindBufferBase(GL_UNIFORM_BUFFER, 5, mLightViewProjectionUbo);
 }
 
 
@@ -172,11 +206,13 @@ void FrameGraph::loadPrograms()
 }
 
 
-void FrameGraph::renderSimple(const scenic::SceneTree & aSceneTree,
-                              Voxelizer & aVoxelizer)
+void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
+                                  Voxelizer & aVoxelizer)
 {
     const auto & program = mPrograms.mPbr;
 
+    glBindTextureUnit(6, mShadowMap);
+    graphics::setUniform(program, "u_ShadowMap", 6);
     glBindTextureUnit(10, aVoxelizer.mOccupancy);
     graphics::setUniform(program, "u_VoxelsAlbedoTexture", 10);
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
@@ -208,6 +244,22 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_GridAlign", mFrameControl.mGridAlign);
 
     graphics::setUniform(program, "u_ConeTraceMode", aMode);
+
+    passForward(aSceneTree, program);
+}
+
+
+void FrameGraph::renderDepth(const scenic::SceneTree & aSceneTree)
+{
+    graphics::ScopedBind boundFbo{mShadowFramebuffer};
+    glViewport(0, 0, gShadowMapSize, gShadowMapSize);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    auto scopePolygonOffset = graphics::scopeFeature(GL_POLYGON_OFFSET_FILL, true);
+    glPolygonOffset(mFrameControl.mShadowScaleBias.x(),
+                    mFrameControl.mShadowScaleBias.y());
+
+    const auto & program = mPrograms.mDepthMapping;
 
     passForward(aSceneTree, program);
 }
@@ -248,6 +300,10 @@ void FrameGraph::appendUi()
     ImGui::SliderFloat("Direct specular", &mFrameControl.mDirectSpecularFactor, 0.f, 4.f);
     ImGui::SliderFloat("Indirect diffuse", &mFrameControl.mIndirectDiffuseFactor, 0.f, 4.f);
     ImGui::SliderFloat("Indirect specular", &mFrameControl.mIndirectSpecularFactor, 0.f, 4.f);
+
+    ImGui::SeparatorText("Shadow");
+    ImGui::InputFloat("Scale", &mFrameControl.mShadowScaleBias.x());
+    ImGui::InputFloat("Bias", &mFrameControl.mShadowScaleBias.y());
 }
 
 
