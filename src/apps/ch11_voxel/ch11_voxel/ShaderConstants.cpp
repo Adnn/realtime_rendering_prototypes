@@ -38,6 +38,15 @@ namespace ad {
             result.emplace_back(
                 "CLIENT_VOXEL_MODE_IRRADIANCE " 
                 + std::to_string((GLuint)Scene::SceneControl::Mode::VoxelsIrradiance));
+            result.emplace_back(
+                "CLIENT_TONEMAPPING_REINHARD " 
+                + std::to_string((GLuint)FrameGraph::FrameControl::ToneMapping::Reinhard));
+            result.emplace_back(
+                "CLIENT_TONEMAPPING_ACES " 
+                + std::to_string((GLuint)FrameGraph::FrameControl::ToneMapping::Aces));
+            result.emplace_back(
+                "CLIENT_TONEMAPPING_ACESAPPROX " 
+                + std::to_string((GLuint)FrameGraph::FrameControl::ToneMapping::AcesApprox));
             return result;
         }
             

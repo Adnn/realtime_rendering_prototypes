@@ -643,6 +643,7 @@ std::string to_string(Scene::SceneControl::Mode aValue)
     default:
         throw std::logic_error{ "Unhandled mode." };
     }
+#undef STR
 }
 
 

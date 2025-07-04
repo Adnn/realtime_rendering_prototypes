@@ -223,6 +223,10 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
+    graphics::setUniform(program, "u_TanHalfAperture", mFrameControl.mConeAperture.data());
+
+    graphics::setUniform(program, "u_ToneMapping", (GLuint)mFrameControl.mToneMapping);
+
     glProgramUniform4fv(program,
                         glGetUniformLocation(program, "u_LightingFactors"),
                         1, &mFrameControl.mDirectDiffuseFactor);
@@ -293,6 +297,9 @@ void FrameGraph::appendUi()
                       FrameControl::gPolygonModes.end(),
                       [](auto aModeIt) {return graphics::to_string(*aModeIt); });
 
+    imguiui::addComboContinuousEnum<FrameControl::ToneMapping::_End>(
+        "Tone Mapping", mFrameControl.mToneMapping);
+
     ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mConeAperture.data(), 1.f, 180.f);
 
     ImGui::Checkbox("Grid Aligned Trace Origin", &mFrameControl.mGridAlign);
@@ -309,5 +316,19 @@ void FrameGraph::appendUi()
 }
 
 
+std::string to_string(FrameGraph::FrameControl::ToneMapping aValue)
+{
+#define STR(enumerator) case FrameGraph::FrameControl::ToneMapping::enumerator: return #enumerator
+    switch (aValue)
+    {
+        STR(None);
+        STR(Reinhard);
+        STR(Aces);
+        STR(AcesApprox);
+    default:
+        throw std::logic_error{ "Unhandled tone mapping." };
+    }
+#undef STR
+}
 
 } // namespace ad

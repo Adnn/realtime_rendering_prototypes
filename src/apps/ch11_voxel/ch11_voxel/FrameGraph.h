@@ -34,7 +34,19 @@ struct FrameGraph
              GL_FILL,
          }; 
 
+        enum class ToneMapping : GLuint 
+        {
+            None,
+            Reinhard,
+            Aces,
+            AcesApprox,
+            _End/* keep last */
+        };
+
         decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
+
+        ToneMapping mToneMapping = ToneMapping::AcesApprox;
+
         math::Radian<GLfloat> mConeAperture = math::Degree<GLfloat>{30.f};
         bool mGridAlign = false;
 

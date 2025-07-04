@@ -148,15 +148,16 @@ struct Scene
         // We decode a sRGB 50% white (which is also perceptually ~50%)
         // to linear space for computation.
         .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.25f),
+        //.mAmbientColor = math::hdr::Rgb_f{0.f, 0.f, 0.f},
         .mDirectionalLights = {
             renderer::DirectionalLight_glsl{
                 // Sponza: strong lighting of the first level
-                .mDirection = math::UnitVec<3, float>{ {0.1f, -0.85f, 0.51f} },
+                //.mDirection = math::UnitVec<3, float>{ {0.1f, -0.85f, 0.51f} },
                 // Sponza: lighting down to the lower drapes
-                //.mDirection = math::UnitVec<3, float>{ {0.1f, -0.94f, 0.325f} },
+                .mDirection = math::UnitVec<3, float>{ {0.1f, -0.94f, 0.325f} },
                 // TODO: decode the srgb value to have it show correctly in Imgui
                 // (and have it perceptually proportional to the factor)
-                .mColors = renderer::LightColors_glsl{} * 0.5,
+                .mColors = renderer::LightColors_glsl{} * 2.5,
             },
          },
         .mPointLights = {

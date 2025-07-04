@@ -9,6 +9,7 @@
 #include "shaders/LightUtilities.glsl"
 #include "shaders/MaterialGenericBlock.glsl"
 #include "shaders/PbrUtilities.glsl"
+#include "shaders/ToneMapping.glsl"
 #include "shaders/ViewProjectionBlock.glsl"
 
 
@@ -48,12 +49,14 @@ uniform uint u_DiffuseUvChannel;
 uniform uint u_NormalUvChannel;
 uniform uint u_MraoUvChannel;
 
-uniform ivec2 u_FramebufferSize;
+uniform uint u_MaterialIdx;
+
 uniform bool u_ApplyAo = false;
 uniform bool u_ApplyEnvironment;
 uniform bool u_ApplyNormalMap = true;
-uniform uint u_MaterialIdx;
+uniform uint u_ToneMapping;
 
+uniform ivec2 u_FramebufferSize;
 uniform float u_VoxelSize;
 uniform vec3 u_AabbMin;
 
@@ -467,5 +470,17 @@ void main(void)
     //
     // Output
     //
+    switch(u_ToneMapping)
+    {
+    case CLIENT_TONEMAPPING_REINHARD:
+		fragmentColor = tonemapReinhard(fragmentColor);
+        break;
+    case CLIENT_TONEMAPPING_ACES:
+		fragmentColor = tonemapAces(fragmentColor);
+    case CLIENT_TONEMAPPING_ACESAPPROX:
+		fragmentColor = tonemapAces_approx(fragmentColor);
+        break;
+    // Default is none
+    }
     out_Color = correctGamma(vec4(fragmentColor, albedo.a));
 }
