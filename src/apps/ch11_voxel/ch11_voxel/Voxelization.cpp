@@ -278,7 +278,6 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
     glViewport(0, 0, aGridDimension, aGridDimension);
 
     const auto & program = aGraph.mPrograms.mVoxelizationProgram;
-    graphics::setUniform(program, "u_AabbDepth", maxSide);
 
     GLuint query;
     glGenQueries(1, &query);
