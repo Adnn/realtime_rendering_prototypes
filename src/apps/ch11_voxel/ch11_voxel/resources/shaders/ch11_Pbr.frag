@@ -370,7 +370,7 @@ void main(void)
     // TODO: Address this expensive calculation. Should everything happen in world space?
 	vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
 
-    float voxelAoFactor;
+    float voxelAoFactor = 1;
 
 	LightContributions indirect = 
         applyIndirectLight_pbr(position_aabb,
@@ -389,11 +389,12 @@ void main(void)
         * u_LightingFactors.w
         ;
 
-
     // Sum contributions
     // Note: the ambient term is a quick hack, to be removed when IBL is in place
     // We multiply it by the diffuse color, so metals do not have ambient terms, and dielectrics have their tint.
-    vec3 ambient =  ub_AmbientColor.rgb * material.ambientColor.rgb * pbrParameters.diffuseColor;
+    vec3 ambient =  ub_AmbientColor.rgb * material.ambientColor.rgb 
+                    * pbrParameters.diffuseColor
+                    * voxelAoFactor;
     vec3 diffuse  = diffuseAccum        * material.diffuseColor.rgb;
     vec3 specular = specularAccum       * material.specularColor.rgb;
 
