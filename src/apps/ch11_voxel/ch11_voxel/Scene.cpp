@@ -209,7 +209,9 @@ void Scene::voxelize()
 
     mVoxelizer.injectIrradiance(gGridDimension, mGraph);
 
-    mVoxelizer.prepareMipmap(gGridDimension);
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    mVoxelizer.prepareMipmap(gGridDimension, mGraph);
 
     glPopDebugGroup();
 }
@@ -573,6 +575,7 @@ void Scene::presentUi(bool * aOpen)
     mVoxelizationRequest |= ImGui::Checkbox("Average Samples in Voxel", &mVoxelizer.mControl.mAverageSamples);
     mVoxelizationRequest |= ImGui::Checkbox("Average Normals by axis", &mVoxelizer.mControl.mAverageNormalByAxis);
     mVoxelizationRequest |= ImGui::Checkbox("Trace linear filtering", &mVoxelizer.mControl.mLinearFiltering);
+    mVoxelizationRequest |= ImGui::Checkbox("Compute Shader Irradiance Filtering", &mVoxelizer.mControl.mComputeIrradianceMipmapping);
     ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
 
     DearImguiWitness witness;

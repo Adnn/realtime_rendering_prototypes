@@ -18,6 +18,10 @@ namespace {
 constexpr GLint gAlbedoImageUnit = 0;
 constexpr GLint gNormalImageUnit = 1;
 constexpr GLint gIrradianceImageUnit = 2;
+constexpr GLint gIrradianceMipmapImageUnit = 3;
+// TODO: synchronize with compute shader
+constexpr math::Vec<3, GLuint> gWorkgroupSize{8u, 8u, 8u};
+constexpr GLenum gIrradianceFormat = GL_RGBA8;
 
 scenic::Camera prepareVoxelizationCamera(math::Box<float> aAabb)
 {
@@ -342,7 +346,7 @@ void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimen
 }
 
 
-void Voxelizer::prepareMipmap(GLuint aGridDimension)
+void Voxelizer::prepareMipmap(GLuint aGridDimension, const FrameGraph & aGraph)
 {
     mOccupancy = {GL_TEXTURE_3D};
     // For creation
@@ -398,14 +402,59 @@ void Voxelizer::prepareMipmap(GLuint aGridDimension)
 
     glGenerateTextureMipmap(mOccupancy);
 
-    glGenerateTextureMipmap(mIrradiance);
+    if (mControl.mComputeIrradianceMipmapping)
+    {
+        mipmapIrradiance(aGridDimension, aGraph);
+    }
+    else
+    {
+        glGenerateTextureMipmap(mIrradiance);
+    }
+}
+
+
+void Voxelizer::mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGraph)
+{
+    const auto & program = aGraph.mPrograms.mFilterIrradianceProgram;
+    glUseProgram(program);
+
+    graphics::setUniform(program, "u_IrradianceSourceImage", gIrradianceImageUnit);
+    graphics::setUniform(program, "u_IrradianceDestinationImage", gIrradianceMipmapImageUnit);
+
+    // TODO: consolidate with the other calls
+    GLsizei levels = 
+        graphics::countCompleteMipmaps({(int)aGridDimension, (int)aGridDimension});
+
+    math::Vec<3, GLuint> destinationDimension{aGridDimension, aGridDimension, aGridDimension};
+    
+    for(GLint sourceLevel = 0; sourceLevel + 1 != levels; ++sourceLevel)
+    {
+        glBindImageTexture(gIrradianceImageUnit, mIrradiance, sourceLevel,
+                           GL_FALSE, 0, 
+                           GL_READ_ONLY, gIrradianceFormat);
+        glBindImageTexture(gIrradianceMipmapImageUnit, mIrradiance, sourceLevel + 1,
+                           GL_FALSE, 0, 
+                           GL_WRITE_ONLY, gIrradianceFormat);
+
+        destinationDimension /= 2;
+        // Note: There is something shady with GLSL imageSize, giving me very inconsistent results
+        // (and a quick search shows an anormal volume of forum complaints)
+        graphics::setUniform(program, "u_DestinationDimension", destinationDimension);
+
+        math::Vec<3, GLfloat> numWorkgroups =
+            destinationDimension.as<math::Vec, GLfloat>().cwDiv(gWorkgroupSize.as<math::Vec, GLfloat>());
+
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        glDispatchCompute(std::ceil(numWorkgroups.x()),
+                          std::ceil(numWorkgroups.y()),
+                          std::ceil(numWorkgroups.z()));
+    }
 }
 
 
 void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGraph)
 {
-    const GLenum format = GL_RGBA8;
-    mIrradiance = prepare3dTexture(format,
+    mIrradiance = prepare3dTexture(gIrradianceFormat,
                                    aGridDimension,
                                    graphics::countCompleteMipmaps({(int)aGridDimension, (int)aGridDimension}),
                                    "voxels_irradiance");
@@ -416,9 +465,9 @@ void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
         glTextureParameteri(mIrradiance, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 
-    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 
-                       0, GL_FALSE, 0, 
-                       GL_WRITE_ONLY, format);
+    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,
+                       GL_FALSE, 0, 
+                       GL_WRITE_ONLY, gIrradianceFormat);
 
     const auto & program = aGraph.mPrograms.mInjectIrradianceProgram;
     glUseProgram(program);
@@ -434,9 +483,7 @@ void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
     graphics::setUniform(program, "u_AverageNormalByAxis", mControl.mAverageNormalByAxis);
 
     const math::Vec<3, GLuint> totalInvocations{aGridDimension, aGridDimension, aGridDimension};
-    // TODO: synchronize with compute shader
-    const math::Vec<3, GLuint> workgroupSize{8u, 8u, 8u};
-    math::Vec<3, GLuint> numWorkgroups = totalInvocations.cwDiv(workgroupSize);
+    math::Vec<3, GLuint> numWorkgroups = totalInvocations.cwDiv(gWorkgroupSize);
 
     glDispatchCompute(numWorkgroups.x(), numWorkgroups.y(), numWorkgroups.z());
 }

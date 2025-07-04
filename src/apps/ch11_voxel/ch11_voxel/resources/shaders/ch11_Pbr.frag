@@ -173,6 +173,7 @@ LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
 		aAmbientOcclusionFactor = diffuse.a;
 		result.diffuse = diffuse.rgb
 						 * (1 - F)
+                         * aParams.diffuseColor
 						 ;
     }
 
@@ -376,7 +377,8 @@ void main(void)
                                voxelAoFactor);
 
     diffuseAccum += 
-        indirect.diffuse * voxelAoFactor
+        indirect.diffuse
+        * voxelAoFactor
         * u_LightingFactors.z
         ;
     specularAccum += 

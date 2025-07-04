@@ -84,6 +84,7 @@ struct FrameGraph
         renderer::IntrospectProgram mVoxelizationDominantAxisViewProgram;
 
         renderer::IntrospectProgram mInjectIrradianceProgram;
+        renderer::IntrospectProgram mFilterIrradianceProgram;
     };
 
 

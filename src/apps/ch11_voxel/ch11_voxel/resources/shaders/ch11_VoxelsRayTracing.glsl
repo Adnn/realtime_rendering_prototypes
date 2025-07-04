@@ -7,13 +7,28 @@
 #include "shaders/Helpers.glsl"
 
 
+struct GridBounds
+{
+	ivec3 mMin;
+	ivec3 mMax;
+};
+
+
+GridBounds getFullAabbBounds()
+{
+	return GridBounds(ivec3(0), ivec3(ub_GridDimension - 1));
+}
+
+
+/// @param voxelSize is the size of a voxel in the basis of the aabb
 ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb, 
 	   				 float voxelSize, uint gridDimension,
 	   				 inout bvec3 mask, bool aTestOnTexture,
-					 ivec3 aStopCoord, bool aSkipSelf)
+					 GridBounds aBounds, bool aSkipSelf)
 {
 	// see: "A Fast Voxel Traversal Algorithm for Ray Tracing", John Amanatides, Andrew Woo
 
+	//aRayEntry_aabb += aRayDir_aabb * voxelSize;
 	// 
 	// Initialization phase
 	//
@@ -61,12 +76,11 @@ ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 	// TODO: Having this max steps in place solve a potential hanging crash.
 	// Understand why and better address it
 	uint stp = 0;
-	//while(maxCw(currentVoxel) < gridDimension && minCw(currentVoxel) >= 0
 
-	bool stopSimple = currentVoxel == aStopCoord;
-	bool stop = any(greaterThan((step * currentVoxel), (step * aStopCoord)));
-	//bool stop = any(greaterThan((currentVoxel), (aStopCoord)));
-	while(!stop
+	// Note: we could test only once per component based on the step sign.
+	//bool stop = any(greaterThan((step * currentVoxel), (step * aStopCoord)));
+	while(   all(greaterThanEqual(currentVoxel, aBounds.mMin))
+		  && all(lessThanEqual(currentVoxel, aBounds.mMax))
 		  && stp < maxSteps)
 	{
 		++stp;
@@ -119,9 +133,6 @@ ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 				mask = bvec3(false, false, true);
 			}            
 		}
-
-		stop = any(greaterThan((step * currentVoxel), (step * aStopCoord)));
-		stopSimple = (currentVoxel == aStopCoord);
 	}
 
 	return ivec3(-1);

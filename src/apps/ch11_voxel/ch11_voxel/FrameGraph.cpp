@@ -40,6 +40,7 @@ namespace ad {
         const renderer::ReferencePath gVoxelizationDominantAxisViewProgram{"programs/ch11_ViewDominantAxis.prog"};
 
         const renderer::ReferencePath gInjectIrradianceProgramPath{"programs/ch11_InjectIrradiance.prog"};
+        const renderer::ReferencePath gFilterIrradianceProgramPath{"programs/ch11_FilterIrradiance.prog"};
 
         const GLsizei gShadowMapSize = 2048;
 
@@ -136,7 +137,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mVoxelizationDominantAxisProgram{ aEngine.loadProgram(gVoxelizationDominantAxisProgram) },
     mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) },
     mVoxelizationDominantAxisViewProgram{ aEngine.loadProgram(gVoxelizationDominantAxisViewProgram) },
-    mInjectIrradianceProgram{ aEngine.loadProgram(gInjectIrradianceProgramPath) }
+    mInjectIrradianceProgram{ aEngine.loadProgram(gInjectIrradianceProgramPath) },
+    mFilterIrradianceProgram{ aEngine.loadProgram(gFilterIrradianceProgramPath) }
 {}
 
 

@@ -42,10 +42,12 @@ struct Voxelizer
         bool mConservativeRasterization = true;
         bool mConservativeDepthRange = false;
         bool mAverageSamples = true;
-        bool mAverageNormalByAxis = true;
+        bool mAverageNormalByAxis = false;
         // Not intended for GUI, but internal value updated depending on the usage context
         bool mCpuReadVoxels = false;
         bool mLinearFiltering = true;
+        // Use compute shader to populate voxel irradiance mipmaps (instead of glGenerateTextureMipmap)
+        bool mComputeIrradianceMipmapping = true;
     };
 
     Voxelizer();
@@ -63,7 +65,9 @@ struct Voxelizer
     void voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
                       const FrameGraph & aGraph);
 
-    void prepareMipmap(GLuint aGridDimension);
+    void prepareMipmap(GLuint aGridDimension, const FrameGraph & aGraph);
+
+    void mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGraph);
 
     void injectIrradiance(GLuint aGridDimension, const FrameGraph & aGraph);
 
