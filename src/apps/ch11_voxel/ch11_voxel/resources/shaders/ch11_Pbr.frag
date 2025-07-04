@@ -170,7 +170,7 @@ LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
 												 aShadingNormal_world,
 												 u_TanHalfAperture,
 												 u_VoxelSize);
-		aAmbientOcclusionFactor = diffuse.a;
+		aAmbientOcclusionFactor = 1 - diffuse.a;
 		result.diffuse = diffuse.rgb
 						 * (1 - F)
                          * aParams.diffuseColor
