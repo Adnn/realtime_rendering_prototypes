@@ -159,6 +159,7 @@ void main()
     // Apply the voxel albedo to accumulated irradiance from all light sources
     irradiance *= albedo.rgb;
 
-    // TODO: store correct occupancy (1 might be correct)
+    // Note: At the level 0 (i.e. this level of the irradiance 3D texture)
+    // the occupancy (in alpha) is set to 1: the voxel is considered entirely occupied.
     imageStore(u_IrradianceImage, voxelCoord, vec4(irradiance, 1));
 }

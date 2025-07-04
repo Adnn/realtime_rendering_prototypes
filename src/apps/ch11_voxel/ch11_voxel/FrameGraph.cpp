@@ -215,8 +215,6 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
 
     glBindTextureUnit(6, mShadowMap);
     graphics::setUniform(program, "u_ShadowMap", 6);
-    glBindTextureUnit(10, aVoxelizer.mOccupancy);
-    graphics::setUniform(program, "u_VoxelsAlbedoTexture", 10);
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
 
@@ -239,8 +237,6 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
                                  Voxelizer & aVoxelizer, GLuint aMode)
 {
     const auto & program = mPrograms.mConeTrace;
-    glBindTextureUnit(10, aVoxelizer.mOccupancy);
-    graphics::setUniform(program, "u_VoxelsAlbedoTexture", 10);
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);

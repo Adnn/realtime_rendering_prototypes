@@ -80,7 +80,6 @@ struct Voxelizer
     GLsizeiptr mVoxelsByteSize;
     math::Box<float> mSceneAabb; // Note: we could only keep min corner
     float mVoxelSize{0.f}; // World units
-    graphics::Texture mOccupancy{GL_TEXTURE_3D};
     graphics::Texture mAlbedo{GL_TEXTURE_3D};
     graphics::Texture mNormals{GL_TEXTURE_3D};
     graphics::Texture mIrradiance{GL_TEXTURE_3D};

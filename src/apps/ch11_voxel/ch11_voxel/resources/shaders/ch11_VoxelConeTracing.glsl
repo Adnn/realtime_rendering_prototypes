@@ -13,7 +13,6 @@
 uniform float u_TanHalfAperture = M_PI / 6;
 uniform bool u_GridAlign;
 
-uniform sampler3D u_VoxelsAlbedoTexture;
 uniform sampler3D u_VoxelsIrradianceTexture;
 
 
@@ -110,7 +109,6 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 
         vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
         // TODO: rename, this is not albedo but occupancy atm
-        vec4 albedo = textureLod(u_VoxelsAlbedoTexture, position_uvw, mipLevel);
         vec4 irradianceSample = textureLod(u_VoxelsIrradianceTexture, position_uvw, mipLevel);
 
         // irradiance marching, front to back compositing
@@ -127,7 +125,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
             marchedIrradiance.a += (1 - marchedIrradiance.a) * irradianceSample.a;
         #endif
 
-        occlusion += ((1.0f - occlusion) * albedo.a) / (1.0f + falloff * coneDiameter);
+        occlusion += ((1.0f - occlusion) * marchedIrradiance.a) / (1.0f + falloff * coneDiameter);
         // march the cone
         t += coneDiameter * samplingFactor;
     }
