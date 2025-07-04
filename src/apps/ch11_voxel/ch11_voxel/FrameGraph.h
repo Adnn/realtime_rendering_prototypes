@@ -43,11 +43,22 @@ struct FrameGraph
             _End/* keep last */
         };
 
+        enum class ShadowMethod : GLuint
+        {
+            ShadowMap,
+            ConeTracing,
+            _End/* keep last */
+        };
+
         decltype(gPolygonModes)::const_iterator mPolygonMode = gPolygonModes.begin() + 2;
 
         ToneMapping mToneMapping = ToneMapping::AcesApprox;
 
-        math::Radian<GLfloat> mConeAperture = math::Degree<GLfloat>{30.f};
+        ShadowMethod mFinalSceneShadow = ShadowMethod::ShadowMap;
+
+        // Aperture means full angle (2 * angle to the axis)
+        math::Radian<GLfloat> mDiffuseConeAperture = math::Degree<GLfloat>{60.f};
+        math::Radian<GLfloat> mShadowConeAperture = math::Degree<GLfloat>{10.f};
         bool mGridAlign = false;
 
         float mDirectDiffuseFactor{1.0f};

@@ -567,16 +567,18 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Checkbox("Show Punctual Lights", &mSceneControl.mShowPunctualLights);
     ImGui::Checkbox("Draw BB", &mSceneControl.mDrawBoundingBoxes);
 
-    ImGui::SeparatorText("Voxelization:");
     mVoxelizationRequest |= ImGui::Button("Force voxelize");
-    mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
-    mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
-    mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
-    mVoxelizationRequest |= ImGui::Checkbox("Average Samples in Voxel", &mVoxelizer.mControl.mAverageSamples);
-    mVoxelizationRequest |= ImGui::Checkbox("Average Normals by axis", &mVoxelizer.mControl.mAverageNormalByAxis);
-    mVoxelizationRequest |= ImGui::Checkbox("Trace linear filtering", &mVoxelizer.mControl.mLinearFiltering);
-    mVoxelizationRequest |= ImGui::Checkbox("Compute Shader Irradiance Filtering", &mVoxelizer.mControl.mComputeIrradianceMipmapping);
-    ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
+    if (ImGui::CollapsingHeader("Voxelization"))
+    {
+        mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
+        mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
+        mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
+        mVoxelizationRequest |= ImGui::Checkbox("Average Samples in Voxel", &mVoxelizer.mControl.mAverageSamples);
+        mVoxelizationRequest |= ImGui::Checkbox("Average Normals by axis", &mVoxelizer.mControl.mAverageNormalByAxis);
+        mVoxelizationRequest |= ImGui::Checkbox("Trace linear filtering", &mVoxelizer.mControl.mLinearFiltering);
+        mVoxelizationRequest |= ImGui::Checkbox("Compute Shader Irradiance Filtering", &mVoxelizer.mControl.mComputeIrradianceMipmapping);
+        ImGui::Checkbox("Voxel POV", &mSceneControl.mVoxelPov);
+    }
 
     DearImguiWitness witness;
 

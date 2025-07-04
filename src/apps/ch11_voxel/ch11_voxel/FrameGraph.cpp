@@ -208,6 +208,11 @@ void FrameGraph::loadPrograms()
 }
 
 
+GLfloat toTanHalf(math::Radian<GLfloat> aAngle)
+{
+    return math::tan(aAngle / 2.f);
+}
+
 void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
                                   Voxelizer & aVoxelizer)
 {
@@ -221,9 +226,11 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
-    graphics::setUniform(program, "u_TanHalfAperture", mFrameControl.mConeAperture.data());
+    graphics::setUniform(program, "u_TanHalfAperture", toTanHalf(mFrameControl.mDiffuseConeAperture));
+    graphics::setUniform(program, "u_TanHalfShadow", toTanHalf(mFrameControl.mShadowConeAperture));
 
     graphics::setUniform(program, "u_ToneMapping", (GLuint)mFrameControl.mToneMapping);
+    graphics::setUniform(program, "u_ShadowMethod", (GLuint)mFrameControl.mFinalSceneShadow);
 
     glProgramUniform4fv(program,
                         glGetUniformLocation(program, "u_LightingFactors"),
@@ -242,7 +249,7 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
-    graphics::setUniform(program, "u_TanHalfAperture", mFrameControl.mConeAperture.data());
+    graphics::setUniform(program, "u_TanHalfAperture", toTanHalf(mFrameControl.mDiffuseConeAperture));
     graphics::setUniform(program, "u_GridAlign", mFrameControl.mGridAlign);
 
     graphics::setUniform(program, "u_ConeTraceMode", aMode);
@@ -296,7 +303,8 @@ void FrameGraph::appendUi()
     imguiui::addComboContinuousEnum<FrameControl::ToneMapping::_End>(
         "Tone Mapping", mFrameControl.mToneMapping);
 
-    ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mConeAperture.data(), 1.f, 180.f);
+    ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mDiffuseConeAperture.data(), 1.f, 180.f);
+    ImGui::SliderAngle("Shadow Cone Aperture", &mFrameControl.mShadowConeAperture.data(), 1.f, 180.f);
 
     ImGui::Checkbox("Grid Aligned Trace Origin", &mFrameControl.mGridAlign);
 
@@ -307,6 +315,8 @@ void FrameGraph::appendUi()
     ImGui::SliderFloat("Indirect specular", &mFrameControl.mIndirectSpecularFactor, 0.f, 4.f);
 
     ImGui::SeparatorText("Shadow");
+    imguiui::addComboContinuousEnum<FrameControl::ShadowMethod::_End>(
+        "Final Scene Shadow", mFrameControl.mFinalSceneShadow);
     ImGui::InputFloat("Scale", &mFrameControl.mShadowScaleBias.x());
     ImGui::InputFloat("Bias", &mFrameControl.mShadowScaleBias.y());
 }
@@ -323,6 +333,20 @@ std::string to_string(FrameGraph::FrameControl::ToneMapping aValue)
         STR(AcesApprox);
     default:
         throw std::logic_error{ "Unhandled tone mapping." };
+    }
+#undef STR
+}
+
+
+std::string to_string(FrameGraph::FrameControl::ShadowMethod aValue)
+{
+#define STR(enumerator) case FrameGraph::FrameControl::ShadowMethod::enumerator: return #enumerator
+    switch (aValue)
+    {
+        STR(ShadowMap);
+        STR(ConeTracing);
+    default:
+        throw std::logic_error{ "Unhandled shadow method." };
     }
 #undef STR
 }

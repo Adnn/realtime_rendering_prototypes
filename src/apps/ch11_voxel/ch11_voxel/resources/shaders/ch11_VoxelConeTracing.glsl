@@ -11,6 +11,8 @@
 
 // To be used as aperture angle for diffuse cones
 uniform float u_TanHalfAperture = M_PI / 6;
+// Aperture angle for shadow cones
+uniform float u_TanHalfShadow = 0.0174533f;
 uniform bool u_GridAlign;
 
 uniform sampler3D u_VoxelsIrradianceTexture;
@@ -131,6 +133,61 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
     }
 
     return vec4(marchedIrradiance.rgb, occlusion);
+}
+
+
+/// @return The irradiance accumulated along the march in .rgb, the ambient occlusion in .a
+float traceShadow(vec3 position_aabb, vec3 normal_aabb, 
+                  vec3 coneAxis_aabb, float tanHalfAngle,
+                  float aVoxelSize)
+{
+    // A factor to implement the potential difference between d and d' in Crassin's paper.
+    // This is beta in the explanation here: https://github.com/jose-villegas/VCTRenderer?tab=readme-ov-file#4-voxel-cone-tracing
+    const float samplingFactor = 1;
+
+    // Initial offset, to mitigate self-sampling.
+    // The factor will be applied to the voxel size.
+    const float offsetFactor = 1;
+
+    // Sclaing factor
+    float k = 1;
+
+    // Note: Some implementation offset in the direction of the normal instead of the cone
+    // e.g. https://github.com/jose-villegas/VCTRenderer/blob/9ae0dbe5bd60e85514e3e582bf23f2868c6b51fc/engine/assets/shaders/light_pass.frag#L147
+    vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * aVoxelSize; 
+
+    // t : distance marched along the cone, in world unit
+    float t = 1.0 * aVoxelSize; // Another offset to limit self-sampling
+
+    // ambient occlusion
+    float occupancy = 0;
+
+    while(occupancy < 1.0f 
+          /* also breaks inside loop body if sampling outside the grid */)
+    {
+        float coneDiameter = 2 * t * tanHalfAngle;
+        float mipLevel = log2(coneDiameter / aVoxelSize);
+
+        vec3 samplePosition_aabb = startPosition_aabb + coneAxis_aabb * t;
+        vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
+        if(   any(lessThan(position_uvw, vec3(0)))
+           || any(greaterThan(position_uvw, vec3(1))) )
+        {
+            break;
+        }
+
+        // TODO: rename, this is not albedo but occupancy atm
+        float occupancySample = 
+            textureLod(u_VoxelsIrradianceTexture, position_uvw, mipLevel).a
+            * k
+            ;
+        occupancy += (1 - occupancy) * occupancySample;
+
+        // march the cone
+        t += coneDiameter * samplingFactor;
+    }
+
+    return (1 - occupancy); 
 }
 
 

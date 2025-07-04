@@ -14,10 +14,10 @@
 
 
 #if defined(ENVIRONMENT_MAPPING)
-	uniform samplerCube u_EnvironmentTexture;
-	uniform samplerCube u_FilteredRadianceEnvironmentTexture;
-	uniform samplerCube u_FilteredIrradianceEnvironmentTexture;
-	uniform sampler2D u_IntegratedEnvironmentBrdf;
+    uniform samplerCube u_EnvironmentTexture;
+    uniform samplerCube u_FilteredRadianceEnvironmentTexture;
+    uniform samplerCube u_FilteredIrradianceEnvironmentTexture;
+    uniform sampler2D u_IntegratedEnvironmentBrdf;
 
     // Control the IBL contributions strenght, good candidates to be part of each environment
     uniform float u_SpecularIblFactor = 1.0;
@@ -55,6 +55,7 @@ uniform bool u_ApplyAo = false;
 uniform bool u_ApplyEnvironment;
 uniform bool u_ApplyNormalMap = true;
 uniform uint u_ToneMapping;
+uniform uint u_ShadowMethod;
 
 uniform ivec2 u_FramebufferSize;
 uniform float u_VoxelSize;
@@ -75,7 +76,7 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
 
     // Specular and Fresnel
     {
-		vec3 aLightDir = aSpecularLightDir;
+        vec3 aLightDir = aSpecularLightDir;
 
         // Note: Lacking clear guidance, the Fresnel term is computed with the specular light dir
         //   The reasoning being that for practical purposes, this is the specular direction
@@ -85,12 +86,12 @@ LightContributions applyLight_pbr(vec3 aView, vec3 aDiffuseLightDir, vec3 aSpecu
         //   sphere horizon when it is aligned to the light ("eclipse").
         //   I suppose one problem is the degenerate h vector when aView = -aLightDir (more probable with area)
         //   but there seem to be other underlying issue(s).
-		vec3 h = normalize(aView + aLightDir);
-		float hDotL = dotPlus(h, aLightDir);
+        vec3 h = normalize(aView + aLightDir);
+        float hDotL = dotPlus(h, aLightDir);
 
-		// Fresnel term `F` describe how the wave-length dependent reflectance (proportion of reflected light)
-		// For microfacet BRDFs, we use dot(h, l), not dot(n, l), see: rtr 4th eq (9.63)
-		F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
+        // Fresnel term `F` describe how the wave-length dependent reflectance (proportion of reflected light)
+        // For microfacet BRDFs, we use dot(h, l), not dot(n, l), see: rtr 4th eq (9.63)
+        F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
 
         float nDotH = dotPlus(aShadingNormal, h);
         // Seems to fix some erroneous black pixels at horizon (but not all)
@@ -141,15 +142,15 @@ LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
 
     // Specular and Fresnel
     {
-		vec3 reflectionDir = reflect(-aView_world, aShadingNormal_world);
-		vec3 lightDir = reflectionDir;
+        vec3 reflectionDir = reflect(-aView_world, aShadingNormal_world);
+        vec3 lightDir = reflectionDir;
 
-		vec3 h = normalize(aView_world + lightDir);
-		float hDotL = dotPlus(h, lightDir);
+        vec3 h = normalize(aView_world + lightDir);
+        float hDotL = dotPlus(h, lightDir);
 
-		// Fresnel term `F` describe how the wave-length dependent reflectance (proportion of reflected light)
-		// For microfacet BRDFs, we use dot(h, l), not dot(n, l), see: rtr 4th eq (9.63)
-		F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
+        // Fresnel term `F` describe how the wave-length dependent reflectance (proportion of reflected light)
+        // For microfacet BRDFs, we use dot(h, l), not dot(n, l), see: rtr 4th eq (9.63)
+        F = schlickFresnelReflectance(hDotL, aParams.f0, aParams.f90);
 
         float nDotL = max(0.001, dotPlus(aShadingNormal_world, lightDir));
 
@@ -169,15 +170,15 @@ LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
 
     //// Diffuse
     {
-		vec4 diffuse = accumulateDiffuseIndirect(aPosition_aabb,
-												 aShadingNormal_world,
-												 u_TanHalfAperture,
-												 u_VoxelSize);
-		aAmbientOcclusionFactor = 1 - diffuse.a;
-		result.diffuse = diffuse.rgb
-						 * (1 - F)
+        vec4 diffuse = accumulateDiffuseIndirect(aPosition_aabb,
+                                                 aShadingNormal_world,
+                                                 u_TanHalfAperture,
+                                                 u_VoxelSize);
+        aAmbientOcclusionFactor = 1 - diffuse.a;
+        result.diffuse = diffuse.rgb
+                         * (1 - F)
                          * aParams.diffuseColor
-						 ;
+                         ;
     }
 
     return result;
@@ -194,7 +195,7 @@ void main(void)
     if(u_DiffuseUvChannel != gNoTextureChannel)
     {
         albedo *= texture(u_DiffuseTexture, ex_Uv01);
-	}
+    }
 
     //
     // alpha testing for cutout
@@ -211,55 +212,55 @@ void main(void)
     vec3 shadingNormal_view;
     if(u_NormalUvChannel != gNoTextureChannel && u_ApplyNormalMap)
     {
-		#define BC5_RGTC;
-		#if defined(BC5_RGTC)
-			// Fetch from Red-Green channels, and remap from [0, 1]^2 to [-1, 1]^2.
-			vec2 normalXY = 
-				texture(u_NormalTexture, ex_Uv01).xy
-				* 2.0 - vec2(1.0);
+        #define BC5_RGTC;
+        #if defined(BC5_RGTC)
+            // Fetch from Red-Green channels, and remap from [0, 1]^2 to [-1, 1]^2.
+            vec2 normalXY = 
+                texture(u_NormalTexture, ex_Uv01).xy
+                * 2.0 - vec2(1.0);
 
-			// Derives the third component from the two others, assuming the source normal map data was normalized
-			vec3 normal_tbn = vec3(normalXY, sqrt(1.0 - dot(normalXY, normalXY)));
-		#else
-			// Fetch from normal map, and remap from [0, 1]^3 to [-1, 1]^3.
-			vec3 normal_tbn = 
-				texture(u_NormalTexture, ex_Uv01).xyz
-				* 2 - vec3(1);
-		#endif //BC5_RGTC
+            // Derives the third component from the two others, assuming the source normal map data was normalized
+            vec3 normal_tbn = vec3(normalXY, sqrt(1.0 - dot(normalXY, normalXY)));
+        #else
+            // Fetch from normal map, and remap from [0, 1]^3 to [-1, 1]^3.
+            vec3 normal_tbn = 
+                texture(u_NormalTexture, ex_Uv01).xyz
+                * 2 - vec3(1);
+        #endif //BC5_RGTC
 
-		// MikkT see: http://www.mikktspace.com/
+        // MikkT see: http://www.mikktspace.com/
 
-		vec3 normal_view = ex_Normal_view;
-		vec3 tangent_view = ex_Tangent_view;
-		//#define COMPUTE_BITANGENT
-		#ifdef COMPUTE_BITANGENT
-			// TODO handle handedness, which should be -1 or 1
-			//float handedness
-			//vec3 bitangent_cam = cross(normal_cam, tangent_cam) * handedness;
-		#else
-			vec3 bitangent_view = ex_Bitangent_view;
-		#endif
+        vec3 normal_view = ex_Normal_view;
+        vec3 tangent_view = ex_Tangent_view;
+        //#define COMPUTE_BITANGENT
+        #ifdef COMPUTE_BITANGENT
+            // TODO handle handedness, which should be -1 or 1
+            //float handedness
+            //vec3 bitangent_cam = cross(normal_cam, tangent_cam) * handedness;
+        #else
+            vec3 bitangent_view = ex_Bitangent_view;
+        #endif
 
-		#define NORMALIZE_TBN
-		#ifdef NORMALIZE_TBN
-			// Despite MikkT guideline, if the tangent and normal were not normalized
-			// the result was be abherent with sample gltf assets (e.g. avocado, sponza) 
-			normal_view    = normalize(normal_view);
-			tangent_view   = normalize(tangent_view);
-			bitangent_view = normalize(bitangent_view);
-		#endif
+        #define NORMALIZE_TBN
+        #ifdef NORMALIZE_TBN
+            // Despite MikkT guideline, if the tangent and normal were not normalized
+            // the result was be abherent with sample gltf assets (e.g. avocado, sponza) 
+            normal_view    = normalize(normal_view);
+            tangent_view   = normalize(tangent_view);
+            bitangent_view = normalize(bitangent_view);
+        #endif
 
-		vec3 bumpNormal_cam = normalize(
-			  normal_tbn.x * tangent_view
-			+ normal_tbn.y * bitangent_view
-			+ normal_tbn.z * normal_view
-		);
+        vec3 bumpNormal_cam = normalize(
+              normal_tbn.x * tangent_view
+            + normal_tbn.y * bitangent_view
+            + normal_tbn.z * normal_view
+        );
 
-		shadingNormal_view = bumpNormal_cam;
-	}
+        shadingNormal_view = bumpNormal_cam;
+    }
     else
     {
-		shadingNormal_view = normalize(ex_Normal_view);
+        shadingNormal_view = normalize(ex_Normal_view);
     }
 
     vec3 viewDir_view = normalize(-ex_Position_view);
@@ -285,7 +286,7 @@ void main(void)
         // glTF sponza channel order
         metallic = mrao.b;
         roughness = mrao.g;
-	}
+    }
 
     // Handle alpha
     // We assume the roughness, not alpha, is provided even in 3rd party assets.
@@ -311,7 +312,11 @@ void main(void)
     // PBR shading model (light simulation)
     //
 
-    // TODO: shadows
+    // Potentially used by direct lighting for cone traced shadows
+    vec3 position_aabb = ex_Position_world - u_AabbMin;
+    // TODO: Address this expensive calculation. Should everything happen in world space?
+    vec3 geometricNormal_world = mat3(ub_cameraToWorld) * normalize(ex_Normal_view);
+    vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
 
     // Directional lights
     for(uint directionalIdx = 0; directionalIdx != ub_DirectionalCount.x; ++directionalIdx)
@@ -324,9 +329,23 @@ void main(void)
                 viewDir_view, lightDir_view, lightDir_view, shadingNormal_view,
                 pbrParameters, directional.colors);
 
-		#if defined(SHADOW_MAPPING)
-			applyShadowToLighting(lighting, directionalIdx);
-		#endif // SHADOW_MAPPING
+		switch(u_ShadowMethod)
+		{
+		case CLIENT_SHADOW_SHADOWMAP:
+			#if defined(SHADOW_MAPPING)
+				applyShadowToLighting(lighting, directionalIdx);
+			#endif // SHADOW_MAPPING
+			break;
+		case CLIENT_SHADOW_CONETRACING:
+			float shadowFactor = 
+				traceShadow(position_aabb, geometricNormal_world, 
+							mat3(ub_cameraToWorld) * lightDir_view, u_TanHalfShadow,
+							u_VoxelSize);
+			scale(lighting, shadowFactor);
+			//out_Color = vec4(vec3(shadowFactor), 1);
+			//return;
+			break;
+		}
 
         diffuseAccum += lighting.diffuse;
         specularAccum += lighting.specular;
@@ -365,14 +384,11 @@ void main(void)
     //
     // Indirect lighting (VXGI)
     //
-	vec3 position_aabb = ex_Position_world - u_AabbMin;
-	vec3 view_world = normalize(getCameraPosition_world() -  ex_Position_world);
-    // TODO: Address this expensive calculation. Should everything happen in world space?
-	vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
+    vec3 view_world = normalize(getCameraPosition_world() -  ex_Position_world);
 
     float voxelAoFactor = 1;
 
-	LightContributions indirect = 
+    LightContributions indirect = 
         applyIndirectLight_pbr(position_aabb,
                                view_world,
                                shadingNormal_world,
@@ -402,13 +418,13 @@ void main(void)
     // Ambient Occlusion
     //
 
-	float aoFactor;
+    float aoFactor;
     if(u_ApplyAo)
     {
-		vec2 frag_screenuv = gl_FragCoord.xy / u_FramebufferSize;
-		aoFactor = texture(u_AmbientOcclusion, frag_screenuv).r;
-		ambient *= aoFactor;
-	}
+        vec2 frag_screenuv = gl_FragCoord.xy / u_FramebufferSize;
+        aoFactor = texture(u_AmbientOcclusion, frag_screenuv).r;
+        ambient *= aoFactor;
+    }
 
     vec3 fragmentColor = diffuse + ambient + specular;
 
@@ -420,18 +436,18 @@ void main(void)
     //
     // IBL
     //
-	#if defined(ENVIRONMENT_MAPPING)
+    #if defined(ENVIRONMENT_MAPPING)
     if(u_ApplyEnvironment)
     {
         // The directions that will be used to sample into the cubemap need to be in 
         // world-space, where the cubemaps are defined.
-		// Note: No need to normalize as long as it is only used to sample a cubemap.
-		vec3 reflected_world = mat3(ub_cameraToWorld) * reflect(-viewDir_view, shadingNormal_view);
-		vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
+        // Note: No need to normalize as long as it is only used to sample a cubemap.
+        vec3 reflected_world = mat3(ub_cameraToWorld) * reflect(-viewDir_view, shadingNormal_view);
+        vec3 shadingNormal_world = mat3(ub_cameraToWorld) * shadingNormal_view;
 
-		vec3 specularIbl = 
+        vec3 specularIbl = 
             approximateSpecularIbl(pbrParameters.f0,
-		                           reflected_world,
+                                   reflected_world,
                                    shadingNormal_world,
                                    // Note should be reused from previous computation
                                    // (but is currently calculated inside a function)
@@ -440,10 +456,10 @@ void main(void)
                                    u_FilteredRadianceEnvironmentTexture,
                                    u_IntegratedEnvironmentBrdf);
 
-		vec3 irradianceIbl = texture(u_FilteredIrradianceEnvironmentTexture, 
+        vec3 irradianceIbl = texture(u_FilteredIrradianceEnvironmentTexture, 
                                      worldToCubemap(shadingNormal_world)).rgb;
 
-		if(u_ApplyAo)
+        if(u_ApplyAo)
         {
             // See rtr 4th eq. (11.25) p464
             // TODO: There is a 1/Pi factor in the book equation. Is it already part of the integrated irradiance
@@ -458,12 +474,12 @@ void main(void)
         //   which is in a term separate from the actual image lighting pre-integration.
 
         fragmentColor += specularIbl * u_SpecularIblFactor;
-		// For Lambertian surfaces, outgoing radiance is proportional to irradiance.
+        // For Lambertian surfaces, outgoing radiance is proportional to irradiance.
         // See rtr 4th eq. (10.2) p379
         fragmentColor += irradianceIbl
-						  // Diffuse color is the subsurface albedo
-						 * pbrParameters.diffuseColor.rgb
-						 * u_DiffuseIblFactor
+                          // Diffuse color is the subsurface albedo
+                         * pbrParameters.diffuseColor.rgb
+                         * u_DiffuseIblFactor
                          ;
     }
     #endif //ENVIRONMENT_MAPPING
@@ -474,12 +490,12 @@ void main(void)
     switch(u_ToneMapping)
     {
     case CLIENT_TONEMAPPING_REINHARD:
-		fragmentColor = tonemapReinhard(fragmentColor);
+        fragmentColor = tonemapReinhard(fragmentColor);
         break;
     case CLIENT_TONEMAPPING_ACES:
-		fragmentColor = tonemapAces(fragmentColor);
+        fragmentColor = tonemapAces(fragmentColor);
     case CLIENT_TONEMAPPING_ACESAPPROX:
-		fragmentColor = tonemapAces_approx(fragmentColor);
+        fragmentColor = tonemapAces_approx(fragmentColor);
         break;
     // Default is none
     }

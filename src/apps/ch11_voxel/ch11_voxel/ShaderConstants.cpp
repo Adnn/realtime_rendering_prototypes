@@ -47,6 +47,12 @@ namespace ad {
             result.emplace_back(
                 "CLIENT_TONEMAPPING_ACESAPPROX " 
                 + std::to_string((GLuint)FrameGraph::FrameControl::ToneMapping::AcesApprox));
+            result.emplace_back(
+                "CLIENT_SHADOW_SHADOWMAP " 
+                + std::to_string((GLuint)FrameGraph::FrameControl::ShadowMethod::ShadowMap));
+            result.emplace_back(
+                "CLIENT_SHADOW_CONETRACING " 
+                + std::to_string((GLuint)FrameGraph::FrameControl::ShadowMethod::ConeTracing));
             return result;
         }
             
