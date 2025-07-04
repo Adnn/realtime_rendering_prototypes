@@ -217,10 +217,10 @@ void Scene::voxelize()
 }
 
 
-void Scene::step(const graphics::Timer & /*aTimer*/,
+void Scene::step(const graphics::Timer & aTimer,
                  math::Size<2, int> aWindowResolution)
 {
-    mOrbitalCamera.update(aWindowResolution.height());
+    mOrbitalCamera.update(aTimer.delta(), aWindowResolution.height());
 
     //
     // Camera

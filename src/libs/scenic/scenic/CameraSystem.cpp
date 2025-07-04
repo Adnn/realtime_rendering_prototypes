@@ -4,9 +4,9 @@
 namespace ad::scenic {
 
 
-void OrbitalCamera::update(int aWindowHeight)
+void OrbitalCamera::update(float aDeltaTime, int aWindowHeight)
 {
-    mOrbitalControl.update(mViewHeightInWorld, aWindowHeight);
+    mOrbitalControl.update(aDeltaTime, mViewHeightInWorld, aWindowHeight);
 }
 
 
