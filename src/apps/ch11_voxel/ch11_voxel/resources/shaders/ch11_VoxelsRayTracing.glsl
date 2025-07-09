@@ -3,6 +3,7 @@
 
 
 #include "ch11_VoxelsSsbo.glsl"
+#include "ch11_VoxelsTextures.glsl"
 
 #include "shaders/Helpers.glsl"
 
@@ -20,15 +21,33 @@ GridBounds getFullAabbBounds()
 }
 
 
+struct VoxelOccupancy
+{
+	uint mMode;
+	int mTextureLevel;
+};
+
+
+VoxelOccupancy makeOccupancy()
+{
+	return VoxelOccupancy(CLIENT_VOXEL_MODE_OCCUPANCY, 0);
+}
+
+
+bool testOnTexture(VoxelOccupancy aOccupancy)
+{
+	return aOccupancy.mMode != CLIENT_VOXEL_MODE_OCCUPANCY;
+}
+
+
 /// @param voxelSize is the size of a voxel in the basis of the aabb
 ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb, 
 	   				 float voxelSize, uint gridDimension,
-	   				 inout bvec3 mask, bool aTestOnTexture,
+	   				 inout bvec3 mask, VoxelOccupancy aOccupancyMethod,
 					 GridBounds aBounds, bool aSkipSelf)
 {
 	// see: "A Fast Voxel Traversal Algorithm for Ray Tracing", John Amanatides, Andrew Woo
 
-	//aRayEntry_aabb += aRayDir_aabb * voxelSize;
 	// 
 	// Initialization phase
 	//
@@ -38,19 +57,18 @@ ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 
 	// Direction the grid is visited in each coordinate
 	ivec3 step = ivec3(sign(aRayDir_aabb));
-	currentVoxel += step;
 
 	//#define INIT_SHADERTOY_FB39CA4
 	#if defined INIT_SHADERTOY_FB39CA4
 		// see: https://www.shadertoy.com/view/4dX3zl
 		vec3 tDelta = abs( vec3(length(aRayDir_aabb) * voxelSize) / aRayDir_aabb );
-		vec3 tMax = (step * (vec3(currentVoxel * voxelSize) - entry_aabb) + (step + 1) * 0.5 * voxelSize)
+		vec3 tMax = (step * (vec3(currentVoxel * voxelSize) - aRayEntry_aabb) + (step + 1) * 0.5 * voxelSize)
 					* tDelta;
 	#else // INIT_SHADERTOY_FB39CA4
 		// Advancing by tDelta results in next position being N_1 = (t + tDelta) * rayDir
-		// tDelta being 1/rayDir result in:
-		// N_1 = (t * rayDir) + (1/rayDir * rayDir) = N_0 + rayDir/rayDir,
-		// an increment of 1.
+		// tDelta being voxelSize/rayDir result in:
+		// N_1 = (t * rayDir) + (voxelSize/rayDir * rayDir) = N_0 + voxelSize,
+		// an increment of 1 voxel (on each component).
 		// Note: the absolute value ensure each component of tDelta are positive 
 		//       (even though the world direction could be negative)
 		vec3 tDelta = abs(voxelSize / aRayDir_aabb);
@@ -66,7 +84,7 @@ ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 
 		vec3 tMax = (voxelBoundary_aabb - aRayEntry_aabb) / aRayDir_aabb;
 		// Equivalent to (related to the shadertoy formula):
-		//vec3 tMax = (step * (voxelBoundary_aabb - entry_aabb)) * tDelta;
+		//vec3 tMax = (step * (voxelBoundary_aabb - aRayEntry_aabb)) * tDelta;
 	#endif // INIT_SHADERTOY_FB39CA4
 
 	//
@@ -88,15 +106,13 @@ ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 		// On 1st iteration, if skipself is true,just advance in the grid
 		if(!aSkipSelf)
 		{
-			if (!aTestOnTexture && getVoxelValue(currentVoxel) == 1 )
+			if (   (!testOnTexture(aOccupancyMethod) 
+					&& getVoxelValue(currentVoxel) == 1) 
+				|| ( testOnTexture(aOccupancyMethod) 
+				    && isTextureOccupied(currentVoxel, aOccupancyMethod.mTextureLevel, aOccupancyMethod.mMode)))
 			{
 				return currentVoxel;
 			}
-			// TODO: make it more generic by handling all use cases
-			//else if (aTestOnTexture && isTextureOccupied(currentVoxel, u_VoxelMipmapLevel))
-			//{
-			//	return fetchColor(currentVoxel, mask);
-			//}
 		}
 		else
 		{

@@ -1,0 +1,23 @@
+#if !defined(VOXELS_TEXTURES_GLSL_INCLUDE_GUARD)
+#define VOXELS_TEXTURES_GLSL_INCLUDE_GUARD
+
+
+uniform usampler3D u_VoxelsAlbedoTexture;
+uniform usampler3D u_VoxelsNormalsTexture;
+uniform sampler3D u_VoxelsIrradianceTexture;
+
+
+bool isTextureOccupied(ivec3 aVoxel, int aLevel, uint aVoxelMode)
+{
+	switch(aVoxelMode)
+	{
+		case CLIENT_VOXEL_MODE_IRRADIANCE:
+			vec4 irradiance = texelFetch(u_VoxelsIrradianceTexture, aVoxel, aLevel);
+			return irradiance.a > 0;
+		default:
+			return false;
+	}
+}
+
+
+#endif //VOXELS_TEXTURES_GLSL_INCLUDE_GUARD

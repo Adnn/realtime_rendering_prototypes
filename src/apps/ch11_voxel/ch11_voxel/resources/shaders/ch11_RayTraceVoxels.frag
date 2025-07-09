@@ -2,6 +2,7 @@
 
 
 #include "ch11_VoxelsSsbo.glsl"
+#include "ch11_VoxelsTextures.glsl"
 
 #include "shaders/Gamma.glsl"
 #include "shaders/Helpers.glsl"
@@ -20,10 +21,6 @@ uniform vec2 u_ImagePlane_view;
 uniform uint u_VoxelMode;
 uniform int u_VoxelMipmapLevel;
 
-uniform usampler3D u_VoxelsAlbedoTexture;
-uniform usampler3D u_VoxelsNormalsTexture;
-uniform sampler3D u_VoxelsIrradianceTexture;
-
 const uniform vec4 u_MissColor = vec4(0.3, 0, 0, 1);
 
 out vec4 out_Color;
@@ -32,19 +29,6 @@ out vec4 out_Color;
 bool isVoxelOccupied(ivec3 aVoxel)
 {
     return getVoxelValue(aVoxel) == 1;
-}
-
-
-bool isTextureOccupied(ivec3 aVoxel, int aLevel)
-{
-	switch(u_VoxelMode)
-	{
-		case CLIENT_VOXEL_MODE_IRRADIANCE:
-			vec4 irradiance = texelFetch(u_VoxelsIrradianceTexture, aVoxel, aLevel);
-			return irradiance.a > 0;
-		default:
-			return false;
-	}
 }
 
 
@@ -189,7 +173,7 @@ vec4 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 		{
 			return fetchColor(currentVoxel, mask);
 		}
-		else if (aTestOnTexture && isTextureOccupied(currentVoxel, u_VoxelMipmapLevel))
+		else if (aTestOnTexture && isTextureOccupied(currentVoxel, u_VoxelMipmapLevel, u_VoxelMode))
 		{
 			return fetchColor(currentVoxel, mask);
 		}
@@ -296,18 +280,10 @@ void main(void)
 			float voxelSize = u_VoxelSize * mipFactor;
 			uint gridDimension = ub_GridDimension / mipFactor;
 
-			if(u_VoxelMode == CLIENT_VOXEL_MODE_IRRADIANCE)
-			{
-                out_Color = traverseVoxels(entry_aabb, rayDir_world,
-										   voxelSize, gridDimension,
-										   mask, true/*test on texture*/);
-			}
-			else
-			{
-                out_Color = traverseVoxels(entry_aabb, rayDir_world,
-										   voxelSize, gridDimension,
-										   mask, false/*test on occupancy buffer*/);
-			}
+			bool testOnTexture = (u_VoxelMode == CLIENT_VOXEL_MODE_IRRADIANCE);
+			out_Color = traverseVoxels(entry_aabb, rayDir_world,
+									   voxelSize, gridDimension,
+									   mask, testOnTexture);
         #endif // DRAW_AABB
     }
 }

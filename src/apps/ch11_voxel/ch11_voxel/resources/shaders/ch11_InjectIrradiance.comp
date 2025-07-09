@@ -25,6 +25,34 @@ uniform usampler3D u_NormalsTexture;
 uniform writeonly restrict image3D u_IrradianceImage;
 
 
+float getVisibility(ivec3 aVoxel_aabb, vec3 aLightDir_aabb, GridBounds aBounds)
+{
+    // Dummy variable to satisfy traversal API
+	bvec3 unusedMask;
+
+	ivec3 step = ivec3(sign(aLightDir_aabb));
+    // We start traversal from a neighboring voxel, offset on 3 axes in the cone direction
+    // Drastically reduces false occlusions (e.g. voxels in a plane, with light shining sideway)
+    aVoxel_aabb += step;
+
+    // Set the traversal entry point at the center of the voxel
+    vec3 entry = vec3(aVoxel_aabb) + 0.5;
+
+	//// Note: we traverse the voxel grid as an AABB with voxel of unit dimension
+	//// This allows to use the voxel grid coord as entry point in the AABB directly
+    vec3 occludingVoxel =
+		traverseVoxels(entry, aLightDir_aabb, 
+					   1, ub_GridDimension,
+					   unusedMask,
+                       // Use the default occupancy mode, reading from the SSBO
+                       makeOccupancy(),
+                       aBounds,
+                       // We do test self, since we already offset to a neighboring voxel in the light direction
+					   false);
+	return (occludingVoxel == ivec3(-1)) ? 1.f : 0.0f;
+}
+
+
 vec3 injectDirectLight(vec3 aShadingNormal, vec3 aLightDir, LightColors aColors)
 {
     //#define MITIGATE_NORMALS
@@ -81,9 +109,6 @@ void main()
     // Accumulator for irradiance
     vec3 irradiance = vec3(0);
 
-    // Dummy variable to satisfy traversal API
-	bvec3 unusedMask;
-
     //
     // Directional
     //
@@ -98,18 +123,9 @@ void main()
 		// TODO #perf: this info should be available in a buffer, not computed in each voxel
 		vec3 lightDir_world = normalize(mat3(ub_cameraToWorld) * lightDir_cam);
 
-        // Note: we traverse the voxel grid as an AABB with voxel of unit dimension
-        // This allows to use the voxel grid coord as entry point in the AABB directly
-		ivec3 shadowingVoxel =
-			traverseVoxels(voxelCoord, lightDir_world, 
-						   1, ub_GridDimension,
-						   unusedMask, false/*test on texture*/,
-						   getFullAabbBounds(), true/*skip self*/);
-        float shadowFactor = (shadowingVoxel == ivec3(-1)) ? 1.f : 0.0f;
-
         irradiance += 
+			getVisibility(voxelCoord, lightDir_world, getFullAabbBounds()) * 
             injectDirectLight(normal_world, lightDir_world, directional.colors)
-            * shadowFactor
             ;
     }
 
@@ -138,18 +154,9 @@ void main()
             min(voxelCoord, lightPos_grid),
             max(voxelCoord, lightPos_grid));
 
-		ivec3 shadowingVoxel =
-			traverseVoxels(voxelCoord, lightDir_world, 
-						   //u_VoxelSize, ub_GridDimension,
-						   1, ub_GridDimension,
-						   unusedMask, false/*test on texture*/,
-						   bounds, true/*skip self*/);
-
-        float shadowFactor = (shadowingVoxel == ivec3(-1)) ? 1.f : 0.0f;
-
         irradiance += 
             falloff *
-            shadowFactor * 
+			getVisibility(voxelCoord, lightDir_world, bounds) *
             injectDirectLight(normal_world, lightDir_world, point.colors)
             ;
     }
