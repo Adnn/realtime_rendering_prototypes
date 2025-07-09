@@ -13,6 +13,7 @@
 uniform float u_TanHalfAperture = M_PI / 6;
 // Aperture angle for shadow cones
 uniform float u_TanHalfShadow = 0.0174533f;
+uniform float u_SpecularConeRoughnessFactor = 1;
 uniform bool u_GridAlign;
 
 uniform sampler3D u_VoxelsIrradianceTexture;
@@ -229,6 +230,9 @@ vec4 accumulateSpecularIndirect(vec3 aPosition_aabb,
                                 float aVoxelSize)
 {
 	vec3 reflectionDir_world= reflect(aIncident_world, aNormal_world);
+
+    // Global user control of roughness
+    aRoughness = clamp(aRoughness * u_SpecularConeRoughnessFactor, 0, 1);
 
 	// Handle alpha
 	float alpha = alphaFromRoughness(aRoughness);

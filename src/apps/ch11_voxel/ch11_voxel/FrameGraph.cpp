@@ -228,6 +228,7 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
 
     graphics::setUniform(program, "u_TanHalfAperture", toTanHalf(mFrameControl.mDiffuseConeAperture));
     graphics::setUniform(program, "u_TanHalfShadow", toTanHalf(mFrameControl.mShadowConeAperture));
+    graphics::setUniform(program, "u_SpecularConeRoughnessFactor", mFrameControl.mSpecularConeRoughnessFactor);
 
     graphics::setUniform(program, "u_ToneMapping", (GLuint)mFrameControl.mToneMapping);
     graphics::setUniform(program, "u_ShadowMethod", (GLuint)mFrameControl.mFinalSceneShadow);
@@ -250,9 +251,11 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
     graphics::setUniform(program, "u_TanHalfAperture", toTanHalf(mFrameControl.mDiffuseConeAperture));
+    graphics::setUniform(program, "u_SpecularConeRoughnessFactor", mFrameControl.mSpecularConeRoughnessFactor);
     graphics::setUniform(program, "u_GridAlign", mFrameControl.mGridAlign);
 
     graphics::setUniform(program, "u_ConeTraceMode", aMode);
+
 
     passForward(aSceneTree, program);
 }
@@ -305,6 +308,7 @@ void FrameGraph::appendUi()
 
     ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mDiffuseConeAperture.data(), 1.f, 180.f);
     ImGui::SliderAngle("Shadow Cone Aperture", &mFrameControl.mShadowConeAperture.data(), 1.f, 180.f);
+    ImGui::SliderFloat("Specular Cone roughness factor", &mFrameControl.mSpecularConeRoughnessFactor, 0, 2);
 
     ImGui::Checkbox("Grid Aligned Trace Origin", &mFrameControl.mGridAlign);
 

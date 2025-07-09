@@ -157,7 +157,7 @@ struct Scene
                 .mDirection = math::UnitVec<3, float>{ {0.1f, -0.94f, 0.325f} },
                 // TODO: decode the srgb value to have it show correctly in Imgui
                 // (and have it perceptually proportional to the factor)
-                .mColors = renderer::LightColors_glsl{} * 2.5,
+                .mColors = renderer::LightColors_glsl{} * 5,
             },
          },
         .mPointLights = {

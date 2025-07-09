@@ -405,6 +405,9 @@ void main(void)
         * u_LightingFactors.w
         ;
 
+    //out_Color = vec4(indirect.specular, 1);
+    //return;
+
     // Sum contributions
     // Note: the ambient term is a quick hack, to be removed when IBL is in place
     // We multiply it by the diffuse color, so metals do not have ambient terms, and dielectrics have their tint.
@@ -412,6 +415,7 @@ void main(void)
                     * pbrParameters.diffuseColor
                     * voxelAoFactor;
     vec3 diffuse  = diffuseAccum        * material.diffuseColor.rgb;
+    // TODO: what is this specularColor factor?
     vec3 specular = specularAccum       * material.specularColor.rgb;
 
     //

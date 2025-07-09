@@ -59,6 +59,7 @@ struct FrameGraph
         // Aperture means full angle (2 * angle to the axis)
         math::Radian<GLfloat> mDiffuseConeAperture = math::Degree<GLfloat>{60.f};
         math::Radian<GLfloat> mShadowConeAperture = math::Degree<GLfloat>{10.f};
+        GLfloat mSpecularConeRoughnessFactor = 1.0f;
         bool mGridAlign = false;
 
         float mDirectDiffuseFactor{1.0f};
