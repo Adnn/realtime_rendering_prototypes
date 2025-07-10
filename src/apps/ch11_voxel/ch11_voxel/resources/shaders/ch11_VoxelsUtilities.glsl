@@ -27,5 +27,11 @@ vec3 worldToAabb(vec3 aPosition_world, vec3 aGridMin_world)
     return (aPosition_world - aGridMin_world);
 }
 
+vec3 aabbToWorld(vec3 aPosition_aabb, vec3 aGridMin_world)
+{
+    return (aPosition_aabb + aGridMin_world);
+}
+
+
 
 #endif //VOXEL_UTILITIES_GLSL_INCLUDE_GUARD

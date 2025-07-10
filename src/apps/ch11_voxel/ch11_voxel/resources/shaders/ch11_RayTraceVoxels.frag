@@ -4,6 +4,7 @@
 #include "ch11_VoxelsRayTracing.glsl"
 #include "ch11_VoxelsSsbo.glsl"
 #include "ch11_VoxelsTextures.glsl"
+#include "ch11_VoxelsUtilities.glsl"
 
 #include "shaders/Gamma.glsl"
 #include "shaders/Helpers.glsl"
@@ -183,12 +184,28 @@ void main(void)
 				VoxelOccupancy(u_VoxelMode, u_VoxelMipmapLevel)
 				: VoxelOccupancy(CLIENT_VOXEL_MODE_OCCUPANCY, 0);
 
+            VoxelHit hit = VoxelHit(0, mask);
 			ivec3 hit_grid = traverseVoxels(entry_aabb, rayDir_world,
 			 			     			    voxelSize, gridDimension,
-			 			     			    mask, occupancy,
+			 			     			    hit, occupancy,
 			 			     			    getFullAabbBounds(), skipSelf);
-			out_Color = (hit_grid == ivec3(-1)) ?
-				u_MissColor : fetchColor(hit_grid, mask);
+			if(hit_grid == ivec3(-1))
+            {
+                out_Color = u_MissColor;
+				gl_FragDepth = 1.0f;
+            }
+            else
+            {
+                out_Color = fetchColor(hit_grid, hit.mMask);
+
+                // Compute frag depth
+				vec3 hitPoint_aabb = (entry_aabb + hit.mT * rayDir_world);
+				vec4 hitPoint_world = vec4(aabbToWorld(hitPoint_aabb, u_AabbMin), 1);
+				vec4 hitPoint_clip = ub_viewingProjection * hitPoint_world;
+                float depth_ndc = hitPoint_clip.z / hitPoint_clip.w;
+                // Remap from NDC [-1, 1] to window coordinates [0, 1]
+				gl_FragDepth = (depth_ndc + 1) / 2;
+			}
         #endif // DRAW_AABB
     }
 }

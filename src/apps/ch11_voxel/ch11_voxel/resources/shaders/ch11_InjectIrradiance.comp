@@ -51,14 +51,14 @@ vec3 offsetEntryFromPos(ivec3 aVoxel_grid, ivec3 aLightPos_grid)
 float getVisibility(vec3 aEntry_aabb, vec3 aLightDir_aabb, GridBounds aBounds)
 {
     // Dummy variable to satisfy traversal API
-	bvec3 unusedMask;
+	VoxelHit unusedHit;
 
 	//// Note: we traverse the voxel grid as an AABB with voxel of unit dimension
 	//// This allows to use the voxel grid coord as entry point in the AABB directly
     vec3 occludingVoxel =
 		traverseVoxels(aEntry_aabb, aLightDir_aabb, 
 					   1, ub_GridDimension,
-					   unusedMask,
+					   unusedHit,
                        // Use the default occupancy mode, reading from the SSBO
                        makeOccupancy(),
                        aBounds,

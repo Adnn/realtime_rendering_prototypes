@@ -40,13 +40,20 @@ bool testOnTexture(VoxelOccupancy aOccupancy)
 }
 
 
+struct VoxelHit
+{
+	float mT;
+	bvec3 mMask; // whether the hit occurent on X, Y, or Z axis
+};
+
+
 /// @param voxelSize is the size of a voxel in the basis of the aabb
 /// @param aOccupancyMethod: Control if the test for voxel "occupancy" is on the texture 
 ///	       corresponding to mMode or on the occupancy SSBO.
 ///        Note: testing on the texture itself is required when handling mipmap levels.
 ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb, 
 	   				 float voxelSize, uint gridDimension,
-	   				 inout bvec3 mask, VoxelOccupancy aOccupancyMethod,
+	   				 out VoxelHit aHit, VoxelOccupancy aOccupancyMethod,
 					 GridBounds aBounds, bool aSkipSelf)
 {
 	// see: "A Fast Voxel Traversal Algorithm for Ray Tracing", John Amanatides, Andrew Woo
@@ -85,6 +92,7 @@ ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 		vec3 voxelBoundary_aabb = (currentVoxel + (step + 1.0) * 0.5) 
 								  * voxelSize; 
 
+		// The quantity of advancement along ray-dir to reach the voxel boundary (for each component)
 		vec3 tMax = (voxelBoundary_aabb - aRayEntry_aabb) / aRayDir_aabb;
 		// Equivalent to (related to the shadertoy formula):
 		//vec3 tMax = (step * (voxelBoundary_aabb - aRayEntry_aabb)) * tDelta;
@@ -126,30 +134,34 @@ ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb,
 		{
 			if (tMax.x < tMax.z) 
 			{
+				aHit.mT = tMax.x;
+				aHit.mMask = bvec3(true, false, false);
 				tMax.x += tDelta.x;
 				currentVoxel.x += step.x;
-				mask = bvec3(true, false, false);
 			}
 			else
 			{
+				aHit.mT = tMax.z;
+				aHit.mMask = bvec3(false, false, true);
 				tMax.z += tDelta.z;
 				currentVoxel.z += step.z;
-				mask = bvec3(false, false, true);
 			}
 		}
 		else 
 		{
 			if (tMax.y < tMax.z) 
 			{
+				aHit.mT = tMax.y;
+				aHit.mMask = bvec3(false, true, false);
 				tMax.y += tDelta.y;
 				currentVoxel.y += step.y;
-				mask = bvec3(false, true, false);
 			}
 			else 
 			{
+				aHit.mT = tMax.z;
+				aHit.mMask = bvec3(false, false, true);
 				tMax.z += tDelta.z;
 				currentVoxel.z += step.z;
-				mask = bvec3(false, false, true);
 			}            
 		}
 	}

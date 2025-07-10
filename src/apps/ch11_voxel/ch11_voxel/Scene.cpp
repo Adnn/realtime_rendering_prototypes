@@ -442,8 +442,8 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             graphics::setUniform(program, "u_VoxelMipmapLevel",
                                  mSceneControl.mMipmapLevel);
 
-            // TODO: Remove once fragment shader write the correct depth
-            glDepthMask(GL_FALSE);
+            glEnable(GL_DEPTH_TEST);
+            glDepthMask(GL_TRUE);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
             glPopDebugGroup();
