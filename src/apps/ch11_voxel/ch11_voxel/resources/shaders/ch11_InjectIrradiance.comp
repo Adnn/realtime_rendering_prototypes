@@ -25,23 +25,38 @@ uniform usampler3D u_NormalsTexture;
 uniform writeonly restrict image3D u_IrradianceImage;
 
 
-float getVisibility(ivec3 aVoxel_aabb, vec3 aLightDir_aabb, GridBounds aBounds)
+/// @return Fractional **grid** coordinates of the entry point for voxel grid ray tracing.
+vec3 offsetEntryFromDir(ivec3 aVoxel_grid, vec3 aLightDir_grid)
+{
+
+	ivec3 step = ivec3(sign(aLightDir_grid));
+
+    // We start traversal from a neighboring voxel, offset on 3 axes in the cone direction
+    // Drastically reduces false occlusions (e.g. voxels in a plane, with light shining sideway)
+    aVoxel_grid += step;
+
+    // Set the traversal entry point at the center of the voxel
+    vec3 entry = vec3(aVoxel_grid) + 0.5;
+    return entry;
+}
+
+
+/// @return Fractional **grid** coordinates of the entry point for voxel grid ray tracing.
+vec3 offsetEntryFromPos(ivec3 aVoxel_grid, ivec3 aLightPos_grid)
+{
+    return offsetEntryFromDir(aVoxel_grid, (aLightPos_grid - aVoxel_grid));
+}
+
+
+float getVisibility(vec3 aEntry_aabb, vec3 aLightDir_aabb, GridBounds aBounds)
 {
     // Dummy variable to satisfy traversal API
 	bvec3 unusedMask;
 
-	ivec3 step = ivec3(sign(aLightDir_aabb));
-    // We start traversal from a neighboring voxel, offset on 3 axes in the cone direction
-    // Drastically reduces false occlusions (e.g. voxels in a plane, with light shining sideway)
-    aVoxel_aabb += step;
-
-    // Set the traversal entry point at the center of the voxel
-    vec3 entry = vec3(aVoxel_aabb) + 0.5;
-
 	//// Note: we traverse the voxel grid as an AABB with voxel of unit dimension
 	//// This allows to use the voxel grid coord as entry point in the AABB directly
     vec3 occludingVoxel =
-		traverseVoxels(entry, aLightDir_aabb, 
+		traverseVoxels(aEntry_aabb, aLightDir_aabb, 
 					   1, ub_GridDimension,
 					   unusedMask,
                        // Use the default occupancy mode, reading from the SSBO
@@ -104,8 +119,6 @@ void main()
     // Remap from [0, 1]^3 to [-1, 1]^3
     vec3 normal_world = ((vec3(voxelNormal.xyz) / 255) * 2) - 1;
     normal_world = normalize(normal_world);
-	vec3 position_world = voxelToWorld(voxelCoord, u_VoxelSize, u_AabbMin);
-
     // Accumulator for irradiance
     vec3 irradiance = vec3(0);
 
@@ -122,9 +135,11 @@ void main()
 		// We need the light in in the same space as the normal
 		// TODO #perf: this info should be available in a buffer, not computed in each voxel
 		vec3 lightDir_world = normalize(mat3(ub_cameraToWorld) * lightDir_cam);
+        
+        vec3 entry_grid = offsetEntryFromDir(voxelCoord, lightDir_world);
 
         irradiance += 
-			getVisibility(voxelCoord, lightDir_world, getFullAabbBounds()) * 
+			getVisibility(entry_grid, lightDir_world, getFullAabbBounds()) * 
             injectDirectLight(normal_world, lightDir_world, directional.colors)
             ;
     }
@@ -138,25 +153,28 @@ void main()
 
 		// TODO #perf: this info should be available in a buffer, not computed in each voxel
         vec3 lightPos_world = (ub_cameraToWorld * vec4(point.position.xyz, 1)).xyz;
-        //vec3 lightPos_world = (ub_cameraToWorld * point.position).xyz;
 
 		ivec3 lightPos_grid = worldToVoxel(lightPos_world, u_VoxelSize, u_AabbMin);
         // Set the light position to its voxel center
-        lightPos_world = voxelToWorld(lightPos_grid, u_VoxelSize, u_AabbMin);
+        //lightPos_world = voxelToWorld(lightPos_grid, u_VoxelSize, u_AabbMin);
 
-        vec3 lightRay_world = lightPos_world - position_world;
+        vec3 entry_grid = offsetEntryFromPos(voxelCoord, lightPos_grid);
+		vec3 entry_world = voxelToWorld(entry_grid, u_VoxelSize, u_AabbMin);
+
+        // Note: the light ray is starting at the offset entry, not the current voxel
+        vec3 lightRay_world = lightPos_world - entry_world;
         float r = sqrt(dot(lightRay_world, lightRay_world));
         vec3 lightDir_world = lightRay_world / r;
 
         float falloff = attenuatePoint(point, r);
 
         GridBounds bounds = GridBounds(
-            min(voxelCoord, lightPos_grid),
-            max(voxelCoord, lightPos_grid));
+            min(ivec3(entry_grid), lightPos_grid),
+            max(ivec3(entry_grid), lightPos_grid));
 
         irradiance += 
             falloff *
-			getVisibility(voxelCoord, lightDir_world, bounds) *
+			getVisibility(entry_grid, lightDir_world, bounds) *
             injectDirectLight(normal_world, lightDir_world, point.colors)
             ;
     }
