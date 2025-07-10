@@ -41,6 +41,9 @@ bool testOnTexture(VoxelOccupancy aOccupancy)
 
 
 /// @param voxelSize is the size of a voxel in the basis of the aabb
+/// @param aOccupancyMethod: Control if the test for voxel "occupancy" is on the texture 
+///	       corresponding to mMode or on the occupancy SSBO.
+///        Note: testing on the texture itself is required when handling mipmap levels.
 ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb, 
 	   				 float voxelSize, uint gridDimension,
 	   				 inout bvec3 mask, VoxelOccupancy aOccupancyMethod,
