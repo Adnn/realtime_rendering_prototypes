@@ -529,6 +529,9 @@ void Scene::presentUi(bool * aOpen)
         try
         {
             loadPrograms();
+            // We have a separate button for that, but it is easy to get confused
+            // when recompiling voxelization shaders if the voxelization is not re-applied
+            mVoxelizationRequest = true;
         }
         catch (const std::exception & aException)
         {
