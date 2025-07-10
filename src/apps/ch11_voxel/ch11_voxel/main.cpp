@@ -22,6 +22,7 @@ int main(int argc, const char* argv[])
                                                   ad::graphics::ApplicationFlag::None,
                                                   4, 6,
                                                   {
+                                                      {GLFW_SAMPLES, 16},
                                                       {GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET},
                                                       //{GLFW_OPENGL_DEBUG_CONTEXT, true},
                                                   });
