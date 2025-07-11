@@ -10,6 +10,8 @@
 #include <renderer/BufferIndexedBinding.h>
 
 #include <scenic/Camera.h>
+#include <scenic/environment/EnvironmentUtilities.h>
+
 
 namespace ad {
 
@@ -44,6 +46,15 @@ math::LinearMatrix<3, 3, GLfloat> alignMinusZ(math::Vec<3, GLfloat> aGazeDirecti
 }
 
 
+math::AffineMatrix<4, GLfloat> canonicalToLight(const renderer::PointLight_glsl & aPointLight)
+{
+    return math::AffineMatrix<4, GLfloat>{
+        math::LinearMatrix<3, 3, GLfloat>::Identity(), // No rotation, align on canonical space
+            -aPointLight.mPosition.as<math::Vec>()
+    };
+}
+
+
 math::Matrix<4, 4, float> computeLightProjection(math::LinearMatrix<3, 3, GLfloat> aOrientationWorldToLight,
                                                  math::Box<GLfloat> aSceneAabb)
 {
@@ -63,6 +74,9 @@ Shadow::Shadow()
 {
     glBindBuffer(mLightViewBuffer.GLTarget_v, mLightViewBuffer); // For creation
     glObjectLabel(GL_BUFFER, mLightViewBuffer, -1, "LightViewProjection");
+
+    glBindBuffer(mCubeFacesViewBuffer.GLTarget_v, mCubeFacesViewBuffer); // For creation
+    glObjectLabel(GL_BUFFER, mCubeFacesViewBuffer, -1, "CubeFacesViewProjection");
 }
 
 
@@ -70,37 +84,106 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
                               const renderer::LightsDataCommon & mLights,
                               FrameGraph & aGraph)
 {
-    // TODO: extend to handle point lights and multiple lights
-    assert(mLights.mDirectionalCount == 1 && mLights.mPointCount == 0);
+    // TODO: extend to handle multiple lights
+    assert(mLights.mDirectionalCount == 1 
+           && mLights.mPointCount == 1
+           );
 
-    const renderer::DirectionalLight_glsl & light = mLights.mDirectionalLights[0];
+    renderer::LightViewProjection lightViewProjection;
 
-    math::LinearMatrix<3, 3, GLfloat> worldToLightOrientation = alignMinusZ(light.mDirection);
-    math::Matrix<4, 4, float> projection = computeLightProjection(worldToLightOrientation,
-                                                                  getAabb(aSceneTree));
+    const math::Box<GLfloat> sceneAabb = getAabb(aSceneTree);
 
-    graphics::loadSingle(mLightViewBuffer,
-                         scenic::GpuViewProjectionBlock{
-                            worldToLightOrientation,
-                            projection,
-                         },
-                         graphics::BufferHint::StreamDraw);
-
-    // We need to restore the previously bound viewprojection,
-    // corresponding to the camera and assumed present by most of the code
-    graphics::ScopedBind boundViewProjection{
-        mLightViewBuffer,
-        graphics::BindingIndex{ 0 }};
-
-    aGraph.renderDepth(aSceneTree);
-
-    renderer::LightViewProjection lightViewProjection
+    //
+    // Directional
+    //
     {
-        .mLightViewProjectionCount = 1,
-    };
-    lightViewProjection.mLightViewProjections[0] =
-        math::AffineMatrix<4, GLfloat>{worldToLightOrientation} * projection;
+        // We need to restore the previously bound viewprojection,
+        // corresponding to the camera and assumed present by most of the code
+        // This binding can be used for all directional lights
+        graphics::ScopedBind boundViewProjection{
+            mLightViewBuffer,
+            graphics::BindingIndex{ 0 }};
 
+        const renderer::DirectionalLight_glsl & light = mLights.mDirectionalLights[0];
+
+        math::LinearMatrix<3, 3, GLfloat> worldToLightOrientation = alignMinusZ(light.mDirection);
+        math::Matrix<4, 4, float> projection = computeLightProjection(worldToLightOrientation,
+                                                                      sceneAabb);
+
+        graphics::loadSingle(mLightViewBuffer,
+                             scenic::GpuViewProjectionBlock{
+                                worldToLightOrientation,
+                                projection,
+                             },
+                             graphics::BufferHint::StreamDraw);
+
+        glNamedFramebufferTexture(aGraph.mShadowFramebuffer, GL_DEPTH_ATTACHMENT, aGraph.mShadowMap, 0);
+        assert(glCheckNamedFramebufferStatus(aGraph.mShadowFramebuffer, GL_DRAW_FRAMEBUFFER)
+               == GL_FRAMEBUFFER_COMPLETE);
+
+        aGraph.renderDepth(aSceneTree, FrameGraph::DepthMapType::TwoD);
+
+        lightViewProjection.mLightViewProjections[lightViewProjection.mLightViewProjectionCount] =
+            math::AffineMatrix<4, GLfloat>{worldToLightOrientation} *projection;
+        ++lightViewProjection.mLightViewProjectionCount;
+    }
+
+    //
+    // Point
+    //
+    {
+        // This binding can be used for all omni lights rendering to a cubemap
+        graphics::ScopedBind boundViewProjection{
+            mCubeFacesViewBuffer,
+            graphics::BindingIndex{ 14 }};
+
+        const renderer::PointLight_glsl & light = mLights.mPointLights[0];
+
+        math::AffineMatrix<4, GLfloat> translation = canonicalToLight(light);
+
+        static const math::Matrix<4, 4, float> gProjection = graphics::makeProjection(graphics::PerspectiveParameters{
+            .mAspectRatio = 1,
+            .mVerticalFov = math::Degree<float>{90.f},
+            // TODO: address near/far depending on the scene AABB relative to camera
+            .mNearZ = -FrameGraph::gShadowCubeNearDistance,
+            .mFarZ = -FrameGraph::gShadowCubeFarDistance,
+        });
+
+        constexpr auto neg = math::trans3d::scale(1.f, -1.f, 1.f);
+        std::array<math::Matrix<4, 4, GLfloat>, 6> viewProjections{
+            translation * scenic::gCubeCaptureViewsNegateY[0] * gProjection,
+            translation * scenic::gCubeCaptureViewsNegateY[1] * gProjection,
+            translation * scenic::gCubeCaptureViewsNegateY[2] * gProjection,
+            translation * scenic::gCubeCaptureViewsNegateY[3] * gProjection,
+            translation * scenic::gCubeCaptureViewsNegateY[4] * gProjection,
+            translation * scenic::gCubeCaptureViewsNegateY[5] * gProjection,
+        };
+
+        math::Position<4, GLfloat> lightPosition_world{light.mPosition, 1.0f};
+
+        glNamedBufferData(mCubeFacesViewBuffer, sizeof(viewProjections) + sizeof(lightPosition_world), nullptr, GL_STREAM_DRAW);
+        glNamedBufferSubData(mCubeFacesViewBuffer, 0, sizeof(viewProjections), viewProjections.data());
+        glNamedBufferSubData(mCubeFacesViewBuffer, sizeof(viewProjections), sizeof(lightPosition_world), lightPosition_world.data());
+
+        // Since the texture is a cubemap, the framebuffer attachement is layered
+        glNamedFramebufferTexture(aGraph.mShadowFramebuffer, GL_DEPTH_ATTACHMENT, aGraph.mOmniShadowMap, 0);
+        assert(glCheckNamedFramebufferStatus(aGraph.mShadowFramebuffer, GL_DRAW_FRAMEBUFFER)
+               == GL_FRAMEBUFFER_COMPLETE);
+
+        aGraph.renderDepth(aSceneTree, FrameGraph::DepthMapType::CubeMap);
+
+        //lightViewProjection.mLightViewProjections[lightViewProjection.mLightViewProjectionCount] =
+        //    translation
+        //    // Align -Z to +X
+        //    * math::trans3d::rotateY(math::Degree<GLfloat>{90.f})
+        //    * gProjection
+        //    ;
+        //++lightViewProjection.mLightViewProjectionCount;
+    }
+
+    //
+    // Load lights view projections
+    //
     graphics::loadSingle(aGraph.mLightViewProjectionUbo,
                          lightViewProjection,
                          graphics::BufferHint::StreamDraw);

@@ -53,6 +53,22 @@ vec3 mapToUnit(vec3 aInput)
 }
 
 
+float mapRangeToUnit(float aValue, float aMin, float aMax)
+{
+    return (aValue - aMin) / (aMax - aMin);
+}
+
+
+float linearizeDepth(float aDepthBufferValue, float aNearDistance, float aFarDistance)
+{
+	// Remap depth value [0, 1] to NDC [-1, 1]
+	float d = 2 * aDepthBufferValue - 1.0;
+	return
+		(2 * aNearDistance) 
+		/ (aFarDistance + aNearDistance - d * (aFarDistance - aNearDistance));
+}
+
+
 vec3 highlightAberrations(vec3 aColor)
 {
     const float limit = 1.0/255;

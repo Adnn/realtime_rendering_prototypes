@@ -22,7 +22,7 @@ float getShadowAttenuation(
 }
 
 
-void applyShadowToLighting(
+void applyShadowToDirectionalLighting(
     inout LightContributions aLighting,
     uint aDirectionalIdx)
 {

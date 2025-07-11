@@ -1,0 +1,6 @@
+{
+    "vertex": "shaders/FullTransform.vert",
+    "geometry": "shaders/ch11_LayerCubeFaces.geom",
+    "fragment": "shaders/ch11_Depth.frag",
+    "defines":  ["ENTITIES", "LINEARIZE_DEPTH"]
+}

@@ -25,6 +25,8 @@ struct Voxelizer;
 
 struct FrameGraph
 {
+    static constexpr float gShadowCubeNearDistance = 0.01;
+    static constexpr float gShadowCubeFarDistance = 100;
 
     struct FrameControl
     {
@@ -67,7 +69,7 @@ struct FrameGraph
         float mIndirectDiffuseFactor{1.0f};
         float mIndirectSpecularFactor{1.0f};
 
-        math::Vec<2, GLfloat> mShadowScaleBias{1.f, 0.f};
+        math::Vec<2, GLfloat> mShadowScaleBias{1.f, 10.f};
     };
 
     FrameGraph(math::Size<2, int> aFrameSize);
@@ -84,7 +86,14 @@ struct FrameGraph
                          Voxelizer & aVoxelizer,
                          GLuint aMode);
 
-    void renderDepth(const scenic::SceneTree & aSceneTree);
+    enum class DepthMapType
+    {
+        TwoD,
+        CubeMap,
+    };
+    void renderDepth(const scenic::SceneTree & aSceneTree, DepthMapType aType);
+
+    void renderCubemap(const scenic::SceneTree & aSceneTree);
 
     void passForward(const scenic::SceneTree & aSceneTree,
                      const renderer::IntrospectProgram & aProgram);
@@ -100,7 +109,9 @@ struct FrameGraph
         renderer::IntrospectProgram mPbr;
         renderer::IntrospectProgram mConeTrace;
         renderer::IntrospectProgram mRayTraceVoxels;
+        renderer::IntrospectProgram mDebugCubemap;
         renderer::IntrospectProgram mDepthMapping;
+        renderer::IntrospectProgram mCubeDepthMapping;
 
         renderer::IntrospectProgram mVoxelizationProgram;
         renderer::IntrospectProgram mVoxelizationDominantAxisProgram;
@@ -117,6 +128,7 @@ struct FrameGraph
     graphics::VertexArrayObject mDummyVao;
 
     graphics::Texture mShadowMap;
+    graphics::Texture mOmniShadowMap;
     graphics::FrameBuffer mShadowFramebuffer;
     graphics::UniformBufferObject mLightViewProjectionUbo;
 

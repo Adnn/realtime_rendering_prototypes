@@ -19,16 +19,6 @@ uniform float u_FarDistance;
 out vec4 out_Color;
 
 
-float linearizeDepth(float aDepthBufferValue)
-{
-	// Remap depth value [0, 1] to NDC [-1, 1]
-	float d = 2 * aDepthBufferValue - 1.0;
-	return
-		(2 * u_NearDistance) 
-		/ (u_FarDistance + u_NearDistance - d * (u_FarDistance - u_NearDistance));
-}
-
-
 void main(void)
 {
 	// This approach will map the whole texture to the whole window
@@ -39,7 +29,7 @@ void main(void)
 	switch(u_Mode)
 	{
 		case MODE_LINEARIZE_DEPTH:
-			out_Color = vec4(vec3(linearizeDepth(value.r)), 1);
+			out_Color = vec4(vec3(linearizeDepth(value.r, u_NearDistance, u_FarDistance)), 1);
 			break;
 		case MODE_DIRECTION:
 			out_Color = vec4(mapToUnit(value.rgb), 1);

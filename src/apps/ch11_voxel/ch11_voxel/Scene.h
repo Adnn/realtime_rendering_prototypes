@@ -144,7 +144,7 @@ struct Scene
 
     renderer::LightsDataCommon mLights{
         .mDirectionalCount = 1,
-        .mPointCount = 0,
+        .mPointCount = 1,
         // We decode a sRGB 50% white (which is also perceptually ~50%)
         // to linear space for computation.
         .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.25f),
@@ -162,7 +162,7 @@ struct Scene
          },
         .mPointLights = {
             renderer::PointLight_glsl{
-                .mPosition = {0.0f, 4.0f, 0.0f},
+                .mPosition = {5.0f, 4.0f, 0.0f},
                 .mRadius{
                     .mMin = 0.5f,
                     .mMax = 30.f,

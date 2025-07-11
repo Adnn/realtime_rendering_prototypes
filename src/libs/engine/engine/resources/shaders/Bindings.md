@@ -9,8 +9,9 @@ Waiting for a better solution, here are our hardcoded bindings
 * 4: Lights
 * 5: LightViewProjection
 * 6: ShadowCascade
-* 7: GlyphMetrics
+* 7: OnmiShadowMap (cubemaps)
 * 8: LineSegment
+* 9: GlyphMetrics
 *
 * 10: Voxels storage
 

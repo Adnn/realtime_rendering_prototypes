@@ -28,11 +28,11 @@ uniform sampler3D u_VoxelsIrradianceTexture;
 //{
 //    vec3(  0.0f, 0.0f,  1.0f), // Along +Z
 //    vec3(  0.0f,  0.866025f, 0.5f), // ring, toward +X
-//    vec3( 0.75f,  0.433013f, 0.5f), 
+//    vec3( 0.75f,  0.433013f, 0.5f),
 //    vec3( 0.75f, -0.433013f, 0.5f),
 //    vec3(  0.0f, -0.866025f, 0.5f), // ring, toward -X
 //    vec3(-0.75f, -0.433013f, 0.5f),
-//    vec3(-0.75f,  0.433013f, 0.5f), 
+//    vec3(-0.75f,  0.433013f, 0.5f),
 //};
 
 // But usually found split in 6:
@@ -58,11 +58,10 @@ const float gDiffuseConeWeights[] =
 
 
 /// @return The irradiance accumulated along the march in .rgb, the ambient occlusion in .a
-vec4 traceCone(vec3 position_aabb, vec3 normal_aabb, 
+vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
                vec3 coneAxis_aabb, float tanHalfAngle,
                float aVoxelSize)
 {
-    // TODO: check reference implementation
     //const float maxDistance = 2;
     const float maxDistance = 10;
 
@@ -86,7 +85,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 
     // Note: Some implementation offset in the direction of the normal instead of the cone
     // e.g. https://github.com/jose-villegas/VCTRenderer/blob/9ae0dbe5bd60e85514e3e582bf23f2868c6b51fc/engine/assets/shaders/light_pass.frag#L147
-    vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * aVoxelSize; 
+    vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * aVoxelSize;
 
     // Distance marched along the cone, in world unit
     float t = 1.0 * aVoxelSize; // Another offset to limit self-sampling
@@ -110,8 +109,11 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
             return vec4(1, 0, 1, 1);
         }
 
+        // Johannes Finn add a 0.5 offset to the texture coordinates in:
+        // Finn, Johannes. Evaluation of Performance and Image Quality for Voxel Cone Tracing,¿ n.d.
+        // But it seems to me that it is not required to get the correct sampling position in the 3D texture
         vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
-        // TODO: rename, this is not albedo but occupancy atm
+
         vec4 irradianceSample = textureLod(u_VoxelsIrradianceTexture, position_uvw, mipLevel);
 
         // irradiance marching, front to back compositing
@@ -123,7 +125,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
         #else
             // It seems the Crassin paper back-to-front composition is wrong
             // the alpha should not be reapplied to previous occlusion
-            marchedIrradiance.rgb += 
+            marchedIrradiance.rgb +=
                 (1 - marchedIrradiance.a) * irradianceSample.a * irradianceSample.rgb;
             marchedIrradiance.a += (1 - marchedIrradiance.a) * irradianceSample.a;
         #endif
@@ -138,7 +140,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 
 
 /// @return The irradiance accumulated along the march in .rgb, the ambient occlusion in .a
-float traceShadow(vec3 position_aabb, vec3 normal_aabb, 
+float traceShadow(vec3 position_aabb, vec3 normal_aabb,
                   vec3 coneAxis_aabb, float tanHalfAngle,
                   float aVoxelSize)
 {
@@ -155,7 +157,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
 
     // Note: Some implementation offset in the direction of the normal instead of the cone
     // e.g. https://github.com/jose-villegas/VCTRenderer/blob/9ae0dbe5bd60e85514e3e582bf23f2868c6b51fc/engine/assets/shaders/light_pass.frag#L147
-    vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * aVoxelSize; 
+    vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * aVoxelSize;
 
     // t : distance marched along the cone, in world unit
     float t = 1.0 * aVoxelSize; // Another offset to limit self-sampling
@@ -163,7 +165,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
     // ambient occlusion
     float occupancy = 0;
 
-    while(occupancy < 1.0f 
+    while(occupancy < 1.0f
           /* also breaks inside loop body if sampling outside the grid */)
     {
         float coneDiameter = 2 * t * tanHalfAngle;
@@ -177,8 +179,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
             break;
         }
 
-        // TODO: rename, this is not albedo but occupancy atm
-        float occupancySample = 
+        float occupancySample =
             textureLod(u_VoxelsIrradianceTexture, position_uvw, mipLevel).a
             * k
             ;
@@ -188,7 +189,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
         t += coneDiameter * samplingFactor;
     }
 
-    return (1 - occupancy); 
+    return (1 - occupancy);
 }
 
 
@@ -210,7 +211,7 @@ vec4 accumulateDiffuseIndirect(vec3 aPosition_aabb,
     {
         vec3 coneAxis_world = tangentToWorld * gDiffuseConeDirections[i];
         // Note: The AABB is aligned on world axis, so directions are matching
-        accumulatedIrradiance += 
+        accumulatedIrradiance +=
             traceCone(aPosition_aabb, aNormal_world,
                       coneAxis_world, aTanHalfAperture,
                       aVoxelSize)

@@ -20,6 +20,7 @@ struct Shadow
 
 
     graphics::UniformBufferObject mLightViewBuffer;
+    graphics::UniformBufferObject mCubeFacesViewBuffer;
 };
 
 

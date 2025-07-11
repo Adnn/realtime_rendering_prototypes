@@ -333,7 +333,7 @@ void main(void)
 		{
 		case CLIENT_SHADOW_SHADOWMAP:
 			#if defined(SHADOW_MAPPING)
-				applyShadowToLighting(lighting, directionalIdx);
+				applyShadowToDirectionalLighting(lighting, directionalIdx);
 			#endif // SHADOW_MAPPING
 			break;
 		case CLIENT_SHADOW_CONETRACING:
@@ -372,6 +372,21 @@ void main(void)
             applyLight_pbr(
                 viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
                 pbrParameters, point.colors);
+
+        vec4 light_world = ub_cameraToWorld * vec4(point.position.xyz, 1);
+        //vec4 light_world = inverse(ub_worldToCamera) * point.position;
+		vec3 samplingDir = ex_Position_world - light_world.xyz;
+        //float fragDepth = ex_Position_lightTex[1].z;
+        float fragDepth = (length(samplingDir) - 0.01) / (100 - 0.01);
+
+		//samplingDir.x *= -1;
+		samplingDir.z *= -1;
+
+		float attenuation =  
+            texture(u_OmniShadowMap, 
+					vec4(samplingDir.xyz,
+                         fragDepth));
+        scale(lighting, attenuation);
 
         float falloff = attenuatePoint(point, radius);
         diffuseAccum  += lighting.diffuse  * falloff;

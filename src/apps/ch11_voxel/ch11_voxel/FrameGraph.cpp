@@ -32,7 +32,9 @@ namespace ad {
         const std::filesystem::path gPbrProgramPath = "programs/ch11_RenderModel_Pbr.prog";
         const std::filesystem::path gConeTraceProgramPath = "programs/ch11_ConeTrace.prog";
         const std::filesystem::path gRayTraceVoxelsProgramPath = "programs/ch11_RayTraceVoxels.prog";
+        const std::filesystem::path gDebugCubemapProgramPath = "programs/ch11_DebugCubemap.prog";
         const std::filesystem::path gDepthMappingProgramPath = "programs/ch11_DepthMapping.prog";
+        const std::filesystem::path gCubeDepthMappingProgramPath = "programs/ch11_CubeDepthMapping.prog";
 
         const renderer::ReferencePath gVoxelizationProgram{"programs/ch11_Voxelization.prog"};
         const renderer::ReferencePath gVoxelizationDominantAxisProgram{"programs/ch11_VoxelizationDominantAxis.prog"};
@@ -132,7 +134,9 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mPbr{ aEngine.loadProgram(renderer::ReferencePath{ gPbrProgramPath }) },
     mConeTrace{ aEngine.loadProgram(renderer::ReferencePath{ gConeTraceProgramPath }) },
     mRayTraceVoxels{ aEngine.loadProgram(renderer::ReferencePath{ gRayTraceVoxelsProgramPath }) },
+    mDebugCubemap{ aEngine.loadProgram(renderer::ReferencePath{ gDebugCubemapProgramPath }) },
     mDepthMapping{ aEngine.loadProgram(renderer::ReferencePath{ gDepthMappingProgramPath }) },
+    mCubeDepthMapping{ aEngine.loadProgram(renderer::ReferencePath{ gCubeDepthMappingProgramPath }) },
     mVoxelizationProgram{ aEngine.loadProgram(gVoxelizationProgram) },
     mVoxelizationDominantAxisProgram{ aEngine.loadProgram(gVoxelizationDominantAxisProgram) },
     mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) },
@@ -144,7 +148,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mPrograms{mEngine},
-    mShadowMap{GL_TEXTURE_2D}
+    mShadowMap{GL_TEXTURE_2D},
+    mOmniShadowMap{GL_TEXTURE_CUBE_MAP}
 {
 
     //
@@ -189,8 +194,27 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
     glTextureParameteri(mShadowMap, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
-    glNamedFramebufferTexture(mShadowFramebuffer, GL_DEPTH_ATTACHMENT, mShadowMap, 0);
-    assert(glCheckNamedFramebufferStatus(mShadowFramebuffer, GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    // Omni shadow map
+    const graphics::Texture & shadowMap = mOmniShadowMap;
+
+    {
+        // For actual creation
+        graphics::ScopedBind{shadowMap};
+    }
+    glTextureStorage2D(shadowMap, 1, GL_DEPTH_COMPONENT24, gShadowMapSize, gShadowMapSize);
+    glObjectLabel(GL_TEXTURE, shadowMap, -1, "omni_shadow_map");
+    {
+        GLint isSuccess;
+        glGetTextureParameteriv(shadowMap, GL_TEXTURE_IMMUTABLE_FORMAT, &isSuccess);
+        assert(isSuccess);
+    }
+
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+    glTextureParameteri(shadowMap, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(shadowMap, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTextureParameteri(shadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glTextureParameteri(shadowMap, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
     // Light view projection UBO
     glBindBufferBase(GL_UNIFORM_BUFFER, 5, mLightViewProjectionUbo);
@@ -220,6 +244,8 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
 
     glBindTextureUnit(6, mShadowMap);
     graphics::setUniform(program, "u_ShadowMap", 6);
+    glBindTextureUnit(7, mOmniShadowMap);
+    graphics::setUniform(program, "u_OmniShadowMap", 7);
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
 
@@ -261,7 +287,7 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
 }
 
 
-void FrameGraph::renderDepth(const scenic::SceneTree & aSceneTree)
+void FrameGraph::renderDepth(const scenic::SceneTree & aSceneTree, DepthMapType aType)
 {
     graphics::ScopedBind boundFbo{mShadowFramebuffer};
     glViewport(0, 0, gShadowMapSize, gShadowMapSize);
@@ -271,9 +297,33 @@ void FrameGraph::renderDepth(const scenic::SceneTree & aSceneTree)
     glPolygonOffset(mFrameControl.mShadowScaleBias.x(),
                     mFrameControl.mShadowScaleBias.y());
 
-    const auto & program = mPrograms.mDepthMapping;
+    const auto & program = (aType == DepthMapType::CubeMap) ? 
+        mPrograms.mCubeDepthMapping : mPrograms.mDepthMapping;
+
+    if (aType == DepthMapType::CubeMap)
+    {
+        graphics::setUniform(program, "u_NearDistance", gShadowCubeNearDistance);
+        graphics::setUniform(program, "u_FarDistance", gShadowCubeFarDistance);
+    }
 
     passForward(aSceneTree, program);
+}
+
+
+void FrameGraph::renderCubemap(const scenic::SceneTree & aSceneTree)
+{
+    const auto & program = mPrograms.mDebugCubemap;
+
+    glTextureParameteri(mOmniShadowMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+
+    glBindTextureUnit(7, mOmniShadowMap);
+    graphics::setUniform(program, "u_CubeMap", 7);
+
+    graphics::setUniform(program, "u_NearDistance", gShadowCubeNearDistance);
+    graphics::setUniform(program, "u_FarDistance", gShadowCubeFarDistance);
+    passForward(aSceneTree, program);
+
+    glTextureParameteri(mOmniShadowMap, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 }
 
 
@@ -285,6 +335,7 @@ void FrameGraph::passForward(const scenic::SceneTree & aSceneTree,
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
     // We are alpha-testing in the fragment shader
     // and unless we sort the geometry, alpha blending will likely blend with wrong background
     glDisable(GL_BLEND);

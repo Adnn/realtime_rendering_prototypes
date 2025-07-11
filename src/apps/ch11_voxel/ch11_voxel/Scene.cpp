@@ -470,6 +470,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
     else
     {
         mGraph.renderFinalScene(mSceneTree, mVoxelizer);
+        //mGraph.renderCubemap(mSceneTree);
     }
 
     //
