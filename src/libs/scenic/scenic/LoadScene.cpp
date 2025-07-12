@@ -138,31 +138,34 @@ namespace {
         }
 
         // Tangents and Bitangents
-        // TODO: we have to be more dynamic in what we accept as input, but it will require better shader handling
-        assert(aMesh->mTangents && aMesh->mBitangents);
+        if (aMesh->mTangents)
         {
-            AttributeDescription attribute{
-                .mSemantic = renderer::semantic::gTangent,
-                .mDimension = 3,
-                .mComponentType = GL_FLOAT,
-            };
+            // We also need bitangents when tangents are present
+            assert(aMesh->mBitangents);
+            {
+                AttributeDescription attribute{
+                    .mSemantic = renderer::semantic::gTangent,
+                    .mDimension = 3,
+                    .mComponentType = GL_FLOAT,
+                };
 
-            mesh.mSemanticToAttribute.insert(
-                makeLoadedAccessor_Naive(attribute,
-                                         std::span{ aMesh->mTangents, aMesh->mNumVertices },
-                                         GL_STATIC_DRAW));
-        }
-        {
-            AttributeDescription attribute{
-                .mSemantic = renderer::semantic::gBitangent,
-                .mDimension = 3,
-                .mComponentType = GL_FLOAT,
-            };
+                mesh.mSemanticToAttribute.insert(
+                    makeLoadedAccessor_Naive(attribute,
+                                             std::span{aMesh->mTangents, aMesh->mNumVertices},
+                                             GL_STATIC_DRAW));
+            }
+            {
+                AttributeDescription attribute{
+                    .mSemantic = renderer::semantic::gBitangent,
+                    .mDimension = 3,
+                    .mComponentType = GL_FLOAT,
+                };
 
-            mesh.mSemanticToAttribute.insert(
-                makeLoadedAccessor_Naive(attribute,
-                                         std::span{ aMesh->mBitangents, aMesh->mNumVertices },
-                                         GL_STATIC_DRAW));
+                mesh.mSemanticToAttribute.insert(
+                    makeLoadedAccessor_Naive(attribute,
+                                             std::span{aMesh->mBitangents, aMesh->mNumVertices},
+                                             GL_STATIC_DRAW));
+            }
         }
 
         // UV channels
