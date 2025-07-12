@@ -8,7 +8,7 @@ namespace ad {
 
 struct OrbitalCamera
 {
-    void update(int aWindowHeight);
+    void update(float aDeltaTime, int aWindowHeight);
 
     void setRatio(float aAspectRatio);
 
