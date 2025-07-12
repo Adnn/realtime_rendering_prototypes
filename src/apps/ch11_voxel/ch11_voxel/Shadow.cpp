@@ -172,13 +172,8 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
 
         aGraph.renderDepth(aSceneTree, FrameGraph::DepthMapType::CubeMap);
 
-        //lightViewProjection.mLightViewProjections[lightViewProjection.mLightViewProjectionCount] =
-        //    translation
-        //    // Align -Z to +X
-        //    * math::trans3d::rotateY(math::Degree<GLfloat>{90.f})
-        //    * gProjection
-        //    ;
-        //++lightViewProjection.mLightViewProjectionCount;
+        // IMPORTANT: We do not populate the lightViewProjection UBO for omni lights.
+        // The required fragToLight length is computer on the fly in the fragment shader.
     }
 
     //

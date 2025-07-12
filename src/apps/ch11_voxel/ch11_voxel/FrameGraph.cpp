@@ -259,6 +259,9 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_ToneMapping", (GLuint)mFrameControl.mToneMapping);
     graphics::setUniform(program, "u_ShadowMethod", (GLuint)mFrameControl.mFinalSceneShadow);
 
+    graphics::setUniform(program, "u_ShadowCubeNearDistance", gShadowCubeNearDistance);
+    graphics::setUniform(program, "u_ShadowCubeFarDistance", gShadowCubeFarDistance);
+
     glProgramUniform4fv(program,
                         glGetUniformLocation(program, "u_LightingFactors"),
                         1, &mFrameControl.mDirectDiffuseFactor);
