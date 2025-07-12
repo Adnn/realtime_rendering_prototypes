@@ -72,7 +72,7 @@ void main(void)
     for(uint directionalIdx = 0; directionalIdx != ub_DirectionalCount.x; ++directionalIdx)
     {
         DirectionalLight directional = ub_DirectionalLights[directionalIdx];
-        vec3 lightDir_cam = -directional.direction.xyz;
+        vec3 lightDir_cam = -ub_Directions_view[directionalIdx].xyz;
         
         LightContributions lighting = 
             applyBlinnPhongLight(
@@ -91,7 +91,7 @@ void main(void)
         PointLight point = ub_PointLights[pointIdx];
 
         // see rtr 4th p110 (5.10)
-        vec3 lightRay_cam = point.position.xyz - ex_Position_view;
+        vec3 lightRay_cam = ub_Points_view[pointIdx].position.xyz - ex_Position_view;
         float r = sqrt(dot(lightRay_cam, lightRay_cam));
         vec3 lightDir_cam = lightRay_cam / r;
 

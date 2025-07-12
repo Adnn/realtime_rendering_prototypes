@@ -24,7 +24,7 @@ void main(void)
     {
         PointLight point = ub_PointLights[pointIdx];
 
-        vec4 light_world = ub_cameraToWorld * vec4(point.position.xyz, 1);
+        vec4 light_world = vec4(point.position.xyz, 1);
 		vec3 samplingDir = ex_Position_world - light_world.xyz;
 
 		vec4 value =  texture(u_CubeMap, worldToCubemap(samplingDir.xyz));

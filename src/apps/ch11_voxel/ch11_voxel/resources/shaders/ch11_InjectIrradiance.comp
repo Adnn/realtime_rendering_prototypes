@@ -130,11 +130,7 @@ void main()
         ++directionalIdx)
     {
         DirectionalLight directional = ub_DirectionalLights[directionalIdx];
-        vec3 lightDir_cam = -directional.direction.xyz;
-        
-		// We need the light in in the same space as the normal
-		// TODO #perf: this info should be available in a buffer, not computed in each voxel
-		vec3 lightDir_world = normalize(mat3(ub_cameraToWorld) * lightDir_cam);
+        vec3 lightDir_world = -directional.direction.xyz;
         
         vec3 entry_grid = offsetEntryFromDir(voxelCoord, lightDir_world);
 
@@ -151,8 +147,7 @@ void main()
     {
         PointLight point = ub_PointLights[pointIdx];
 
-		// TODO #perf: this info should be available in a buffer, not computed in each voxel
-        vec3 lightPos_world = (ub_cameraToWorld * vec4(point.position.xyz, 1)).xyz;
+        vec3 lightPos_world = point.position.xyz;
 
 		ivec3 lightPos_grid = worldToVoxel(lightPos_world, u_VoxelSize, u_AabbMin);
         // Set the light position to its voxel center

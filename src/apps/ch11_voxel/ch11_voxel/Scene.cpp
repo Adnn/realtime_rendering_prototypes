@@ -169,14 +169,17 @@ renderer::LightsDataCommon transformLightsData(
     {
         renderer::DirectionalLight_glsl & light = aLightsData.mDirectionalLights[idx];
         // might be unecessary to re-normalize, unless the transform scales
-        light.mDirection = math::UnitVec<3, GLfloat>{
-            light.mDirection * aTransform.getLinear() };
+        aLightsData.mDirections_view[idx] = math::Vec<4, GLfloat>{
+                math::UnitVec<3, GLfloat>{light.mDirection * aTransform.getLinear()},
+                0.0f
+        };
     }
     for (auto idx = 0; idx != aLightsData.mPointCount; ++idx)
     {
         renderer::PointLight_glsl & light = aLightsData.mPointLights[idx];
-        light.mPosition = math::homogeneous::homogenize(
-            math::homogeneous::makePosition(light.mPosition) * aTransform).xyz();
+        aLightsData.mPoints_view[idx] = math::Position<4, GLfloat>{
+            math::homogeneous::homogenize(math::homogeneous::makePosition(light.mPosition) * aTransform)
+        };
     }
 
     return aLightsData;

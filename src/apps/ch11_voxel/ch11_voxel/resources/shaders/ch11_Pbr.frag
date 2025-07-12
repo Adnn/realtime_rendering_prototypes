@@ -322,7 +322,7 @@ void main(void)
     for(uint directionalIdx = 0; directionalIdx != ub_DirectionalCount.x; ++directionalIdx)
     {
         DirectionalLight directional = ub_DirectionalLights[directionalIdx];
-        vec3 lightDir_view = -directional.direction.xyz;
+        vec3 lightDir_view = -ub_Directions_view[directionalIdx].xyz;
         
         LightContributions lighting = 
             applyLight_pbr(
@@ -339,7 +339,7 @@ void main(void)
 		case CLIENT_SHADOW_CONETRACING:
 			float shadowFactor = 
 				traceShadow(position_aabb, geometricNormal_world, 
-							mat3(ub_cameraToWorld) * lightDir_view, u_TanHalfShadow,
+							-directional.direction.xyz, u_TanHalfShadow,
 							u_VoxelSize);
 			scale(lighting, shadowFactor);
 			//out_Color = vec4(vec3(shadowFactor), 1);
@@ -358,13 +358,13 @@ void main(void)
         PointLight point = ub_PointLights[pointIdx];
 
         // see rtr 4th p110 (5.10)
-        vec3 lightRay_view = point.position.xyz - ex_Position_view;
+        vec3 lightRay_view = ub_Points_view[pointIdx].xyz - ex_Position_view;
         float radius = length(lightRay_view);
         vec3 lightDir_view = lightRay_view / radius;
 
         vec3 specularLightDir_view = normalize(
             representativePoint_sphere(ex_Position_view,
-                                       point.position.xyz,
+                                       ub_Points_view[pointIdx].xyz,
                                        reflect(-viewDir_view, shadingNormal_view),
                                        point.radius.x));
 
@@ -373,8 +373,7 @@ void main(void)
                 viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
                 pbrParameters, point.colors);
 
-        vec4 light_world = ub_cameraToWorld * vec4(point.position.xyz, 1);
-        //vec4 light_world = inverse(ub_worldToCamera) * point.position;
+        vec4 light_world = vec4(point.position.xyz, 1);
 		vec3 samplingDir = ex_Position_world - light_world.xyz;
         //float fragDepth = ex_Position_lightTex[1].z;
         float fragDepth = (length(samplingDir) - 0.01) / (100 - 0.01);

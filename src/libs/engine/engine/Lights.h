@@ -129,9 +129,14 @@ struct LightsDataCommon
     /*alignas(16)*/ GLuint mPointCount{0};
 
     alignas(16) math::hdr::Rgb<GLfloat> mAmbientColor;
+    // WARNING: up to ch11_ssao, this was used to upload the view-space information to an uniform block
+    // starting with ch11_voxels, it is used to uploath the world-space info (and dedicated view members were added at the end)
     std::array<DirectionalLight_glsl, gMaxLights> mDirectionalLights;
     std::array<PointLight_glsl, gMaxLights> mPointLights;
 
+    // This is transient data, not described to witnesses
+    std::array<math::Vec<4, GLfloat>, gMaxLights> mDirections_view;
+    std::array<math::Position<4, GLfloat>, gMaxLights> mPoints_view;
     //
     // Helpers
     //
