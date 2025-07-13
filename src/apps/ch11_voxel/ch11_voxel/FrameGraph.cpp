@@ -150,7 +150,7 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mPrograms{mEngine},
-    mShadowMap{GL_TEXTURE_2D},
+    mShadowMap{GL_TEXTURE_2D_ARRAY},
     mOmniShadowMap{GL_TEXTURE_CUBE_MAP_ARRAY}
 {
 
@@ -178,7 +178,7 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
         graphics::ScopedBind{mShadowMap};
         graphics::ScopedBind{mShadowFramebuffer};
     }
-    glTextureStorage2D(mShadowMap, 1, GL_DEPTH_COMPONENT24, gShadowMapSize, gShadowMapSize);
+    glTextureStorage3D(mShadowMap, 1, GL_DEPTH_COMPONENT24, gShadowMapSize, gShadowMapSize, renderer::gMaxShadowMaps);
     glObjectLabel(GL_TEXTURE, mShadowMap, -1, "shadow_map");
     {
         GLint isSuccess;

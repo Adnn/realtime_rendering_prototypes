@@ -84,12 +84,7 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
                               const renderer::LightsDataCommon & mLights,
                               FrameGraph & aGraph)
 {
-    // TODO: extend to handle multiple lights
-    assert(mLights.mDirectionalCount == 1 
-           );
-
     renderer::LightViewProjection lightViewProjection;
-
     const math::Box<GLfloat> sceneAabb = getAabb(aSceneTree);
 
     //
@@ -103,28 +98,34 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
             mLightViewBuffer,
             graphics::BindingIndex{ 0 }};
 
-        const renderer::DirectionalLight_glsl & light = mLights.mDirectionalLights[0];
+        // TODO: render to all shadow maps layers at once via geometry shader instancing
+        for (std::size_t directionalIdx = 0;
+             directionalIdx != std::min(mLights.mDirectionalCount, renderer::gMaxShadowLights);
+             ++directionalIdx)
+        {
+            const renderer::DirectionalLight_glsl & light = mLights.mDirectionalLights[directionalIdx];
 
-        math::LinearMatrix<3, 3, GLfloat> worldToLightOrientation = alignMinusZ(light.mDirection);
-        math::Matrix<4, 4, float> projection = computeLightProjection(worldToLightOrientation,
-                                                                      sceneAabb);
+            math::LinearMatrix<3, 3, GLfloat> worldToLightOrientation = alignMinusZ(light.mDirection);
+            math::Matrix<4, 4, float> projection = computeLightProjection(worldToLightOrientation,
+                                                                          sceneAabb);
 
-        graphics::loadSingle(mLightViewBuffer,
-                             scenic::GpuViewProjectionBlock{
-                                worldToLightOrientation,
-                                projection,
-                             },
-                             graphics::BufferHint::StreamDraw);
+            lightViewProjection.mLightViewProjections[lightViewProjection.mLightViewProjectionCount] =
+                math::AffineMatrix<4, GLfloat>{worldToLightOrientation} * projection;
+            ++lightViewProjection.mLightViewProjectionCount;
 
-        glNamedFramebufferTexture(aGraph.mShadowFramebuffer, GL_DEPTH_ATTACHMENT, aGraph.mShadowMap, 0);
-        assert(glCheckNamedFramebufferStatus(aGraph.mShadowFramebuffer, GL_DRAW_FRAMEBUFFER)
-               == GL_FRAMEBUFFER_COMPLETE);
+            graphics::loadSingle(mLightViewBuffer,
+                                 scenic::GpuViewProjectionBlock{
+                                    worldToLightOrientation,
+                                    projection,
+                                 },
+                                 graphics::BufferHint::StreamDraw);
 
-        aGraph.renderDepth(aSceneTree, FrameGraph::DepthMapType::TwoD);
+            glNamedFramebufferTextureLayer(aGraph.mShadowFramebuffer, GL_DEPTH_ATTACHMENT, aGraph.mShadowMap, 0, directionalIdx);
+            assert(glCheckNamedFramebufferStatus(aGraph.mShadowFramebuffer, GL_DRAW_FRAMEBUFFER)
+                   == GL_FRAMEBUFFER_COMPLETE);
 
-        lightViewProjection.mLightViewProjections[lightViewProjection.mLightViewProjectionCount] =
-            math::AffineMatrix<4, GLfloat>{worldToLightOrientation} *projection;
-        ++lightViewProjection.mLightViewProjectionCount;
+            aGraph.renderDepth(aSceneTree, FrameGraph::DepthMapType::TwoD);
+        }
     }
 
     //

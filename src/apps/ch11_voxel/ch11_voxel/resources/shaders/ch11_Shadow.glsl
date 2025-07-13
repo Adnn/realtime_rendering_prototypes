@@ -5,7 +5,7 @@
 #include "shaders/LightUtilities.glsl"
 
 
-uniform sampler2DShadow u_ShadowMap;
+uniform sampler2DArrayShadow u_ShadowMap;
 uniform samplerCubeArrayShadow u_OmniShadowMap;
 in vec3[MAX_SHADOW_MAPS] ex_Position_lightTex;
 
@@ -15,13 +15,12 @@ uniform float u_ShadowCubeFarDistance;
 
 // Bias is implemented via polygon offset
 float getShadowAttenuation(
-    vec3 fragPosition_lightTex
-    //uint shadowMapIdx
-    )
+    vec3 fragPosition_lightTex,
+    uint shadowMapIdx)
 {
     return texture(u_ShadowMap, 
-                   vec3(fragPosition_lightTex.xy, // uv
-                        //shadowMapIdx, // array layer
+                   vec4(fragPosition_lightTex.xy, // uv
+                        shadowMapIdx, // array layer
                         fragPosition_lightTex.z /* reference value */));
 }
 
@@ -32,7 +31,7 @@ void applyShadowToDirectionalLighting(
 {
     // TODO: extend to handle several lights
 	float shadowAttenuation = 
-		getShadowAttenuation(ex_Position_lightTex[aDirectionalIdx]);
+		getShadowAttenuation(ex_Position_lightTex[aDirectionalIdx], aDirectionalIdx);
 	scale(aLighting, shadowAttenuation);
 }
 

@@ -333,7 +333,10 @@ void main(void)
 		{
 		case CLIENT_SHADOW_SHADOWMAP:
 			#if defined(SHADOW_MAPPING)
-				applyShadowToDirectionalLighting(lighting, directionalIdx);
+				if(directionalIdx < MAX_SHADOW_LIGHTS)
+				{
+					applyShadowToDirectionalLighting(lighting, directionalIdx);
+				}
 			#endif // SHADOW_MAPPING
 			break;
 		case CLIENT_SHADOW_CONETRACING:
@@ -342,8 +345,6 @@ void main(void)
 							-directional.direction.xyz, u_TanHalfShadow,
 							u_VoxelSize);
 			scale(lighting, shadowFactor);
-			//out_Color = vec4(vec3(shadowFactor), 1);
-			//return;
 			break;
 		}
 
