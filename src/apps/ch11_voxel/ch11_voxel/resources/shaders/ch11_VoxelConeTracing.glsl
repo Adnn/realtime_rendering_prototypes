@@ -9,6 +9,7 @@
 #include "shaders/PbrUtilities.glsl"
 
 
+uniform float u_ConeMaxDistance = 10;
 // To be used as aperture angle for diffuse cones
 uniform float u_TanHalfAperture = M_PI / 6;
 // Aperture angle for shadow cones
@@ -62,9 +63,6 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
                vec3 coneAxis_aabb, float tanHalfAngle,
                float aVoxelSize)
 {
-    //const float maxDistance = 2;
-    const float maxDistance = 10;
-
     // A factor to implement the potential difference between d and d' in Crassin's paper.
     // This is beta in the explanation here: https://github.com/jose-villegas/VCTRenderer?tab=readme-ov-file#4-voxel-cone-tracing
     const float samplingFactor = 1;
@@ -96,7 +94,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 
     const ivec3 fragment_grid = ivec3(position_aabb / aVoxelSize);
 
-    while(marchedIrradiance.a < 1.0f && t <= maxDistance)
+    while(marchedIrradiance.a < 1.0f && t <= u_ConeMaxDistance)
     {
         float coneDiameter = 2 * t * tanHalfAngle;
         float mipLevel = log2(coneDiameter / aVoxelSize);
