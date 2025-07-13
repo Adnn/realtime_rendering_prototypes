@@ -64,6 +64,8 @@ struct FrameGraph
         GLfloat mSpecularConeRoughnessFactor = 1.0f;
         bool mGridAlign = false;
 
+        bool mSplitSumIndirectSpecular = true;
+
         float mDirectDiffuseFactor{1.0f};
         float mDirectSpecularFactor{1.0f};
         float mIndirectDiffuseFactor{1.0f};
@@ -131,6 +133,8 @@ struct FrameGraph
     graphics::Texture mOmniShadowMap;
     graphics::FrameBuffer mShadowFramebuffer;
     graphics::UniformBufferObject mLightViewProjectionUbo;
+    // The second part of the split integral approximation for environment specular contribution
+    graphics::Texture mIntegratedGgxBrdf;
 
     FrameControl mFrameControl;
 

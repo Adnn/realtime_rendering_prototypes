@@ -9,7 +9,6 @@ Waiting for a better solution, here are our hardcoded bindings
 * 4: Lights
 * 5: LightViewProjection
 * 6: ShadowCascade
-* 7: OnmiShadowMap (cubemaps)
 * 8: LineSegment
 * 9: GlyphMetrics
 *
@@ -22,4 +21,8 @@ Waiting for a better solution, here are our hardcoded bindings
 * 2: Metallic-Roughness Ambient-Occlusion
 * 5: Skybox
 * 6: Shadow map
+* 7: OnmiShadowMap (cubemaps)
 * 10: Voxels albedo / occupancy
+* 13: Filtered environment radiance
+* 14: Filtered environment irradiance
+* 15: Integrated environment BRDF 

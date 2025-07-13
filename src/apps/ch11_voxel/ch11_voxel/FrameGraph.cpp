@@ -151,7 +151,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mPrograms{mEngine},
     mShadowMap{GL_TEXTURE_2D_ARRAY},
-    mOmniShadowMap{GL_TEXTURE_CUBE_MAP_ARRAY}
+    mOmniShadowMap{GL_TEXTURE_CUBE_MAP_ARRAY},
+    mIntegratedGgxBrdf{ scenic::integrateEnvironmentBrdf(scenic::gIntegratedBrdfSide, mEngine.mLoader) }
 {
 
     //
@@ -252,6 +253,9 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
 
+    glBindTextureUnit(15, mIntegratedGgxBrdf);
+    graphics::setUniform(program, "u_IntegratedEnvironmentBrdf", 15);
+
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
@@ -264,6 +268,8 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
 
     graphics::setUniform(program, "u_ShadowCubeNearDistance", gShadowCubeNearDistance);
     graphics::setUniform(program, "u_ShadowCubeFarDistance", gShadowCubeFarDistance);
+
+    graphics::setUniform(program, "u_SplitSumIndirectSpecular", mFrameControl.mSplitSumIndirectSpecular);
 
     glProgramUniform4fv(program,
                         glGetUniformLocation(program, "u_LightingFactors"),
@@ -368,6 +374,8 @@ void FrameGraph::appendUi()
     ImGui::SliderFloat("Specular Cone roughness factor", &mFrameControl.mSpecularConeRoughnessFactor, 0, 2);
 
     ImGui::Checkbox("Grid Aligned Trace Origin", &mFrameControl.mGridAlign);
+
+    ImGui::Checkbox("Preintegrated BRDF (split-sum) specular indirect", &mFrameControl.mSplitSumIndirectSpecular);
 
     ImGui::SeparatorText("Lighting factors");
     ImGui::SliderFloat("Direct diffuse", &mFrameControl.mDirectDiffuseFactor, 0.f, 4.f);

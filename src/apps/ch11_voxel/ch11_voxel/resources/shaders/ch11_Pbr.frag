@@ -13,11 +13,12 @@
 #include "shaders/ViewProjectionBlock.glsl"
 
 
+// Also used for specular component of indrect light
+uniform sampler2D u_IntegratedEnvironmentBrdf;
 #if defined(ENVIRONMENT_MAPPING)
     uniform samplerCube u_EnvironmentTexture;
     uniform samplerCube u_FilteredRadianceEnvironmentTexture;
     uniform samplerCube u_FilteredIrradianceEnvironmentTexture;
-    uniform sampler2D u_IntegratedEnvironmentBrdf;
 
     // Control the IBL contributions strenght, good candidates to be part of each environment
     uniform float u_SpecularIblFactor = 1.0;
@@ -51,6 +52,7 @@ uniform uint u_MraoUvChannel;
 
 uniform uint u_MaterialIdx;
 
+uniform bool u_SplitSumIndirectSpecular = true;
 uniform bool u_ApplyAo = false;
 uniform bool u_ApplyEnvironment;
 uniform bool u_ApplyNormalMap = true;
@@ -135,6 +137,7 @@ LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
                                           vec3 aView_world,
                                           vec3 aShadingNormal_world,
                                           PbrParameters aParams,
+                                          float aRoughness,
                                           out float aAmbientOcclusionFactor)
 {
     LightContributions result;
@@ -145,6 +148,7 @@ LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
         vec3 reflectionDir = reflect(-aView_world, aShadingNormal_world);
         vec3 lightDir = reflectionDir;
 
+        // Note: by construction here h == n, so we could save a few instructions
         vec3 h = normalize(aView_world + lightDir);
         float hDotL = dotPlus(h, lightDir);
 
@@ -154,16 +158,33 @@ LightContributions applyIndirectLight_pbr(vec3 aPosition_aabb,
 
         float nDotL = max(0.001, dotPlus(aShadingNormal_world, lightDir));
 
-        result.specular = accumulateSpecularIndirect(
-                                aPosition_aabb,
-                                aShadingNormal_world,
-                                -aView_world,
-                                // TODO: should the function just take alpha directly?
-                                sqrt(aParams.alpha),
-                                u_VoxelSize).rgb
-                          * F
-                          * nDotL
-                          ;
+		vec3 specularRadiance = 
+            accumulateSpecularIndirect(aPosition_aabb,
+                                       aShadingNormal_world,
+                                       -aView_world,
+                                       aRoughness,
+                                       u_VoxelSize).xyz;
+        if (u_SplitSumIndirectSpecular)
+        {
+            // Note: Unlike what is presented in Finn, Johannes. “Evaluation of Performance and Image Quality for Voxel Cone Tracing,” n.d.
+            // we do not multiply IntegragetBrdf.x with F term (as it is supposed to be pre-integrated in the LUT)
+            result.specular =
+                specularBrdfLut(aParams.f0,
+                                // By construction, lightDir and viewDir are symetric around the normal
+                                // so NoL == NoV
+                                nDotL,
+                                aRoughness,
+					            u_IntegratedEnvironmentBrdf)
+                * specularRadiance
+                ;
+        }
+        else
+        {
+			result.specular = specularRadiance
+							  * F
+							  * nDotL
+							  ;
+        }
 
         //result.specular = vec3(F);
     }
@@ -399,6 +420,7 @@ void main(void)
                                view_world,
                                shadingNormal_world,
                                pbrParameters,
+                               roughness,
                                voxelAoFactor);
 
     diffuseAccum += 
