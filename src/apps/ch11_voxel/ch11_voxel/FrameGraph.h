@@ -132,7 +132,6 @@ struct FrameGraph
     graphics::FrameBuffer mShadowFramebuffer;
     graphics::UniformBufferObject mLightViewProjectionUbo;
 
-
     FrameControl mFrameControl;
 
 };

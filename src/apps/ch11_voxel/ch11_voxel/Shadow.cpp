@@ -86,7 +86,6 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
 {
     // TODO: extend to handle multiple lights
     assert(mLights.mDirectionalCount == 1 
-           && mLights.mPointCount == 1
            );
 
     renderer::LightViewProjection lightViewProjection;
@@ -133,13 +132,10 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
     //
     {
         // This binding can be used for all omni lights rendering to a cubemap
+        // TODO: this buffer now contains constant data that could be loaded once at startup
         graphics::ScopedBind boundViewProjection{
             mCubeFacesViewBuffer,
             graphics::BindingIndex{ 14 }};
-
-        const renderer::PointLight_glsl & light = mLights.mPointLights[0];
-
-        math::AffineMatrix<4, GLfloat> translation = canonicalToLight(light);
 
         static const math::Matrix<4, 4, float> gProjection = graphics::makeProjection(graphics::PerspectiveParameters{
             .mAspectRatio = 1,
@@ -151,19 +147,16 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
 
         constexpr auto neg = math::trans3d::scale(1.f, -1.f, 1.f);
         std::array<math::Matrix<4, 4, GLfloat>, 6> viewProjections{
-            translation * scenic::gCubeCaptureViewsNegateY[0] * gProjection,
-            translation * scenic::gCubeCaptureViewsNegateY[1] * gProjection,
-            translation * scenic::gCubeCaptureViewsNegateY[2] * gProjection,
-            translation * scenic::gCubeCaptureViewsNegateY[3] * gProjection,
-            translation * scenic::gCubeCaptureViewsNegateY[4] * gProjection,
-            translation * scenic::gCubeCaptureViewsNegateY[5] * gProjection,
+            scenic::gCubeCaptureViewsNegateY[0] * gProjection,
+            scenic::gCubeCaptureViewsNegateY[1] * gProjection,
+            scenic::gCubeCaptureViewsNegateY[2] * gProjection,
+            scenic::gCubeCaptureViewsNegateY[3] * gProjection,
+            scenic::gCubeCaptureViewsNegateY[4] * gProjection,
+            scenic::gCubeCaptureViewsNegateY[5] * gProjection,
         };
 
-        math::Position<4, GLfloat> lightPosition_world{light.mPosition, 1.0f};
-
-        glNamedBufferData(mCubeFacesViewBuffer, sizeof(viewProjections) + sizeof(lightPosition_world), nullptr, GL_STREAM_DRAW);
+        glNamedBufferData(mCubeFacesViewBuffer, sizeof(viewProjections), nullptr, GL_STREAM_DRAW);
         glNamedBufferSubData(mCubeFacesViewBuffer, 0, sizeof(viewProjections), viewProjections.data());
-        glNamedBufferSubData(mCubeFacesViewBuffer, sizeof(viewProjections), sizeof(lightPosition_world), lightPosition_world.data());
 
         // Since the texture is a cubemap, the framebuffer attachement is layered
         glNamedFramebufferTexture(aGraph.mShadowFramebuffer, GL_DEPTH_ATTACHMENT, aGraph.mOmniShadowMap, 0);
@@ -173,7 +166,7 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
         aGraph.renderDepth(aSceneTree, FrameGraph::DepthMapType::CubeMap);
 
         // IMPORTANT: We do not populate the lightViewProjection UBO for omni lights.
-        // The required fragToLight length is computer on the fly in the fragment shader.
+        // The required fragToLight length is computed on the fly in the fragment shader.
     }
 
     //

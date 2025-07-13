@@ -6,7 +6,7 @@
 
 
 uniform sampler2DShadow u_ShadowMap;
-uniform samplerCubeShadow u_OmniShadowMap;
+uniform samplerCubeArrayShadow u_OmniShadowMap;
 in vec3[MAX_SHADOW_MAPS] ex_Position_lightTex;
 
 uniform float u_ShadowCubeNearDistance;
@@ -50,8 +50,10 @@ void applyShadowToPointLighting(
 	float shadowAttenuation = 
         texture(u_OmniShadowMap, 
                 vec4(worldToCubemap(samplingRay),
-                     //shadowMapIdx, // array layer
-                     fragDistance));
+                     aPointIdx), // array layer
+                     // Note: for cubemap array shadow sampler need 5 "coordinates",
+                     // so the comparison value is taken as a separate parameter instead of extending the coordinate vector
+                     fragDistance);
 	scale(aLighting, shadowAttenuation);
 }
 

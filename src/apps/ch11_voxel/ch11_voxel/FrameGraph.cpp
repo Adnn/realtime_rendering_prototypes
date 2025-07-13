@@ -6,6 +6,8 @@
 
 #include "log/Logging.h"
 
+#include <engine/Lights.h>
+
 #include <handy/vector_utils.h>
 
 #include <reflect/DearImguiWitness.h>
@@ -149,7 +151,7 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
 FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
     mPrograms{mEngine},
     mShadowMap{GL_TEXTURE_2D},
-    mOmniShadowMap{GL_TEXTURE_CUBE_MAP}
+    mOmniShadowMap{GL_TEXTURE_CUBE_MAP_ARRAY}
 {
 
     //
@@ -201,7 +203,8 @@ FrameGraph::FrameGraph(math::Size<2, int> aFrameSize) :
         // For actual creation
         graphics::ScopedBind{shadowMap};
     }
-    glTextureStorage2D(shadowMap, 1, GL_DEPTH_COMPONENT24, gShadowMapSize, gShadowMapSize);
+    // Important: the depth is the number of layer*faces
+    glTextureStorage3D(shadowMap, 1, GL_DEPTH_COMPONENT24, gShadowMapSize, gShadowMapSize, 6 * renderer::gMaxShadowMaps);
     glObjectLabel(GL_TEXTURE, shadowMap, -1, "omni_shadow_map");
     {
         GLint isSuccess;

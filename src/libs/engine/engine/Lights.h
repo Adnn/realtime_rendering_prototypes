@@ -17,7 +17,8 @@ namespace ad::renderer {
 
 
 constexpr unsigned int gMaxLights = 16;
-constexpr unsigned int gMaxShadowLights = 4;
+// Note: might be used as limit per shadow map type (e.g. directional and omni)
+constexpr unsigned int gMaxShadowLights = 2;
 constexpr unsigned int gCascadesPerShadow = 1;
 constexpr unsigned int gMaxShadowMaps = gMaxShadowLights * gCascadesPerShadow;
 
