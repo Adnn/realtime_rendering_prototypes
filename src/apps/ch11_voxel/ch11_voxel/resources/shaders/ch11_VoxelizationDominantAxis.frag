@@ -8,6 +8,7 @@
 #include "ch11_VoxelsSsbo.glsl"
 
 #include "shaders/Helpers.glsl"
+#include "shaders/MaterialGenericBlock.glsl"
 
 
 /// See: Crassin, Cyril, and Simon Green. “Octree-Based Sparse Voxelization Using the GPU Hardware Rasterizer.” In OpenGL Insights, edited by Patrick Cozzi and Christophe Riccio, 303–20. A K Peters/CRC Press, 2012.
@@ -84,6 +85,7 @@ uniform bool u_ConservativeDepthRange;
 uniform bool u_AverageSamples = true;
 uniform bool u_AverageNormalByAxis;
 
+uniform uint u_MaterialIdx;
 
 // * coherent: memory accesses are coherant with similar access from other shader invocations
 // * volatile (seems to imply coherent): the memory can be read or written during 
@@ -149,12 +151,18 @@ void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo, vec3 aNormal)
 void main(void)
 {
     const uint gNoTextureChannel = uint(-1);
+
     // Albedo values are already in linear space
     vec4 albedo = ex_Color;
     if(u_DiffuseUvChannel != gNoTextureChannel)
     {
         albedo *= texture(u_DiffuseTexture, ex_Uv01);
 	}
+
+	// Apply the material diffuse color as factor to the fragment albedo.
+    MaterialGeneric material = ub_MaterialGeneric[u_MaterialIdx];
+	albedo *= material.diffuseColor;
+
 	// Alpha testing
 	if (albedo.a < 0.5)
 	{
