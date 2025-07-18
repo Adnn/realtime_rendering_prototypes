@@ -41,6 +41,9 @@ struct alignas(16) GenericMaterial_glsl
     TextureInput mDiffuseMap; 
     TextureInput mNormalMap; 
     TextureInput mMetallicRoughnessAoMap; 
+    // Same deefault values for metallic/roughness factors as gltf
+    float mMetallicFactor = 1.0f;
+    float mRoughnessFactor = 1.0f;
     float mSpecularExponent = 1.f;
 };
 

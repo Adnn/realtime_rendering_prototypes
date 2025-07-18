@@ -296,17 +296,15 @@ void main(void)
     //
 
     // TODO: implement mrao texture
-    //float metallic = material.metallic;
-    //float roughness = material.roughness;
-    float metallic = 0.0;
-    float roughness = 0.5;
+    float metallic = material.metallicFactor;
+    float roughness = material.roughnessFactor;
 
     if(u_MraoUvChannel != gNoTextureChannel)
     {
         vec4 mrao = texture(u_MraoTexture, ex_Uv01);
         // glTF sponza channel order
-        metallic = mrao.b;
-        roughness = mrao.g;
+        metallic *= mrao.b;
+        roughness *= mrao.g;
     }
 
     // Handle alpha
@@ -317,7 +315,7 @@ void main(void)
     // makes it that there is not even a specular highlight showing with most models
     // (at least GGX & Blinn-Phong)
     // So, uncomment to fix it (e.g. the display on the glTF water bottle)
-    //alpha = max(0.005, alpha);
+    alpha = max(0.005, alpha);
 
     // We blendg the parameters before computing the lighting model.
     // This is not physically correct (parameters do not have linear relationship to output)

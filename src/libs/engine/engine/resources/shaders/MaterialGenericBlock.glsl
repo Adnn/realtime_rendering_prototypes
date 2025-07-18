@@ -16,6 +16,8 @@ struct MaterialGeneric
     uint normalUvChannel;
     uint mraoTextureIndex;
     uint mraoUvChannel;
+    float metallicFactor;
+    float roughnessFactor;
     float specularExponent;
 };
 

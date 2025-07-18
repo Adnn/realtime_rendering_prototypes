@@ -632,6 +632,13 @@ namespace {
                 readTextureParameters(material, aiTextureType_METALNESS,
                                       aTexturePaths, tracking);
 
+            if (material->Get(AI_MATKEY_METALLIC_FACTOR, genericMaterial.mMetallicFactor) == AI_SUCCESS)
+            {
+                assert(material->Get(AI_MATKEY_ROUGHNESS_FACTOR, genericMaterial.mRoughnessFactor) == AI_SUCCESS);
+                std::cout << "  metallic factor: " << genericMaterial.mMetallicFactor 
+                          << ", roughness factor: " << genericMaterial.mRoughnessFactor 
+                          << "\n";
+            }
             if(material->Get(AI_MATKEY_SHININESS, genericMaterial.mSpecularExponent) == AI_SUCCESS)
             {
                 // Correct the specular exponent if needed
