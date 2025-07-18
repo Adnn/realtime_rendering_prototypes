@@ -171,8 +171,14 @@ namespace {
         // UV channels
         // TODO: handle multiple UV channels when they show-up
         // packing 2 channels per 4 component attributes
-        assert(aMesh->GetNumUVChannels() <= 1);
-        for (unsigned int uvIdx = 0; uvIdx != aMesh->GetNumUVChannels(); ++uvIdx)
+        //assert(aMesh->GetNumUVChannels() <= 1);
+
+        unsigned int uvChannels = aMesh->GetNumUVChannels();
+        // Note: for the moment, even if several uv channels are available, we only read the first one 
+        // see note #pica01
+        uvChannels = std::min(1u, uvChannels);
+
+        for (unsigned int uvIdx = 0; uvIdx != uvChannels; ++uvIdx)
         {
             AttributeDescription attribute{
                 .mSemantic = renderer::semantic::gUv01,
@@ -563,6 +569,12 @@ namespace {
             unsigned int aiIndex;
             if(aAiMaterial->Get(_AI_MATKEY_UVWSRC_BASE, aTextureType, indexInStack, aiIndex) == AI_SUCCESS)
             {
+                // Note #pica01: With pica pica diorama, some meshes have 2 UV channels, 
+                // but textures only ever use the first one
+                // For the moment, we only actually read the first channel,
+                // and assert here that no other channel is used
+                // TODO: when that trips, we will have to actually implement multiple UV channels
+                assert(aiIndex == 0);
                 result.mUVAttributeIndex = aiIndex;
                 std::cout << ", explicit UV channel " << aiIndex;
             }
