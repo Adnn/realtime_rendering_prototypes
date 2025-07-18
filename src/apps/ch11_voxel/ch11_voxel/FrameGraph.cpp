@@ -76,7 +76,6 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
             graphics::VertexArrayObject vao = prepareVAO(aProgram, part);
             glBindVertexArray(vao);
 
-            // TODO: make that usable
             scenic::GenericMaterial_glsl material =
                 get(aEngine.mContext.mStorage, part.mMaterial.mSurfaceParameters);
 

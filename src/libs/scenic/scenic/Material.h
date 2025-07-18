@@ -69,10 +69,13 @@ struct GenericMaterialsBlock_glsl
 };
 
 
-DESCRIBE(GenericMaterialsBlock_glsl)
+template <class T_witness>
+void describe(T_witness & aWitness,
+              GenericMaterialsBlock_glsl & aValue,
+              std::span<std::string> aNames)
 {
     GIVE_EX((Clamped<GLuint>{aValue.mCount, 0, gMaxMaterials}), "count");
-    GIVE_EX(aValue.spanMaterials(), "materials");
+    GIVE_EX(aValue.spanMaterials(), aNames);
 }
 
 

@@ -598,7 +598,7 @@ void Scene::presentUi(bool * aOpen)
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Materials"))
     {
-        describe(witness, mMaterials);
+        describe(witness, mMaterials, mGraph.mEngine.mContext.mStorage.mMaterialNames);
     }
 
     ImGui::Spacing();

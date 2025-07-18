@@ -582,6 +582,7 @@ namespace {
                               TexturePaths & aTexturePaths)
     {
         auto & materials = aContext.mStorage.mMaterials;
+        auto & materialNames = aContext.mStorage.mMaterialNames;
         DdsTracking tracking;
 
         for (std::size_t materialIdx = 0;
@@ -599,6 +600,7 @@ namespace {
 
             // TODO: rename "destinationMaterial"
             auto & genericMaterial = materials.mMaterials[materials.mCount++];
+            materialNames.push_back(material->GetName().C_Str());
 
             setColor(genericMaterial.mDiffuseColor,  material, AI_MATKEY_COLOR_DIFFUSE);
             // Default other colors to the diffuse colors (in case they are not directly defined)

@@ -192,6 +192,9 @@ struct ModelStorage
 {
     //std::vector<VertexStream> mVertexStreams;
     GenericMaterialsBlock_glsl mMaterials;
+    // Note: vector implies that each material is given a name when stored
+    // if we want to relax that constraint, use some map instead.
+    std::vector<std::string> mMaterialNames;
 
     std::vector<graphics::Texture> mTextures;
     TexturePaths mTexturePaths;
