@@ -10,6 +10,8 @@
 
 
 uniform float u_ConeMaxDistance = 10;
+uniform float u_ConeOffsetAlongNormal = 1;
+uniform float u_ConeOffsetAlongAxis = 1;
 // To be used as aperture angle for diffuse cones
 uniform float u_TanHalfAperture = M_PI / 6;
 // Aperture angle for shadow cones
@@ -69,7 +71,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 
     // Initial offset, to mitigate self-sampling.
     // The factor will be applied to the voxel size.
-    const float offsetFactor = 1;
+    const float offsetFactor = u_ConeOffsetAlongNormal;
 
     // TODO determine good range
     const float aoFalloff = 8;
@@ -86,7 +88,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
     vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * aVoxelSize;
 
     // Distance marched along the cone, in world unit
-    float t = 1.0 * aVoxelSize; // Another offset to limit self-sampling
+    float t = u_ConeOffsetAlongAxis * aVoxelSize; // Another offset to limit self-sampling
 
     // ambient occlusion
     float occlusion = 0;
@@ -130,7 +132,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 
         occlusion += ((1.0f - occlusion) * marchedIrradiance.a) / (1.0f + falloff * coneDiameter);
         // march the cone
-        t += coneDiameter * samplingFactor;
+        t += max(aVoxelSize, coneDiameter) * samplingFactor;
     }
 
     return vec4(marchedIrradiance.rgb, occlusion);
@@ -148,7 +150,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
 
     // Initial offset, to mitigate self-sampling.
     // The factor will be applied to the voxel size.
-    const float offsetFactor = 1;
+    const float offsetFactor = u_ConeOffsetAlongNormal;
 
     // Sclaing factor
     float k = 1;
@@ -158,7 +160,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
     vec3 startPosition_aabb = position_aabb + normal_aabb * offsetFactor * aVoxelSize;
 
     // t : distance marched along the cone, in world unit
-    float t = 1.0 * aVoxelSize; // Another offset to limit self-sampling
+    float t = u_ConeOffsetAlongAxis * aVoxelSize; // Another offset to limit self-sampling
 
     // ambient occlusion
     float occupancy = 0;

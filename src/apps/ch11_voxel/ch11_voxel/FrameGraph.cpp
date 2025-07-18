@@ -259,6 +259,8 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
     graphics::setUniform(program, "u_ConeMaxDistance", mFrameControl.mConeMaxDistance);
+    graphics::setUniform(program, "u_ConeOffsetAlongNormal", mFrameControl.mConeOffsetAlongNormal);
+    graphics::setUniform(program, "u_ConeOffsetAlongAxis", mFrameControl.mConeOffsetAlongAxis);
     graphics::setUniform(program, "u_TanHalfAperture", toTanHalf(mFrameControl.mDiffuseConeAperture));
     graphics::setUniform(program, "u_TanHalfShadow", toTanHalf(mFrameControl.mShadowConeAperture));
     graphics::setUniform(program, "u_SpecularConeRoughnessFactor", mFrameControl.mSpecularConeRoughnessFactor);
@@ -289,6 +291,8 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());
 
     graphics::setUniform(program, "u_ConeMaxDistance", mFrameControl.mConeMaxDistance);
+    graphics::setUniform(program, "u_ConeOffsetAlongNormal", mFrameControl.mConeOffsetAlongNormal);
+    graphics::setUniform(program, "u_ConeOffsetAlongAxis", mFrameControl.mConeOffsetAlongAxis);
     graphics::setUniform(program, "u_TanHalfAperture", toTanHalf(mFrameControl.mDiffuseConeAperture));
     graphics::setUniform(program, "u_SpecularConeRoughnessFactor", mFrameControl.mSpecularConeRoughnessFactor);
     graphics::setUniform(program, "u_GridAlign", mFrameControl.mGridAlign);
@@ -371,6 +375,8 @@ void FrameGraph::appendUi()
         "Tone Mapping", mFrameControl.mToneMapping);
 
     ImGui::SliderFloat("Cone max distance", &mFrameControl.mConeMaxDistance, 0.1f, 30.0f);
+    ImGui::SliderFloat("Cone normal offset", &mFrameControl.mConeOffsetAlongNormal, 0.f, 5.0f);
+    ImGui::SliderFloat("Cone axis offset", &mFrameControl.mConeOffsetAlongAxis, 0.f, 5.0f);
     ImGui::SliderAngle("Diffuse Cone Aperture", &mFrameControl.mDiffuseConeAperture.data(), 1.f, 180.f);
     ImGui::SliderAngle("Shadow Cone Aperture", &mFrameControl.mShadowConeAperture.data(), 1.f, 180.f);
     ImGui::SliderFloat("Specular Cone roughness factor", &mFrameControl.mSpecularConeRoughnessFactor, 0, 2);
