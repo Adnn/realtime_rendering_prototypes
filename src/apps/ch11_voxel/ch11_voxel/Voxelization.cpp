@@ -152,7 +152,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, mVoxelStore);
 
     // 3D textures
-    const GLenum gImageFormat = GL_RGBA8UI;
+    const GLenum gImageFormat = GL_RGBA8;
     const GLenum gAccessFormat = GL_R32UI;
 
     mAlbedo = prepare3dTexture(gImageFormat, aGridDimension, 1, "voxels_albedo");

@@ -2,8 +2,8 @@
 #define VOXELS_TEXTURES_GLSL_INCLUDE_GUARD
 
 
-uniform usampler3D u_VoxelsAlbedoTexture;
-uniform usampler3D u_VoxelsNormalsTexture;
+uniform sampler3D u_VoxelsAlbedoTexture;
+uniform sampler3D u_VoxelsNormalsTexture;
 uniform sampler3D u_VoxelsIrradianceTexture;
 
 

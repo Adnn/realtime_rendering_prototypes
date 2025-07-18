@@ -87,7 +87,7 @@ uniform bool u_AverageNormalByAxis;
 
 uniform uint u_MaterialIdx;
 
-// * coherent: memory accesses are coherant with similar access from other shader invocations
+// * coherent: memory accesses are coherent with similar access from other shader invocations
 // * volatile (seems to imply coherent): the memory can be read or written during 
 // * restrict: there is no access aliasing (no other image variable access the same data)
 //   shader exection by some other source than the executing shader.

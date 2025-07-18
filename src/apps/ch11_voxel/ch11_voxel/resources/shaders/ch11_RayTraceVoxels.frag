@@ -80,8 +80,7 @@ vec4 fetchColor(ivec3 currentVoxel, bvec3 mask)
             // but this allows to validate the texture() code path
 			vec4 color = vec4(
 				vec3(texture(u_VoxelsAlbedoTexture, vec3(currentVoxel)/ub_GridDimension).rgb)
-					* factorHitFace(mask)
-					/ 255, 
+					* factorHitFace(mask), 
 				1);
 			return correctGamma(color);
 		}
@@ -89,7 +88,6 @@ vec4 fetchColor(ivec3 currentVoxel, bvec3 mask)
 		case CLIENT_VOXEL_MODE_NORMALS:
         {
             vec3 normal = vec3(texelFetch(u_VoxelsNormalsTexture, currentVoxel, 0).rgb);
-			normal /= 255;  // RGBA8UI texture is not-normalized
             // At this point the normal is mapped to [0, 1]^3, which is what we need for display
             // (but they are not normalized)
 			return vec4(normal, 1);
