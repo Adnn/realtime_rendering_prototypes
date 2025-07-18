@@ -413,10 +413,6 @@ void Voxelizer::prepareIrradianceTexture(GLuint aGridDimension)
         glTextureParameteri(mIrradiance, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTextureParameteri(mIrradiance, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
-
-    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,
-                       GL_FALSE, 0,
-                       GL_WRITE_ONLY, gIrradianceFormat);
 }
 
 
@@ -429,6 +425,9 @@ void Voxelizer::injectIrradianceComputePass(GLuint aGridDimension, const FrameGr
     glBindTextureUnit(1, mNormals);
     graphics::setUniform(program, "u_AlbedoTexture", 0);
     graphics::setUniform(program, "u_NormalsTexture", 1);
+    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,
+                       GL_FALSE, 0,
+                       GL_WRITE_ONLY, gIrradianceFormat);
     graphics::setUniform(program, "u_IrradianceImage", gIrradianceImageUnit);
 
     graphics::setUniform(program, "u_VoxelSize", mVoxelSize);
