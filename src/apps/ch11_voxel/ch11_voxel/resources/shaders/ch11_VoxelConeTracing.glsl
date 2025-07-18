@@ -96,6 +96,21 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 
     const ivec3 fragment_grid = ivec3(position_aabb / aVoxelSize);
 
+    //#define ATTEMPT_REDUCE_CORNER_LIGHT_LEAKING
+    #if defined(ATTEMPT_REDUCE_CORNER_LIGHT_LEAKING)
+		// The idea here is to use the starting position sample alpha as pure occlusion:
+        // only use it to increment the marched alpha, do not accumulate marched RGB irradiance.
+        // Sadly, this also reduce intensity a lot where it looks good.
+		vec3 samplePosition_aabb = startPosition_aabb + direction_aabb * t;
+		vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
+		vec4 irradianceSample = textureLod(u_VoxelsIrradianceTexture, position_uvw, 0);
+
+		marchedIrradiance.a = irradianceSample.a;
+		float coneDiameter = 2 * t * tanHalfAngle;
+		t += max(aVoxelSize, coneDiameter) * samplingFactor;
+		occlusion += (marchedIrradiance.a) / (1.0f + falloff * coneDiameter);
+    #endif
+
     while(marchedIrradiance.a < 1.0f && t <= u_ConeMaxDistance)
     {
         float coneDiameter = 2 * t * tanHalfAngle;
