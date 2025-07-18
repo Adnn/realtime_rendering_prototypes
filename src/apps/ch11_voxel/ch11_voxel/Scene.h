@@ -90,8 +90,8 @@ struct Scene
         GLint mMipmapLevel = 0;
         bool mCubeInstances = false;
 
-        bool mShowPunctualLights = false;
-        bool mDrawBoundingBoxes = true;
+        bool mShowPunctualLights = true;
+        bool mDrawBoundingBoxes = false;
         bool mVoxelPov = false;
     };
 
@@ -143,7 +143,7 @@ struct Scene
     unsigned int mObjectsCount = 0;
 
     renderer::LightsDataCommon mLights{
-        .mDirectionalCount = 1,
+        .mDirectionalCount = 0,
         .mPointCount = 1,
         // We decode a sRGB 50% white (which is also perceptually ~50%)
         // to linear space for computation.
@@ -162,12 +162,12 @@ struct Scene
          },
         .mPointLights = {
             renderer::PointLight_glsl{
-                .mPosition = {5.0f, 4.0f, 0.0f},
+                .mPosition = {0.0f, 3.5f, 0.0f},
                 .mRadius{
-                    .mMin = 0.5f,
-                    .mMax = 30.f,
+                    .mMin = 1.0f,
+                    .mMax = 7.f,
                 },
-                .mColors = renderer::LightColors_glsl{} * 20.f,
+                .mColors = renderer::LightColors_glsl{} * 10.f,
             },
             renderer::PointLight_glsl{
                 .mPosition = {+2.f, 3.f, 0.f},
@@ -175,7 +175,7 @@ struct Scene
                     .mMin = 0.2f,
                     .mMax = 5.f,
                 },
-                .mColors = renderer::LightColors_glsl{} * 20.f,
+                .mColors = renderer::LightColors_glsl{} * 10.f,
             },
          },
     };

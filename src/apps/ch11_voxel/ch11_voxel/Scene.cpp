@@ -49,8 +49,13 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza/sponza.obj"}};
 //constexpr float gModelScale = 0.01f;
 
-const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza-gltf/glTF/Sponza.gltf"}};
-constexpr float gModelScale = 1.f;
+//const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza-gltf/glTF/Sponza.gltf"}};
+//constexpr float gModelScale = 1.f;
+
+const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/pica-pica-mini-diorama-01/sketchfab_gltf/scene.gltf"}};
+constexpr float gModelScale = 10.f;
+
+
 
 //const renderer::ReferencePath gModelPaths[] = {
 //    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
