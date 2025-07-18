@@ -5,11 +5,12 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
 
-in vec3 ex_Position_world[];
+in vec3 gi_Position_world[];
 in vec4 gi_Color[];
 in vec2 gi_Uv01[];
 in vec3 gi_Normal_view[];
 
+out vec3 ex_Position_world;
 out vec3 ex_Position_grid;
 
 // usefull for a debug camera fragment shader
@@ -28,11 +29,11 @@ void main(void)
 	for(uint idx = 0; idx != 3; ++idx)
 	{
 		vec3 triangleNormal = 
-			cross(ex_Position_world[1] - ex_Position_world[0],
-				  ex_Position_world[2] - ex_Position_world[0]);
+			cross(gi_Position_world[1] - gi_Position_world[0],
+				  gi_Position_world[2] - gi_Position_world[0]);
 
 		// Position the camera in the center of the voxelized volume
-		vec3 position_view = ex_Position_world[idx] + u_CameraOffset;
+		vec3 position_view = gi_Position_world[idx] + u_CameraOffset;
 
 		// Map the position to the voxel grid
 		ex_Position_grid = position_view * u_CameraScale;
@@ -67,6 +68,7 @@ void main(void)
 
 		// With the dominant axis along Z, scale the voxelized volume to clip space
 		gl_Position = vec4(position_view * u_CameraScale, 1);
+		ex_Position_world = gi_Position_world[idx];
 		ex_Position_view = position_view.xyz;
 
 		ex_Normal_world = normalize(triangleNormal);

@@ -158,22 +158,26 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
     mAlbedo = prepare3dTexture(gImageFormat, aGridDimension, 1, "voxels_albedo");
     mNormals = prepare3dTexture(gImageFormat, aGridDimension, 1, "voxels_normal");
 
-    // The image binding is not layered (GL_FALSE), and the texture does not have array layers:
-    // layer parameter must be 0
-    glBindImageTexture(gAlbedoImageUnit, mAlbedo,  0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
-    glBindImageTexture(gNormalImageUnit, mNormals, 0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
-
     glViewport(0, 0, aGridDimension, aGridDimension);
 
     const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisProgram;
+
     graphics::setUniform(program, "u_CameraOffset", camOffset);
     graphics::setUniform(program, "u_CameraScale", camScale);
     graphics::setUniform(program, "u_ConservativeDepthRange", mControl.mConservativeDepthRange);
     graphics::setUniform(program, "u_AverageSamples", mControl.mAverageSamples);
     graphics::setUniform(program, "u_AverageNormalByAxis", mControl.mAverageNormalByAxis);
+    graphics::setUniform(program, "u_SeparateLightInjectionPass", mControl.mSeparateLightInjectionPass);
+
+    // The image binding is not layered (GL_FALSE), and the texture does not have array layers:
+    // layer parameter must be 0
+    glBindImageTexture(gAlbedoImageUnit, mAlbedo,  0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
+    glBindImageTexture(gNormalImageUnit, mNormals, 0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
+    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0, GL_FALSE, 0, GL_READ_WRITE, gAccessFormat);
 
     graphics::setUniform(program, "u_AlbedoImage", gAlbedoImageUnit);
     graphics::setUniform(program, "u_NormalsImage", gNormalImageUnit);
+    graphics::setUniform(program, "u_IrradianceImage", gIrradianceImageUnit);
 
     // Disable all operations on the Framebuffer
     glDisable(GL_DEPTH_TEST);
@@ -397,7 +401,7 @@ void Voxelizer::mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
 }
 
 
-void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGraph)
+void Voxelizer::prepareIrradianceTexture(GLuint aGridDimension)
 {
     mIrradiance = prepare3dTexture(gIrradianceFormat,
                                    aGridDimension,
@@ -411,9 +415,13 @@ void Voxelizer::injectIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
     }
 
     glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,
-                       GL_FALSE, 0, 
+                       GL_FALSE, 0,
                        GL_WRITE_ONLY, gIrradianceFormat);
+}
 
+
+void Voxelizer::injectIrradianceComputePass(GLuint aGridDimension, const FrameGraph & aGraph)
+{
     const auto & program = aGraph.mPrograms.mInjectIrradianceProgram;
     glUseProgram(program);
 

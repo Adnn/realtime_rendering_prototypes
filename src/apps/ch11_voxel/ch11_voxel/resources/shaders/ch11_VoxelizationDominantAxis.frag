@@ -8,8 +8,9 @@
 #include "ch11_VoxelsSsbo.glsl"
 
 #include "shaders/Helpers.glsl"
+#include "shaders/LightsBlock.glsl"
+#include "shaders/LightUtilities.glsl"
 #include "shaders/MaterialGenericBlock.glsl"
-
 
 /// See: Crassin, Cyril, and Simon Green. “Octree-Based Sparse Voxelization Using the GPU Hardware Rasterizer.” In OpenGL Insights, edited by Patrick Cozzi and Christophe Riccio, 303–20. A K Peters/CRC Press, 2012.
 /// Listing 22.2
@@ -70,6 +71,7 @@ void imageAtomicRGBA8Avg(layout(r32ui) volatile coherent restrict uimage3D grid,
 }
 
 
+in vec3 ex_Position_world;
 in vec3 ex_Position_grid;
 in vec4 ex_Color;
 in vec3 ex_Normal_world;
@@ -84,6 +86,7 @@ uniform uint u_NormalUvChannel;
 uniform bool u_ConservativeDepthRange;
 uniform bool u_AverageSamples = true;
 uniform bool u_AverageNormalByAxis;
+uniform bool u_SeparateLightInjectionPass;
 
 uniform uint u_MaterialIdx;
 
@@ -93,9 +96,70 @@ uniform uint u_MaterialIdx;
 //   shader exection by some other source than the executing shader.
 layout(r32ui) uniform coherent volatile restrict uimage3D u_AlbedoImage;
 layout(r32ui) uniform coherent volatile restrict uimage3D u_NormalsImage;
+layout(r32ui) uniform coherent volatile restrict uimage3D u_IrradianceImage;
 
 
-void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo, vec3 aNormal)
+// TODO: visibility
+
+vec3 injectDirectLight(vec3 aShadingNormal, vec3 aLightDir, LightColors aColors)
+{
+	float nDotL = dotPlus(aShadingNormal, aLightDir);
+    return nDotL * aColors.diffuse.rgb;
+}
+
+
+vec3 doLight(vec3 aFragmentPos_world, vec3 aNormal_world, vec3 aAlbedo)
+{
+	vec3 irradiance = vec3(0);
+
+    //
+    // Directional
+    //
+    for(uint directionalIdx = 0;
+        directionalIdx != ub_DirectionalCount.x;
+        ++directionalIdx)
+    {
+        DirectionalLight directional = ub_DirectionalLights[directionalIdx];
+        //vec3 lightDir_view = -ub_Directions_view[directionalIdx].xyz;
+        vec3 lightDir_world = -directional.direction.xyz;
+
+        irradiance += 
+			//getVisibility(entry_grid, lightDir_world, getFullAabbBounds()) * 
+            injectDirectLight(aNormal_world, lightDir_world, directional.colors)
+            ;
+    }
+
+    //
+    // Point
+    //
+	for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
+    {
+        PointLight point = ub_PointLights[pointIdx];
+        vec3 lightPos_world = point.position.xyz;
+
+        vec3 lightRay_world = lightPos_world - aFragmentPos_world;
+        float r = sqrt(dot(lightRay_world, lightRay_world));
+        vec3 lightDir_world = lightRay_world / r;
+
+        float falloff = attenuatePoint(point, r);
+
+        irradiance += 
+            falloff *
+			//getVisibility(entry_grid, lightDir_world, bounds) *
+            injectDirectLight(aNormal_world, lightDir_world, point.colors)
+            ;
+    }
+
+    // Add ambient contribution
+    irradiance += ub_AmbientColor.rgb;
+    // Apply the voxel albedo to accumulated irradiance from all light sources
+    irradiance *= aAlbedo;
+
+	return irradiance;
+}
+
+
+void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo, vec3 aNormal, vec3 aFragmentIrradiance)
 {
 	markOccupiedAtomic(aGridCoordinate);
 
@@ -133,6 +197,11 @@ void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo, vec3 aNormal)
 		// See cumulative average implementation
 		vec4 normalSample = vec4(remappedNormal, 1);
 		imageAtomicRGBA8Avg(u_NormalsImage, aGridCoordinate, normalSample);
+		if(!u_SeparateLightInjectionPass)
+		{
+			vec4 irradianceSample = vec4(aFragmentIrradiance, 1);
+			imageAtomicRGBA8Avg(u_IrradianceImage, aGridCoordinate, irradianceSample);
+		}
 	}
 	else
 	{
@@ -144,6 +213,13 @@ void recordVoxel(ivec3 aGridCoordinate, vec4 unmultipliedAlbedo, vec3 aNormal)
 			u_NormalsImage, 
 			aGridCoordinate, 
 			convVec4ToRGBA8(vec4(remappedNormal, 0) * 255));
+		if(!u_SeparateLightInjectionPass)
+		{
+			imageAtomicExchange(
+				u_IrradianceImage, 
+				aGridCoordinate, 
+				convVec4ToRGBA8(vec4(aFragmentIrradiance, 1) * 255));
+		}
 	}
 }
 
@@ -170,6 +246,9 @@ void main(void)
 	}
 
 	vec3 normal = normalize(ex_Normal_world);
+	vec3 irradiance = 
+		u_SeparateLightInjectionPass ?
+		vec3(0) : doLight(ex_Position_world, normal, albedo.rgb);
 
 	if(u_ConservativeDepthRange)
 	{
@@ -187,13 +266,13 @@ void main(void)
 		for (int z = int(zMin); z <= int(zMax); ++z)
 		{
 			// Truncate the floats toward zero (equivalent to floor() on Z+)
-			recordVoxel(ivec3(ivec2(ex_Position_grid.xy), z), albedo, normal);
+			recordVoxel(ivec3(ivec2(ex_Position_grid.xy), z), albedo, normal, irradiance);
 		}
 	}
 	else
 	{
 		// Truncates toward zero, as needed (equivalent to floor in Z+)
 		ivec3 voxel = ivec3(ex_Position_grid);
-		recordVoxel(voxel, albedo, normal);
+		recordVoxel(voxel, albedo, normal, irradiance);
 	}
 }

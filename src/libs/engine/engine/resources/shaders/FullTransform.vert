@@ -38,6 +38,7 @@ layout(location=5) in vec2 ve_Uv01;
 out vec4 ex_Color;
 out vec4 gi_Color;
 out vec3 ex_Position_world;
+out vec3 gi_Position_world;
 out vec3 ex_Normal_world;
 out vec3 ex_Position_view;
 out vec3 ex_Normal_view;
@@ -74,6 +75,7 @@ void main(void)
 
     vec4 position_world = getModelTransform() * vec4(ve_Position, 1.);
     ex_Position_world = position_world.xyz;
+    gi_Position_world = ex_Position_world;
     vec4 position_view = ub_worldToCamera * position_world;
     ex_Position_view = position_view.xyz;
 

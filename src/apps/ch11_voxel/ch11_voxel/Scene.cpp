@@ -198,6 +198,9 @@ void Scene::voxelize()
     // Note: should be called directly in the voxelize() function(s)
     mVoxelizer.recordSceneAabb(mSceneTree, gGridDimension);
 
+    // We could be injecting the irradiance directly in the voxelization pass or a separate compute pass
+    mVoxelizer.prepareIrradianceTexture(gGridDimension);
+
     mVoxelizer.mControl.mCpuReadVoxels = mSceneControl.mCubeInstances;
 
     if (mVoxelizer.mControl.mUseDominantAxis)
@@ -215,9 +218,11 @@ void Scene::voxelize()
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-    mVoxelizer.injectIrradiance(gGridDimension, mGraph);
-
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    if (mVoxelizer.mControl.mSeparateLightInjectionPass)
+    {
+        mVoxelizer.injectIrradianceComputePass(gGridDimension, mGraph);
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    }
 
     mVoxelizer.prepareMipmap(gGridDimension, mGraph);
 
@@ -583,6 +588,7 @@ void Scene::presentUi(bool * aOpen)
     if (ImGui::CollapsingHeader("Voxelization"))
     {
         mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
+        mVoxelizationRequest |= ImGui::Checkbox("Separate compute light injection", &mVoxelizer.mControl.mSeparateLightInjectionPass);
         mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
         mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
         mVoxelizationRequest |= ImGui::Checkbox("Average Samples in Voxel", &mVoxelizer.mControl.mAverageSamples);
