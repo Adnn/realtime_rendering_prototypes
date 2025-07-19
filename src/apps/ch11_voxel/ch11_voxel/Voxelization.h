@@ -74,6 +74,8 @@ struct Voxelizer
 
     void injectIrradianceComputePass(GLuint aGridDimension, const FrameGraph & aGraph);
 
+    void fixupIrradianceAlphaComputePass(GLuint aGridDimension, const FrameGraph & aGraph);
+
     Guard guardConservativeRasterization();
 
     void recordSceneAabb(const scenic::SceneTree & aScene, GLuint aGridDimension);

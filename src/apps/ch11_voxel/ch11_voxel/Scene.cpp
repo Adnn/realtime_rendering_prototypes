@@ -221,8 +221,12 @@ void Scene::voxelize()
     if (mVoxelizer.mControl.mSeparateLightInjectionPass)
     {
         mVoxelizer.injectIrradianceComputePass(gGridDimension, mGraph);
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     }
+    else
+    {
+        mVoxelizer.fixupIrradianceAlphaComputePass(gGridDimension, mGraph);
+    }
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
     mVoxelizer.prepareMipmap(gGridDimension, mGraph);
 
@@ -254,7 +258,6 @@ void Scene::step(const graphics::Timer & aTimer,
     auto lights_cam =
         transformLightsData(mLights, mOrbitalCamera.mCamera.getParentToCamera());
     graphics::loadSingle(mLightsBlockBuffer, lights_cam, graphics::BufferHint::StreamDraw);
-
 
     //
     // Entities

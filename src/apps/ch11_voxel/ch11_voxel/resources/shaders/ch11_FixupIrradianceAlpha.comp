@@ -1,0 +1,33 @@
+#version 460
+
+
+#include "ch11_VoxelsSsbo.glsl"
+
+
+// TODO: profile different workgroup geometries
+// Maybe something more x oriented might be better for cache coherency
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+
+layout(rgba8) uniform restrict image3D u_IrradianceImage;
+
+
+void main()
+{
+    if(any(greaterThanEqual(gl_GlobalInvocationID, uvec3(ub_GridDimension))))
+    {
+        return;
+    }
+
+    ivec3 voxelCoord = ivec3(gl_GlobalInvocationID);
+
+    // Note: At the level 0 (i.e. this level of the irradiance 3D texture)
+    // the occupancy (in alpha) is set to 1: the voxel is considered entirely occupied.
+    vec4 value = imageLoad(u_IrradianceImage, voxelCoord);
+    if (value.a == 0)
+    {
+        return; // non-occupied
+    }
+
+    imageStore(u_IrradianceImage, voxelCoord, vec4(value.rgb, 1));
+}

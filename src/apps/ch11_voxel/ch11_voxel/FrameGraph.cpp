@@ -45,6 +45,7 @@ namespace ad {
 
         const renderer::ReferencePath gInjectIrradianceProgramPath{"programs/ch11_InjectIrradiance.prog"};
         const renderer::ReferencePath gFilterIrradianceProgramPath{"programs/ch11_FilterIrradiance.prog"};
+        const renderer::ReferencePath gFixupIrradianceAlphaProgramPath{"programs/ch11_FixupIrradianceAlpha.prog"};
 
         const GLsizei gShadowMapSize = 2048;
 
@@ -143,7 +144,8 @@ FrameGraph::ProgramStore::ProgramStore(Engine & aEngine) :
     mVoxelizationViewProgram{ aEngine.loadProgram(gVoxelizationViewProgram) },
     mVoxelizationDominantAxisViewProgram{ aEngine.loadProgram(gVoxelizationDominantAxisViewProgram) },
     mInjectIrradianceProgram{ aEngine.loadProgram(gInjectIrradianceProgramPath) },
-    mFilterIrradianceProgram{ aEngine.loadProgram(gFilterIrradianceProgramPath) }
+    mFilterIrradianceProgram{ aEngine.loadProgram(gFilterIrradianceProgramPath) },
+    mFixupIrradianceAlphaProgram{ aEngine.loadProgram(gFixupIrradianceAlphaProgramPath) }
 {}
 
 

@@ -441,4 +441,21 @@ void Voxelizer::injectIrradianceComputePass(GLuint aGridDimension, const FrameGr
 }
 
 
+void Voxelizer::fixupIrradianceAlphaComputePass(GLuint aGridDimension, const FrameGraph & aGraph)
+{
+    const auto & program = aGraph.mPrograms.mFixupIrradianceAlphaProgram;
+    glUseProgram(program);
+
+    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,
+                       GL_FALSE, 0,
+                       GL_READ_WRITE, gIrradianceFormat);
+    graphics::setUniform(program, "u_IrradianceImage", gIrradianceImageUnit);
+
+    const math::Vec<3, GLuint> totalInvocations{aGridDimension, aGridDimension, aGridDimension};
+    math::Vec<3, GLuint> numWorkgroups = totalInvocations.cwDiv(gWorkgroupSize);
+
+    glDispatchCompute(numWorkgroups.x(), numWorkgroups.y(), numWorkgroups.z());
+}
+
+
 } // namespace ad
