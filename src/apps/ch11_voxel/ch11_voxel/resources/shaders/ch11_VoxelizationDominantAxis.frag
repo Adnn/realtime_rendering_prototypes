@@ -172,7 +172,8 @@ vec3 doLight(vec3 aFragmentPos_world, vec3 aNormal_world, vec3 aAlbedo)
     // Apply the voxel albedo to accumulated irradiance from all light sources
     irradiance *= aAlbedo;
 
-	return irradiance;
+	// Here, the explicit intent is to store into an RGBA8, so we clamp components to 1
+	return min(vec3(1), irradiance);
 }
 
 
