@@ -5,6 +5,7 @@
 #extension GL_ARB_shader_image_load_store : require
 
 
+#include "ch11_Shadow.glsl"
 #include "ch11_VoxelsSsbo.glsl"
 
 #include "shaders/Helpers.glsl"
@@ -99,8 +100,6 @@ layout(r32ui) uniform coherent volatile restrict uimage3D u_NormalsImage;
 layout(r32ui) uniform coherent volatile restrict uimage3D u_IrradianceImage;
 
 
-// TODO: visibility
-
 vec3 injectDirectLight(vec3 aShadingNormal, vec3 aLightDir, LightColors aColors)
 {
 	float nDotL = dotPlus(aShadingNormal, aLightDir);
@@ -123,8 +122,17 @@ vec3 doLight(vec3 aFragmentPos_world, vec3 aNormal_world, vec3 aAlbedo)
         //vec3 lightDir_view = -ub_Directions_view[directionalIdx].xyz;
         vec3 lightDir_world = -directional.direction.xyz;
 
+		float visibility = 1;
+		#if defined(SHADOW_MAPPING)
+			if(directionalIdx < MAX_SHADOW_LIGHTS)
+			{
+				visibility = 
+					getShadowAttenuationDirectionalLighting(directionalIdx);
+			}
+		#endif // SHADOW_MAPPING
+
         irradiance += 
-			//getVisibility(entry_grid, lightDir_world, getFullAabbBounds()) * 
+			visibility *	
             injectDirectLight(aNormal_world, lightDir_world, directional.colors)
             ;
     }
@@ -143,9 +151,18 @@ vec3 doLight(vec3 aFragmentPos_world, vec3 aNormal_world, vec3 aAlbedo)
 
         float falloff = attenuatePoint(point, r);
 
+		float visibility = 1;
+		#if defined(SHADOW_MAPPING)
+			if(pointIdx < MAX_SHADOW_LIGHTS)
+			{
+				visibility = 
+					getShadowAttenuationPointLighting(pointIdx, aFragmentPos_world);
+			}
+		#endif // SHADOW_MAPPING
+
         irradiance += 
             falloff *
-			//getVisibility(entry_grid, lightDir_world, bounds) *
+			visibility *
             injectDirectLight(aNormal_world, lightDir_world, point.colors)
             ;
     }

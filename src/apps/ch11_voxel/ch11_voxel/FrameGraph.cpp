@@ -242,15 +242,25 @@ GLfloat toTanHalf(math::Radian<GLfloat> aAngle)
     return math::tan(aAngle / 2.f);
 }
 
+void FrameGraph::setupShadowUniforms(const graphics::Program & aProgram) const
+{
+    glBindTextureUnit(6, mShadowMap);
+    graphics::setUniform(aProgram, "u_ShadowMap", 6);
+    glBindTextureUnit(7, mOmniShadowMap);
+    graphics::setUniform(aProgram, "u_OmniShadowMap", 7);
+
+    graphics::setUniform(aProgram, "u_ShadowCubeNearDistance", gShadowCubeNearDistance);
+    graphics::setUniform(aProgram, "u_ShadowCubeFarDistance", gShadowCubeFarDistance);
+}
+
+
 void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
                                   Voxelizer & aVoxelizer)
 {
     const auto & program = mPrograms.mPbr;
 
-    glBindTextureUnit(6, mShadowMap);
-    graphics::setUniform(program, "u_ShadowMap", 6);
-    glBindTextureUnit(7, mOmniShadowMap);
-    graphics::setUniform(program, "u_OmniShadowMap", 7);
+    setupShadowUniforms(program);
+
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
 
@@ -269,9 +279,6 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
 
     graphics::setUniform(program, "u_ToneMapping", (GLuint)mFrameControl.mToneMapping);
     graphics::setUniform(program, "u_ShadowMethod", (GLuint)mFrameControl.mFinalSceneShadow);
-
-    graphics::setUniform(program, "u_ShadowCubeNearDistance", gShadowCubeNearDistance);
-    graphics::setUniform(program, "u_ShadowCubeFarDistance", gShadowCubeFarDistance);
 
     graphics::setUniform(program, "u_SplitSumIndirectSpecular", mFrameControl.mSplitSumIndirectSpecular);
 

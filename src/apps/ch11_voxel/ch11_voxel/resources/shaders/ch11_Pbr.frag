@@ -393,10 +393,12 @@ void main(void)
                 viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
                 pbrParameters, point.colors);
 
-        if(pointIdx < MAX_SHADOW_LIGHTS)
-        {
-			applyShadowToPointLighting(lighting, pointIdx, ex_Position_world);
-		}
+		#if defined(SHADOW_MAPPING)
+			if(pointIdx < MAX_SHADOW_LIGHTS)
+			{
+				applyShadowToPointLighting(lighting, pointIdx, ex_Position_world);
+			}
+		#endif // SHADOW_MAPPING
 
         float falloff = attenuatePoint(point, radius);
         diffuseAccum  += lighting.diffuse  * falloff;

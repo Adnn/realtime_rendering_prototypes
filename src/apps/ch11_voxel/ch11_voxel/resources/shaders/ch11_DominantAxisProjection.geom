@@ -9,6 +9,11 @@ in vec3 gi_Position_world[];
 in vec4 gi_Color[];
 in vec2 gi_Uv01[];
 in vec3 gi_Normal_view[];
+#if defined(SHADOW_MAPPING)
+	#include "shaders/LightViewProjectionBlock.glsl"
+	in VertexProjection gi_Position_lightTex[];
+	out VertexProjection ex_Position_lightTex;
+#endif //SHADOW_MAPPING
 
 out vec3 ex_Position_world;
 out vec3 ex_Position_grid;
@@ -77,6 +82,15 @@ void main(void)
 		// TODO: this is non-sense, it should forward the actual value
 		// but we have a naming clash
 		ex_Uv01 = gi_Uv01[idx];
+
+
+		#if defined(SHADOW_MAPPING)
+			for(uint lightIdx = 0; lightIdx != ub_LightViewProjectionCount; ++lightIdx)
+			{
+				ex_Position_lightTex.position[lightIdx] =
+					gi_Position_lightTex[idx].position[lightIdx];
+			}
+		#endif //SHADOW_MAPPING
 
 		EmitVertex();
 	}

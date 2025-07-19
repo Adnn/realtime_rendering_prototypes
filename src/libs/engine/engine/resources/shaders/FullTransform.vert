@@ -26,7 +26,8 @@ layout(location=5) in vec2 ve_Uv01;
 
 #if defined(SHADOW_MAPPING)
 	#include "LightViewProjectionBlock.glsl"
-	out vec3[MAX_SHADOW_MAPS] ex_Position_lightTex;
+	out VertexProjection ex_Position_lightTex;
+	out VertexProjection gi_Position_lightTex;
 #endif //SHADOW_MAPPING
 
 // Output interpolated for fragment shader
@@ -87,8 +88,9 @@ void main(void)
             // We apply the perspective divide to get to NDC, and remap from [-1, 1]^3 to [0, 1]^3.
             // Note: even the depth (z) is remapped to [0, 1], because the viewport transformation
             // did it for the depth values stored in the shadow map.
-            ex_Position_lightTex[lightIdx] = 
+            ex_Position_lightTex.position[lightIdx] = 
                 (position_lightClip.xyz / position_lightClip.w + 1.) / 2.;
+			gi_Position_lightTex.position[lightIdx] = ex_Position_lightTex.position[lightIdx];
         }
     #endif //SHADOW_MAPPING
 

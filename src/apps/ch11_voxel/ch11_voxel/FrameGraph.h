@@ -81,6 +81,8 @@ struct FrameGraph
 
     void resizeFrame(math::Size<2, int> aRenderResolution);
 
+    void setupShadowUniforms(const graphics::Program & aProgram) const;
+
     void renderFinalScene(const scenic::SceneTree & aSceneTree,
                           Voxelizer & aVoxelizer);
 

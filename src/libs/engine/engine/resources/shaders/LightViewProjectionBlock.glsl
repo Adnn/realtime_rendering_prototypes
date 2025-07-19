@@ -4,6 +4,12 @@
 
 #include "Constants.glsl"
 
+struct VertexProjection
+{
+	vec3 position[MAX_SHADOW_MAPS];
+};
+
+
 layout(std140, binding = 5) uniform LightViewProjectionBlock
 {
     uint ub_LightViewProjectionCount;

@@ -278,6 +278,13 @@ void Scene::step(const graphics::Timer & aTimer,
     // Must be loaded before voxelization
     loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
+    //
+    // Shadow maps
+    // 
+
+    // TODO: limit to when light change
+    mShadow.renderShadowMaps(mSceneTree, mLights, mGraph);
+
 
     if(mVoxelizationRequest)
     {
@@ -363,12 +370,6 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
 
 void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
 {
-    //
-    // Shadow maps
-    // 
-
-    // TODO: limit to when light change
-    mShadow.renderShadowMaps(mSceneTree, mLights, mGraph);
 
     //
     // Frame rendering

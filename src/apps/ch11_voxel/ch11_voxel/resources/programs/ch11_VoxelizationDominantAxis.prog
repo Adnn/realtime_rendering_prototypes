@@ -2,5 +2,5 @@
     "vertex": "shaders/FullTransform.vert",
     "geometry": "shaders/ch11_DominantAxisProjection.geom",
     "fragment": "shaders/ch11_VoxelizationDominantAxis.frag",
-    "defines":  ["ENTITIES"]
+    "defines":  ["ENTITIES", "SHADOW_MAPPING"]
 }

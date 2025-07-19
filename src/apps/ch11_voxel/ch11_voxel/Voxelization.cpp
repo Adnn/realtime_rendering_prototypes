@@ -179,6 +179,11 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
     graphics::setUniform(program, "u_NormalsImage", gNormalImageUnit);
     graphics::setUniform(program, "u_IrradianceImage", gIrradianceImageUnit);
 
+    if (!mControl.mSeparateLightInjectionPass)
+    {
+        aGraph.setupShadowUniforms(program);
+    }
+
     // Disable all operations on the Framebuffer
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
