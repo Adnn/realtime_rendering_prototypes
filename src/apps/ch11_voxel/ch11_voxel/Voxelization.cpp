@@ -17,8 +17,11 @@ namespace {
 
 constexpr GLint gAlbedoImageUnit = 0;
 constexpr GLint gNormalImageUnit = 1;
-constexpr GLint gIrradianceImageUnit = 2;
-constexpr GLint gIrradianceMipmapImageUnit = 3;
+// Must be able to co-exist with 6 aniso mipmap images
+constexpr GLint gIrradianceImageUnit = 6;
+// Must be less than 3, because we might map 6 aniso images
+// and max image units might be as low as 8
+constexpr GLint gIrradianceMipmapImageUnit = 0;
 // TODO: synchronize with compute shader
 constexpr math::Vec<3, GLuint> gWorkgroupSize{8u, 8u, 8u};
 constexpr GLenum gIrradianceFormat = GL_RGBA8;
@@ -358,7 +361,17 @@ void Voxelizer::prepareMipmap(GLuint aGridDimension, const FrameGraph & aGraph)
 {
     if (mControl.mComputeIrradianceMipmapping)
     {
-        mipmapIrradiance(aGridDimension, aGraph);
+        if (mControl.mAnisotropicIrradianceMipmapping)
+        {
+            // NOTE: we do the isotropic mipmapping in all cases,
+            // because we use it for raytracing intersection test at all miplevels
+            mipmapIrradiance(aGridDimension, aGraph);
+            mipmapAnisotropicIrradiance(aGridDimension, aGraph);
+        }
+        else
+        {
+            mipmapIrradiance(aGridDimension, aGraph);
+        }
     }
     else
     {
@@ -406,17 +419,79 @@ void Voxelizer::mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
 }
 
 
+void Voxelizer::mipmapAnisotropicIrradiance(GLuint aGridDimension,
+                                            const FrameGraph & aGraph)
+{
+    const auto & program = aGraph.mPrograms.mFilterIrradianceAnisoBaseProgram;
+    glUseProgram(program);
+
+    graphics::setUniform(program, "u_IrradianceSourceImage", gIrradianceImageUnit);
+    graphics::setUniform(program, "u_IrradianceDestinationImage", gIrradianceMipmapImageUnit);
+
+    // TODO: consolidate with the other calls
+    GLsizei levels = 
+        graphics::countCompleteMipmaps({(int)aGridDimension, (int)aGridDimension});
+
+    math::Vec<3, GLuint> destinationDimension{aGridDimension, aGridDimension, aGridDimension};
+    
+    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,
+                       GL_FALSE, 0, 
+                       GL_READ_ONLY, gIrradianceFormat);
+    GLint sourceLevel = 0;
+    for (int i = 0; i != 6; ++i)
+    {
+        glBindImageTexture(gIrradianceMipmapImageUnit + i, mIrradianceAnisoMipmaps[i], sourceLevel,
+                           GL_FALSE, 0,
+                           GL_WRITE_ONLY, gIrradianceFormat);
+    }
+
+    destinationDimension /= 2;
+    // Note: There is something shady with GLSL imageSize, giving me very inconsistent results
+    // (and a quick search shows an anormal volume of forum complaints)
+    graphics::setUniform(program, "u_DestinationDimension", destinationDimension);
+
+    math::Vec<3, GLfloat> numWorkgroups =
+        destinationDimension.as<math::Vec, GLfloat>().cwDiv(gWorkgroupSize.as<math::Vec, GLfloat>());
+
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glDispatchCompute(std::ceil(numWorkgroups.x()),
+                      std::ceil(numWorkgroups.y()),
+                      std::ceil(numWorkgroups.z()));
+}
+
 void Voxelizer::prepareIrradianceTexture(GLuint aGridDimension)
 {
+    GLsizei totalLevels =
+        graphics::countCompleteMipmaps({(int)aGridDimension, (int)aGridDimension});
+    // Level 0 + isotropic mipmaps
     mIrradiance = prepare3dTexture(gIrradianceFormat,
                                    aGridDimension,
-                                   graphics::countCompleteMipmaps({(int)aGridDimension, (int)aGridDimension}),
+                                   totalLevels,
                                    "voxels_irradiance");
 
     if (mControl.mLinearFiltering)
     {
         glTextureParameteri(mIrradiance, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTextureParameteri(mIrradiance, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    // Anisotropic mipmaps
+    mIrradianceAnisoMipmaps.clear();
+    mIrradianceAnisoMipmaps.reserve(6);
+    for (unsigned int i = 0; i != 6; ++i)
+    {
+        mIrradianceAnisoMipmaps.push_back(
+            prepare3dTexture(gIrradianceFormat,
+                             aGridDimension / 2,
+                             totalLevels - 1,
+                             ("voxels_irradiance_aniso_" + std::to_string(i)).c_str()));
+
+        auto & irradiance = mIrradianceAnisoMipmaps.back();
+        if (mControl.mLinearFiltering)
+        {
+            glTextureParameteri(irradiance, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTextureParameteri(irradiance, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
     }
 }
 

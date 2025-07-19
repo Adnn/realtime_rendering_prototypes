@@ -22,6 +22,7 @@ uniform ivec2 u_FramebufferSize;
 uniform vec2 u_ImagePlane_view;
 uniform uint u_VoxelMode;
 uniform int u_VoxelMipmapLevel;
+uniform bool u_AnisotropicIrradianceMipmaps;
 
 const uniform vec4 u_MissColor = vec4(0.3, 0, 0, 1);
 
@@ -99,10 +100,18 @@ vec4 fetchColor(ivec3 currentVoxel, bvec3 mask)
 
 		case CLIENT_VOXEL_MODE_IRRADIANCE:
         {
-			vec4 color = vec4(
-				vec3(texelFetch(u_VoxelsIrradianceTexture, currentVoxel, u_VoxelMipmapLevel).rgb) 
-					    * factorHitFace(mask),
-				     1);
+            vec4 value;
+            if(u_AnisotropicIrradianceMipmaps && (u_VoxelMipmapLevel > 0))
+            {
+				value = texelFetch(u_VoxelsIrradianceAnisoMipmap, currentVoxel, u_VoxelMipmapLevel - 1);
+            }
+            else
+            {
+				value = texelFetch(u_VoxelsIrradianceTexture, currentVoxel, u_VoxelMipmapLevel);
+            }
+
+			vec4 color = vec4(vec3(value.rgb) * factorHitFace(mask),
+				              1);
 			return correctGamma(color);
 		}
 	}

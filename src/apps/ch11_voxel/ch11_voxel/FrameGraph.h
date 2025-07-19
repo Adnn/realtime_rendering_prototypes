@@ -127,6 +127,7 @@ struct FrameGraph
 
         renderer::IntrospectProgram mInjectIrradianceProgram;
         renderer::IntrospectProgram mFilterIrradianceProgram;
+        renderer::IntrospectProgram mFilterIrradianceAnisoBaseProgram;
         renderer::IntrospectProgram mFixupIrradianceAlphaProgram;
     };
 

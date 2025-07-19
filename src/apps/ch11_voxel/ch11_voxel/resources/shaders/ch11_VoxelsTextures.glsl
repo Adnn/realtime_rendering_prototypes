@@ -5,6 +5,7 @@
 uniform sampler3D u_VoxelsAlbedoTexture;
 uniform sampler3D u_VoxelsNormalsTexture;
 uniform sampler3D u_VoxelsIrradianceTexture;
+uniform sampler3D u_VoxelsIrradianceAnisoMipmap;
 
 
 bool isTextureOccupied(ivec3 aVoxel, int aLevel, uint aVoxelMode)

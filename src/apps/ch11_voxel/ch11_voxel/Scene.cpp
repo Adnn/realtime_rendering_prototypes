@@ -453,11 +453,15 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             graphics::setUniform(program, "u_VoxelsNormalsTexture", 1);
             glBindTextureUnit(2, mVoxelizer.mIrradiance);
             graphics::setUniform(program, "u_VoxelsIrradianceTexture", 2);
+            glBindTextureUnit(3, mVoxelizer.mIrradianceAnisoMipmaps[0]);
+            graphics::setUniform(program, "u_VoxelsIrradianceAnisoMipmap", 3);
 
             graphics::setUniform(program, "u_VoxelMode",
                                  static_cast<GLuint>(mSceneControl.mMode));
             graphics::setUniform(program, "u_VoxelMipmapLevel",
                                  mSceneControl.mMipmapLevel);
+            graphics::setUniform(program, "u_AnisotropicIrradianceMipmaps",
+                                 mVoxelizer.mControl.mAnisotropicIrradianceMipmapping);
 
             glEnable(GL_DEPTH_TEST);
             glDepthMask(GL_TRUE);
@@ -593,6 +597,7 @@ void Scene::presentUi(bool * aOpen)
     {
         mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
         mVoxelizationRequest |= ImGui::Checkbox("Separate compute light injection", &mVoxelizer.mControl.mSeparateLightInjectionPass);
+        mVoxelizationRequest |= ImGui::Checkbox("Anisotropic irradiance mipmaps", &mVoxelizer.mControl.mAnisotropicIrradianceMipmapping);
         mVoxelizationRequest |= ImGui::Checkbox("Conservative Rasterization", &mVoxelizer.mControl.mConservativeRasterization);
         mVoxelizationRequest |= ImGui::Checkbox("Conservative Depth Range", &mVoxelizer.mControl.mConservativeDepthRange);
         mVoxelizationRequest |= ImGui::Checkbox("Average Samples in Voxel", &mVoxelizer.mControl.mAverageSamples);

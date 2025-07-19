@@ -44,6 +44,7 @@ struct Voxelizer
         bool mAverageSamples = true;
         bool mAverageNormalByAxis = false;
         bool mSeparateLightInjectionPass = false;
+        bool mAnisotropicIrradianceMipmapping = true;
         // Not intended for GUI, but internal value updated depending on the usage context
         bool mCpuReadVoxels = false;
         bool mLinearFiltering = true;
@@ -70,6 +71,8 @@ struct Voxelizer
 
     void mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGraph);
 
+    void mipmapAnisotropicIrradiance(GLuint aGridDimension, const FrameGraph & aGraph);
+
     void prepareIrradianceTexture(GLuint aGridDimension);
 
     void injectIrradianceComputePass(GLuint aGridDimension, const FrameGraph & aGraph);
@@ -88,6 +91,7 @@ struct Voxelizer
     graphics::Texture mAlbedo{GL_TEXTURE_3D};
     graphics::Texture mNormals{GL_TEXTURE_3D};
     graphics::Texture mIrradiance{GL_TEXTURE_3D};
+    std::vector<graphics::Texture> mIrradianceAnisoMipmaps;
     graphics::VertexArrayObject mDummyVao;
     graphics::UniformBufferObject mVoxelizationViewBuffer;
 };

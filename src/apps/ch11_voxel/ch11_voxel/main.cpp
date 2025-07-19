@@ -36,6 +36,16 @@ int main(int argc, const char* argv[])
             assert(contextFlags & GL_LOSE_CONTEXT_ON_RESET);
         }
 
+        {
+            GLint maxImageUnits = 0, maxTextureUnits;
+            glGetIntegerv(GL_MAX_IMAGE_UNITS, &maxImageUnits);
+            glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxTextureUnits);
+            std::cout 
+                << "Max image units: " << maxImageUnits 
+                << ", max fragment shader texture image units: " << maxTextureUnits 
+                << "\n";
+        }
+
         // This ensures the messages are sent synchronously with the event triggering them
         // This makes debug stepping much more feasible.
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
