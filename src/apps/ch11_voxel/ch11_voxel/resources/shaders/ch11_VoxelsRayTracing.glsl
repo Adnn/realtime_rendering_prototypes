@@ -53,8 +53,12 @@ struct VoxelHit
 ///        Note: testing on the texture itself is required when handling mipmap levels.
 ivec3 traverseVoxels(vec3 aRayEntry_aabb, vec3 aRayDir_aabb, 
 	   				 float voxelSize, uint gridDimension,
-	   				 out VoxelHit aHit, VoxelOccupancy aOccupancyMethod,
-					 GridBounds aBounds, bool aSkipSelf)
+					 // Even though we never read from aHit, needs to be inout to maintain
+					 // the initial value if it is not modified
+	   				 inout VoxelHit aHit,
+					 VoxelOccupancy aOccupancyMethod,
+					 GridBounds aBounds,
+					 bool aSkipSelf)
 {
 	// see: "A Fast Voxel Traversal Algorithm for Ray Tracing", John Amanatides, Andrew Woo
 
