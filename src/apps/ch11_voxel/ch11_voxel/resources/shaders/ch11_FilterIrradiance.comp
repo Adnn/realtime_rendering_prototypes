@@ -20,7 +20,7 @@ void main()
     ivec3 voxelCoord = ivec3(gl_GlobalInvocationID);
     ivec3 sourceCorner = 2 * voxelCoord;
 
-    vec4 accum;
+    vec4 accum = vec4(0);
     for(int z = 0; z !=2; ++z)
     {
 		for(int y = 0; y !=2; ++y)

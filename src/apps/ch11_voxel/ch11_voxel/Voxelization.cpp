@@ -422,33 +422,41 @@ void Voxelizer::mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
 void Voxelizer::mipmapAnisotropicIrradiance(GLuint aGridDimension,
                                             const FrameGraph & aGraph)
 {
-    const auto & program = aGraph.mPrograms.mFilterIrradianceAnisoBaseProgram;
-    glUseProgram(program);
 
-    graphics::setUniform(program, "u_IrradianceSourceImage", gIrradianceImageUnit);
-    graphics::setUniform(program, "u_IrradianceDestinationImage", gIrradianceMipmapImageUnit);
-
-    // TODO: consolidate with the other calls
+    // Destination dimension for level 0 of dedicated mipmap textures is half the initial grid dimension
+    math::Vec<3, GLuint> destinationDimension{aGridDimension/2, aGridDimension/2, aGridDimension/2};
     GLsizei levels = 
-        graphics::countCompleteMipmaps({(int)aGridDimension, (int)aGridDimension});
+        graphics::countCompleteMipmaps({(int)aGridDimension/2, (int)aGridDimension/2});
 
-    math::Vec<3, GLuint> destinationDimension{aGridDimension, aGridDimension, aGridDimension};
-    
-    glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,
+    //
+    // Initial mipmap level: the level 0 of the anisotropic mipmap textures
+    //
+    const auto * program = &aGraph.mPrograms.mFilterIrradianceAnisoBaseProgram;
+    glUseProgram(*program);
+
+    // In this situation, the source is the same for all directions: level 0
+    // of the irradiance 3D texture
+    GLint sourceLevel = 0;
+    glBindImageTexture(gIrradianceImageUnit, mIrradiance, sourceLevel,
                        GL_FALSE, 0, 
                        GL_READ_ONLY, gIrradianceFormat);
-    GLint sourceLevel = 0;
+    graphics::setUniform(*program, "u_IrradianceSourceImage", gIrradianceImageUnit);
+
+    // There is a distinct destination image for each direction (+X, -X, +Y, -Y, +Z, -Z)
+    // Note: the destination level is the same as the source level 
+    // (because we are writing to the first level of textures that are distinct from the source)
     for (int i = 0; i != 6; ++i)
     {
         glBindImageTexture(gIrradianceMipmapImageUnit + i, mIrradianceAnisoMipmaps[i], sourceLevel,
                            GL_FALSE, 0,
                            GL_WRITE_ONLY, gIrradianceFormat);
+
+        // Useful for the second part where we will be reading 
+        // from the lower level of the same aniso texture,
+        glBindTextureUnit(3 + i, mIrradianceAnisoMipmaps[i]);
     }
 
-    destinationDimension /= 2;
-    // Note: There is something shady with GLSL imageSize, giving me very inconsistent results
-    // (and a quick search shows an anormal volume of forum complaints)
-    graphics::setUniform(program, "u_DestinationDimension", destinationDimension);
+    graphics::setUniform(*program, "u_DestinationDimension", destinationDimension);
 
     math::Vec<3, GLfloat> numWorkgroups =
         destinationDimension.as<math::Vec, GLfloat>().cwDiv(gWorkgroupSize.as<math::Vec, GLfloat>());
@@ -457,6 +465,36 @@ void Voxelizer::mipmapAnisotropicIrradiance(GLuint aGridDimension,
     glDispatchCompute(std::ceil(numWorkgroups.x()),
                       std::ceil(numWorkgroups.y()),
                       std::ceil(numWorkgroups.z()));
+
+    //
+    // Subsequent mipmap levels: the level 1..N of the anisotropic mipmap textures
+    //
+    program = &aGraph.mPrograms.mFilterIrradianceAnisoFromAnisoProgram;
+    glUseProgram(*program);
+
+    for(GLint sourceLevel = 0; sourceLevel + 1 != levels; ++sourceLevel)
+    {
+        // The destination images are in per-axis textures, at level source + 1
+        for (int i = 0; i != 6; ++i)
+        {
+            glBindImageTexture(gIrradianceMipmapImageUnit + i, mIrradianceAnisoMipmaps[i],
+                               sourceLevel + 1,
+                               GL_FALSE, 0,
+                               GL_WRITE_ONLY, gIrradianceFormat);
+        }
+
+        destinationDimension /= 2;
+        graphics::setUniform(*program, "u_DestinationDimension", destinationDimension);
+        graphics::setUniform(*program, "u_SourceLod", sourceLevel);
+
+        math::Vec<3, GLfloat> numWorkgroups =
+            destinationDimension.as<math::Vec, GLfloat>().cwDiv(gWorkgroupSize.as<math::Vec, GLfloat>());
+
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        glDispatchCompute(std::ceil(numWorkgroups.x()),
+                          std::ceil(numWorkgroups.y()),
+                          std::ceil(numWorkgroups.z()));
+    }
 }
 
 void Voxelizer::prepareIrradianceTexture(GLuint aGridDimension)
