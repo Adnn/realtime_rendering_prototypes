@@ -103,7 +103,8 @@ vec4 fetchColor(ivec3 currentVoxel, bvec3 mask)
             vec4 value;
             if(u_AnisotropicIrradianceMipmaps && (u_VoxelMipmapLevel > 0))
             {
-				value = texelFetch(u_VoxelsIrradianceAnisoMipmap, currentVoxel, u_VoxelMipmapLevel - 1);
+				// Hardcodes fetching from first aniso direction (+X)
+				value = texelFetch(u_VoxelsIrradianceAnisoMipmap[0], currentVoxel, u_VoxelMipmapLevel - 1);
             }
             else
             {

@@ -23,6 +23,8 @@ Waiting for a better solution, here are our hardcoded bindings
 * 6: Shadow map
 * 7: OnmiShadowMap (cubemaps)
 * 10: Voxels albedo / occupancy
+* 11 : Isotropic voxels irradiance
 * 13: Filtered environment radiance
 * 14: Filtered environment irradiance
 * 15: Integrated environment BRDF 
+* [16..21]: Anisotropic voxels irradiance

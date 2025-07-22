@@ -36,6 +36,8 @@ struct VoxelsSsbo_glsl
 
 struct Voxelizer
 {
+    static constexpr GLint gAnisoIrradianceTextureUnit = 16;
+
     struct VoxelizerControl
     {
         bool mUseDominantAxis = true;

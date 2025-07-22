@@ -3,6 +3,7 @@
 
 
 #include "ch11_VoxelsSsbo.glsl"
+#include "ch11_VoxelsTextures.glsl"
 
 #include "shaders/Constants.glsl"
 #include "shaders/Helpers.glsl"
@@ -18,8 +19,7 @@ uniform float u_TanHalfAperture = M_PI / 6;
 uniform float u_TanHalfShadow = 0.0174533f;
 uniform float u_SpecularConeRoughnessFactor = 1;
 uniform bool u_GridAlign;
-
-uniform sampler3D u_VoxelsIrradianceTexture;
+uniform bool u_AnisotropicIrradianceMipmaps;
 
 
 // Partition the hemisphere with 7 cones is convenient:
@@ -58,6 +58,31 @@ const float gDiffuseConeWeights[] =
     3.0f * M_PI / 20.0f,
     3.0f * M_PI / 20.0f,
 };
+
+
+vec4 sampleAnisotropic(vec3 coord, float lod, vec3 weight, uvec3 face)
+{
+    // anisotropic volumes level
+    float anisoLevel = max(lod - 1.0f, 0.0f);
+    // directional sample
+    vec4 anisoSample = weight.x * textureLod(u_VoxelsIrradianceAnisoMipmap[face.x], coord, anisoLevel)
+                     + weight.y * textureLod(u_VoxelsIrradianceAnisoMipmap[face.y], coord, anisoLevel)
+                     + weight.z * textureLod(u_VoxelsIrradianceAnisoMipmap[face.z], coord, anisoLevel);
+    // linearly interpolate on base level
+    if(lod < 1.0f)
+    {
+        vec4 baseSample = textureLod(u_VoxelsIrradianceTexture, coord, 0);
+        anisoSample = mix(baseSample, anisoSample, max(0, lod));
+    }
+
+    return anisoSample;                    
+}
+
+
+vec4 sampleIsotropic(vec3 position_uvw, float aMipLevel)
+{
+    return textureLod(u_VoxelsIrradianceTexture, position_uvw, aMipLevel);
+}
 
 
 /// @return The irradiance accumulated along the march in .rgb, the ambient occlusion in .a
@@ -125,11 +150,25 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
         }
 
         // Johannes Finn add a 0.5 offset to the texture coordinates in:
-        // Finn, Johannes. Evaluation of Performance and Image Quality for Voxel Cone Tracing,¿ n.d.
+        // Finn, Johannes. Evaluation of Performance and Image Quality for Voxel Cone Tracing
         // But it seems to me that it is not required to get the correct sampling position in the 3D texture
         vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
 
-        vec4 irradianceSample = textureLod(u_VoxelsIrradianceTexture, position_uvw, mipLevel);
+        vec4 irradianceSample;
+        if(u_AnisotropicIrradianceMipmaps)
+       {
+            uvec3 face = uvec3(
+                direction_aabb.x >= 0 ? 0 : 1,
+                direction_aabb.y >= 0 ? 2 : 3,
+                direction_aabb.z >= 0 ? 4 : 5
+            );
+            vec3 weight = coneAxis_aabb * coneAxis_aabb;
+			irradianceSample = sampleAnisotropic(position_uvw, mipLevel, weight, face);
+		}
+        else
+        {
+            irradianceSample = sampleIsotropic(position_uvw, mipLevel) ;
+		}
 
         // irradiance marching, front to back compositing
         //#define GPU_GEMS_BTF

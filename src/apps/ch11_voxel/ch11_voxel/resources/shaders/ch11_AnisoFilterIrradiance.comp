@@ -2,15 +2,17 @@
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
+#include "ch11_VoxelsTextures.glsl"
+
 #if defined(ANISO_SOURCE)
     uniform int u_SourceLod;
-	uniform layout(binding = 3) sampler3D u_IrradianceSourceTexture[8];
+    // Source directly taken from the texture array in VoxelsTextures.glsl
 #else
 	uniform layout(rgba8) readonly restrict image3D u_IrradianceSourceImage;
 #endif // ANISO_SOURCE
 
 // Each image3D in the array will take a consecutive binding index
-uniform layout(binding = 0) writeonly restrict image3D u_IrradianceDestinationImage[6];
+uniform layout(binding = 0) writeonly restrict image3D u_IrradianceDestinationImage[ANISO_DIRECTIONS];
 
 uniform uvec3 u_DestinationDimension;
 
@@ -40,8 +42,8 @@ vec4[8] loadSubtexels(
     {
 		#if defined(ANISO_SOURCE)
             // Texel fetch in unnormalized texturee coordinates
-			result[i] = texelFetch(u_IrradianceSourceTexture[aDirectionIdx],
-                                   sourceCorner_grid + gOffsets[i],// + vec3(0.5),
+			result[i] = texelFetch(u_VoxelsIrradianceAnisoMipmap[aDirectionIdx],
+                                   sourceCorner_grid + gOffsets[i],
                                    u_SourceLod);
         #else
             // Image coordinates are signed integers in texel space

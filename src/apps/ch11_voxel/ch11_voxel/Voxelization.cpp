@@ -453,7 +453,7 @@ void Voxelizer::mipmapAnisotropicIrradiance(GLuint aGridDimension,
 
         // Useful for the second part where we will be reading 
         // from the lower level of the same aniso texture,
-        glBindTextureUnit(3 + i, mIrradianceAnisoMipmaps[i]);
+        glBindTextureUnit(gAnisoIrradianceTextureUnit + i, mIrradianceAnisoMipmaps[i]);
     }
 
     graphics::setUniform(*program, "u_DestinationDimension", destinationDimension);
