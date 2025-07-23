@@ -171,6 +171,12 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
         // Finn, Johannes. Evaluation of Performance and Image Quality for Voxel Cone Tracing
         // But it seems to me that it is not required to get the correct sampling position in the 3D texture
         vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
+        // Prevent sampling out of the volume (wrap)
+        if(   any(lessThan(position_uvw, vec3(0)))
+           || any(greaterThan(position_uvw, vec3(1))) )
+        {
+            break;
+        }
 
         vec4 irradianceSample = sampleIrradiance(direction_aabb, position_uvw, mipLevel);
 
@@ -232,6 +238,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
 
         vec3 samplePosition_aabb = startPosition_aabb + coneAxis_aabb * t;
         vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
+        // Prevent sampling out of the volume (wrap)
         if(   any(lessThan(position_uvw, vec3(0)))
            || any(greaterThan(position_uvw, vec3(1))) )
         {

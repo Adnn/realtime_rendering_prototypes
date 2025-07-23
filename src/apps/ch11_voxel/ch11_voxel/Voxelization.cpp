@@ -512,6 +512,10 @@ void Voxelizer::prepareIrradianceTexture(GLuint aGridDimension)
         glTextureParameteri(mIrradiance, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTextureParameteri(mIrradiance, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
+    // The initial border color is vec4(0), which is okay for our use case
+    glTextureParameteri(mIrradiance, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(mIrradiance, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(mIrradiance, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
 
     // Anisotropic mipmaps
     mIrradianceAnisoMipmaps.clear();
@@ -530,6 +534,9 @@ void Voxelizer::prepareIrradianceTexture(GLuint aGridDimension)
             glTextureParameteri(irradiance, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTextureParameteri(irradiance, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         }
+        glTextureParameteri(irradiance, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTextureParameteri(irradiance, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTextureParameteri(irradiance, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
     }
 }
 
