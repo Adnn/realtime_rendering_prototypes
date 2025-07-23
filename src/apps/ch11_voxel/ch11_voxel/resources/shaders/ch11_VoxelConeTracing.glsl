@@ -85,6 +85,25 @@ vec4 sampleIsotropic(vec3 position_uvw, float aMipLevel)
 }
 
 
+vec4 sampleIrradiance(vec3 direction_aabb, vec3 position_uvw, float mipLevel)
+{
+   if(u_AnisotropicIrradianceMipmaps)
+   {
+		uvec3 face = uvec3(
+			direction_aabb.x >= 0 ? 0 : 1,
+			direction_aabb.y >= 0 ? 2 : 3,
+			direction_aabb.z >= 0 ? 4 : 5
+		);
+		vec3 weight = direction_aabb * direction_aabb;
+		return sampleAnisotropic(position_uvw, mipLevel, weight, face);
+	}
+	else
+	{
+		return sampleIsotropic(position_uvw, mipLevel) ;
+	}
+}
+
+
 /// @return The irradiance accumulated along the march in .rgb, the ambient occlusion in .a
 vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
                vec3 coneAxis_aabb, float tanHalfAngle,
@@ -154,21 +173,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
         // But it seems to me that it is not required to get the correct sampling position in the 3D texture
         vec3 position_uvw = samplePosition_aabb / (aVoxelSize * ub_GridDimension);
 
-        vec4 irradianceSample;
-        if(u_AnisotropicIrradianceMipmaps)
-       {
-            uvec3 face = uvec3(
-                direction_aabb.x >= 0 ? 0 : 1,
-                direction_aabb.y >= 0 ? 2 : 3,
-                direction_aabb.z >= 0 ? 4 : 5
-            );
-            vec3 weight = coneAxis_aabb * coneAxis_aabb;
-			irradianceSample = sampleAnisotropic(position_uvw, mipLevel, weight, face);
-		}
-        else
-        {
-            irradianceSample = sampleIsotropic(position_uvw, mipLevel) ;
-		}
+        vec4 irradianceSample = sampleIrradiance(direction_aabb, position_uvw, mipLevel);
 
         // irradiance marching, front to back compositing
         //#define GPU_GEMS_BTF
@@ -234,7 +239,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
         }
 
         float occupancySample =
-            textureLod(u_VoxelsIrradianceTexture, position_uvw, mipLevel).a
+			sampleIrradiance(coneAxis_aabb, position_uvw, mipLevel).a
             * k
             ;
         occupancy += (1 - occupancy) * occupancySample;

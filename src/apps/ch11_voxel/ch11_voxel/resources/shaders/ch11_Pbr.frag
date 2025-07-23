@@ -393,12 +393,25 @@ void main(void)
                 viewDir_view, lightDir_view, specularLightDir_view, shadingNormal_view,
                 pbrParameters, point.colors);
 
-		#if defined(SHADOW_MAPPING)
-			if(pointIdx < MAX_SHADOW_LIGHTS)
-			{
-				applyShadowToPointLighting(lighting, pointIdx, ex_Position_world);
-			}
-		#endif // SHADOW_MAPPING
+		switch(u_ShadowMethod)
+		{
+		case CLIENT_SHADOW_SHADOWMAP:
+			#if defined(SHADOW_MAPPING)
+				if(pointIdx < MAX_SHADOW_LIGHTS)
+				{
+					applyShadowToPointLighting(lighting, pointIdx, ex_Position_world);
+				}
+			#endif // SHADOW_MAPPING
+			break;
+		case CLIENT_SHADOW_CONETRACING:
+            vec3 lightDir_world = normalize(point.position.xyz - ex_Position_world.xyz);
+			float shadowFactor = 
+				traceShadow(position_aabb, geometricNormal_world, 
+							lightDir_world, u_TanHalfShadow,
+							u_VoxelSize);
+			scale(lighting, shadowFactor);
+			break;
+		}
 
         float falloff = attenuatePoint(point, radius);
         diffuseAccum  += lighting.diffuse  * falloff;
