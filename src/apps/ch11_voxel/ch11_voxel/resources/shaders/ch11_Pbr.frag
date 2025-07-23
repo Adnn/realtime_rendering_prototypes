@@ -362,7 +362,7 @@ void main(void)
 			float shadowFactor = 
 				traceShadow(position_aabb, geometricNormal_world, 
 							-directional.direction.xyz, u_TanHalfShadow,
-							u_VoxelSize);
+							u_VoxelSize, FLT_MAX);
 			scale(lighting, shadowFactor);
 			break;
 		}
@@ -404,11 +404,12 @@ void main(void)
 			#endif // SHADOW_MAPPING
 			break;
 		case CLIENT_SHADOW_CONETRACING:
-            vec3 lightDir_world = normalize(point.position.xyz - ex_Position_world.xyz);
+            vec3 lightRay_world = point.position.xyz - ex_Position_world.xyz;
+            float r = length(lightRay_world);
 			float shadowFactor = 
 				traceShadow(position_aabb, geometricNormal_world, 
-							lightDir_world, u_TanHalfShadow,
-							u_VoxelSize);
+							lightRay_world/r, u_TanHalfShadow,
+							u_VoxelSize, r);
 			scale(lighting, shadowFactor);
 			break;
 		}

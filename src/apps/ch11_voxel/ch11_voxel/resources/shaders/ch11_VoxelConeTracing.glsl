@@ -74,7 +74,6 @@ vec4 sampleAnisotropic(vec3 coord, float lod, vec3 weight, uvec3 face)
         vec4 baseSample = textureLod(u_VoxelsIrradianceTexture, coord, 0);
         anisoSample = mix(baseSample, anisoSample, max(0, lod));
     }
-
     return anisoSample;                    
 }
 
@@ -201,7 +200,7 @@ vec4 traceCone(vec3 position_aabb, vec3 normal_aabb,
 /// @return The irradiance accumulated along the march in .rgb, the ambient occlusion in .a
 float traceShadow(vec3 position_aabb, vec3 normal_aabb,
                   vec3 coneAxis_aabb, float tanHalfAngle,
-                  float aVoxelSize)
+                  float aVoxelSize, float aMaxDistance)
 {
     // A factor to implement the potential difference between d and d' in Crassin's paper.
     // This is beta in the explanation here: https://github.com/jose-villegas/VCTRenderer?tab=readme-ov-file#4-voxel-cone-tracing
@@ -225,6 +224,7 @@ float traceShadow(vec3 position_aabb, vec3 normal_aabb,
     float occupancy = 0;
 
     while(occupancy < 1.0f
+          && t <= aMaxDistance
           /* also breaks inside loop body if sampling outside the grid */)
     {
         float coneDiameter = 2 * t * tanHalfAngle;

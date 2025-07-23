@@ -4,6 +4,9 @@
 
 const float M_PI = 3.141592653589793;
 
+#define FLT_MAX 3.402823466e+38
+#define FLT_MIN 1.175494351e-38
+
 #define INVALID_INDEX uint(-1)
 
 ////
