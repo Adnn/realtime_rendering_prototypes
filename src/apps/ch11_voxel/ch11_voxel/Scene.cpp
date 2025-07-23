@@ -32,8 +32,6 @@
 
 namespace ad {
 
-// TODO: make user controlled
-constexpr unsigned int gGridDimension = 256;
 
 void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
                   const graphics::UniformBufferObject & aBuffer,
@@ -196,20 +194,20 @@ void Scene::voxelize()
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "voxelization");
 
     // Note: should be called directly in the voxelize() function(s)
-    mVoxelizer.recordSceneAabb(mSceneTree, gGridDimension);
+    mVoxelizer.recordSceneAabb(mSceneTree, mVoxelizer.mControl.mGridDimension);
 
     // We could be injecting the irradiance directly in the voxelization pass or a separate compute pass
-    mVoxelizer.prepareIrradianceTexture(gGridDimension);
+    mVoxelizer.prepareIrradianceTexture(mVoxelizer.mControl.mGridDimension);
 
     mVoxelizer.mControl.mCpuReadVoxels = mSceneControl.mCubeInstances;
 
     if (mVoxelizer.mControl.mUseDominantAxis)
     {
-        mVoxelizer.voxelizeDominantAxis(mSceneTree, gGridDimension, mGraph);
+        mVoxelizer.voxelizeDominantAxis(mSceneTree, mVoxelizer.mControl.mGridDimension, mGraph);
     }
     else
     {
-        mVoxelizer.voxelize(mSceneTree, gGridDimension, mGraph);
+        mVoxelizer.voxelize(mSceneTree, mVoxelizer.mControl.mGridDimension, mGraph);
     }
 
     // This is actually required to guarantee all writes are visible to subsequent
@@ -220,15 +218,15 @@ void Scene::voxelize()
 
     if (mVoxelizer.mControl.mSeparateLightInjectionPass)
     {
-        mVoxelizer.injectIrradianceComputePass(gGridDimension, mGraph);
+        mVoxelizer.injectIrradianceComputePass(mVoxelizer.mControl.mGridDimension, mGraph);
     }
     else
     {
-        mVoxelizer.fixupIrradianceAlphaComputePass(gGridDimension, mGraph);
+        mVoxelizer.fixupIrradianceAlphaComputePass(mVoxelizer.mControl.mGridDimension, mGraph);
     }
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-    mVoxelizer.prepareMipmap(gGridDimension, mGraph);
+    mVoxelizer.prepareMipmap(mVoxelizer.mControl.mGridDimension, mGraph);
 
     glPopDebugGroup();
 }
@@ -296,7 +294,7 @@ void Scene::step(const graphics::Timer & aTimer,
     {
         const math::Box<float> & sceneAabb = mVoxelizer.mSceneAabb;
 
-        mObjectsCount = std::pow(gGridDimension, 3);
+        mObjectsCount = std::pow(mVoxelizer.mControl.mGridDimension, 3);
         std::uint8_t * buffer =
             (std::uint8_t *)glMapNamedBufferRange(mVoxelizer.mVoxelStore,
                                                   offsetof(VoxelsSsbo_glsl, mVoxels),
@@ -321,11 +319,11 @@ void Scene::step(const graphics::Timer & aTimer,
         unsigned int voxelIdx = 0;
         unsigned int entityIdx = 0;
 
-        for (unsigned int y = 0; y != gGridDimension; ++y)
+        for (unsigned int y = 0; y != mVoxelizer.mControl.mGridDimension; ++y)
         {
-            for (unsigned int x = 0; x != gGridDimension; ++x)
+            for (unsigned int x = 0; x != mVoxelizer.mControl.mGridDimension; ++x)
             {
-                for (unsigned int z = 0; z != gGridDimension; ++z)
+                for (unsigned int z = 0; z != mVoxelizer.mControl.mGridDimension; ++z)
                 {
                     if (buffer[voxelIdx] == 1)
                     {
@@ -479,11 +477,11 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
         glViewport(0, 0, min, min);
         if (mVoxelizer.mControl.mUseDominantAxis)
         {
-            mVoxelizer.voxelizeDominantAxisView(mSceneTree, gGridDimension, mGraph);
+            mVoxelizer.voxelizeDominantAxisView(mSceneTree, mVoxelizer.mControl.mGridDimension, mGraph);
         }
         else
         {
-            mVoxelizer.voxelizeView(mSceneTree, gGridDimension, mGraph);
+            mVoxelizer.voxelizeView(mSceneTree, mVoxelizer.mControl.mGridDimension, mGraph);
         }
     }
     else if (mSceneControl.showConeTrace())
@@ -597,6 +595,8 @@ void Scene::presentUi(bool * aOpen)
     mVoxelizationRequest |= ImGui::Button("Force voxelize");
     if (ImGui::CollapsingHeader("Voxelization"))
     {
+        mVoxelizationRequest |= imguiui::addComboNumeric(
+            "Grid dimension", mVoxelizer.mControl.mGridDimension, std::span{mVoxelizer.mControl.gDimensions});
         mVoxelizationRequest |= ImGui::Checkbox("Dominant Axis Method", &mVoxelizer.mControl.mUseDominantAxis);
         mVoxelizationRequest |= ImGui::Checkbox("Separate compute light injection", &mVoxelizer.mControl.mSeparateLightInjectionPass);
         mVoxelizationRequest |= ImGui::Checkbox("Anisotropic irradiance mipmaps", &mVoxelizer.mControl.mAnisotropicIrradianceMipmapping);

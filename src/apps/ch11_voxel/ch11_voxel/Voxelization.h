@@ -40,6 +40,9 @@ struct Voxelizer
 
     struct VoxelizerControl
     {
+        static constexpr unsigned int gDimensions[3]{128, 256, 512};
+        unsigned int mGridDimension = 256;
+
         bool mUseDominantAxis = true;
         bool mConservativeRasterization = true;
         bool mConservativeDepthRange = false;
