@@ -12,6 +12,8 @@
 #include <scenic/Camera.h>
 #include <scenic/environment/EnvironmentUtilities.h>
 
+#include <tracy/Tracy.hpp>
+
 
 namespace ad {
 
@@ -84,6 +86,8 @@ void Shadow::renderShadowMaps(const scenic::SceneTree & aSceneTree,
                               const renderer::LightsDataCommon & mLights,
                               FrameGraph & aGraph)
 {
+    ZoneScoped;
+
     renderer::LightViewProjection lightViewProjection;
     const math::Box<GLfloat> sceneAabb = getAabb(aSceneTree);
 

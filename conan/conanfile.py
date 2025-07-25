@@ -23,6 +23,7 @@ class GraphicsConan(ConanFile):
     default_options = {
         "shared": False,
         "fPIC": True,
+        "tracy/*:on_demand": True,
     }
 
     generators = "CMakeToolchain"
@@ -37,6 +38,7 @@ class GraphicsConan(ConanFile):
         self.requires("imgui/1.91.5-docking", transitive_headers=True)
         # Note: we do not want spdlog to be a public dependency
         self.requires("spdlog/1.15.1", transitive_headers=False)
+        self.requires("tracy/0.12.1", transitive_headers=False)
 
 
     # There exist automatic alternatives.

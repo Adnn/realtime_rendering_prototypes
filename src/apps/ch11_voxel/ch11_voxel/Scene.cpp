@@ -29,6 +29,8 @@
 
 #include <fmt/std.h>
 
+#include <tracy/Tracy.hpp>
+
 
 namespace ad {
 
@@ -235,6 +237,7 @@ void Scene::voxelize()
 void Scene::step(const graphics::Timer & aTimer,
                  math::Size<2, int> aWindowResolution)
 {
+    ZoneScoped;
     mOrbitalCamera.update(aTimer.delta(), aWindowResolution.height());
 
     //
@@ -260,21 +263,24 @@ void Scene::step(const graphics::Timer & aTimer,
     //
     // Entities
     // 
-    mObjectsCount = mSceneTree.mObjectsMap.size();
-    // Ensure the vector can fit all objects and point lights
-    mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
-
-    std::size_t objectIdx = 0;
-    for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
     {
-        auto & entity = mEntities.mEntities[objectIdx];
-        entity.mLocalToWorld = static_cast<math::AffineMatrix<4, GLfloat>>(
-            mSceneTree.mTree.mGlobalPose[nodeIdx]);
-        entity.mColorFactor = math::hdr::gWhite<float>;
-        ++objectIdx;
+        ZoneScopedN("Entities pose");
+        mObjectsCount = mSceneTree.mObjectsMap.size();
+        // Ensure the vector can fit all objects and point lights
+        mEntities.mEntities.resize(mObjectsCount + mLights.mPointCount);
+
+        std::size_t objectIdx = 0;
+        for (const auto & [nodeIdx, object] : mSceneTree.mObjectsMap)
+        {
+            auto & entity = mEntities.mEntities[objectIdx];
+            entity.mLocalToWorld = static_cast<math::AffineMatrix<4, GLfloat>>(
+                mSceneTree.mTree.mGlobalPose[nodeIdx]);
+            entity.mColorFactor = math::hdr::gWhite<float>;
+            ++objectIdx;
+        }
+        // Must be loaded before voxelization
+        loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
     }
-    // Must be loaded before voxelization
-    loadToBuffer(mEntities, mEntitiesBlockBuffer, graphics::BufferHint::StreamDraw);
 
     //
     // Shadow maps
@@ -368,6 +374,7 @@ void Scene::render(math::Size<2, int> aBackbufferResolution)
 
 void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution)
 {
+    ZoneScoped;
 
     //
     // Frame rendering

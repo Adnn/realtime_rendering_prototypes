@@ -22,6 +22,9 @@
 
 #include <ui/Widgets-impl.h>
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyOpenGL.hpp>
+
 #include <random>
 
 
@@ -260,6 +263,9 @@ void FrameGraph::setupShadowUniforms(const graphics::Program & aProgram) const
 void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
                                   Voxelizer & aVoxelizer)
 {
+    ZoneScoped;
+    TracyGpuZone("render_final_scene");
+
     const auto & program = mPrograms.mPbr;
 
     setupShadowUniforms(program);
@@ -326,6 +332,8 @@ void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
 
 void FrameGraph::renderDepth(const scenic::SceneTree & aSceneTree, DepthMapType aType)
 {
+    TracyGpuZone("render_depth");
+
     graphics::ScopedBind boundFbo{mShadowFramebuffer};
     glViewport(0, 0, gShadowMapSize, gShadowMapSize);
     glClear(GL_DEPTH_BUFFER_BIT);

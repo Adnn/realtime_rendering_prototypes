@@ -65,6 +65,7 @@ find_package(math REQUIRED COMPONENTS ad::math)
 find_package(Rtr_prototypes REQUIRED COMPONENTS scenic)
 
 find_package(spdlog REQUIRED)
+find_package(Tracy REQUIRED CONFIG)
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
@@ -79,6 +80,7 @@ target_link_libraries(${TARGET_NAME}
         ad::scenic
 
         spdlog::spdlog
+        Tracy::TracyClient
 )
 
 

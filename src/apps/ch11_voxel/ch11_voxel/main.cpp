@@ -10,6 +10,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyOpenGL.hpp>
+
 
 int main(int argc, const char* argv[])
 {
@@ -26,6 +29,9 @@ int main(int argc, const char* argv[])
                                                       {GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET},
                                                       //{GLFW_OPENGL_DEBUG_CONTEXT, true},
                                                   });
+
+        // Requirement of tracy
+        TracyGpuContext;
 
         // Sanity checks: the context is robust and lose context as requested
         {
@@ -60,18 +66,29 @@ int main(int argc, const char* argv[])
             imgui
         };
 
-        while(application.nextFrame())
+
+        while ([&]()
+               {
+                   auto result = application.nextFrame();
+                   TracyGpuCollect;
+                   return result;
+               }())
         {
             if (application.getAppInterface()->isWindowOnDisplay())
             {
                 scene.step(timer, application.getAppInterface()->getWindowSize());
                 scene.render(application.getAppInterface()->getFramebufferSize());
 
-                ad::imguiui::newFrame();
-                ui.present("Root", scene);
-                ad::imguiui::renderFrame();
+                {
+                    ZoneScopedN("imgui");
+                    ad::imguiui::newFrame();
+                    ui.present("Root", scene);
+                    ad::imguiui::renderFrame();
+                }
             }
             timer.mark(glfwGetTime());
+            // Tracy end of frame marker
+            FrameMark;
 
             // If an error occurs, such as infinite loop in a shader causing the driver to timeout
             // it seems to only be catched at this point, not immediately after the triggering drawcall.
