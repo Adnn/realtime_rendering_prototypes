@@ -530,6 +530,7 @@ namespace {
     TextureInput readTextureParameters(const aiMaterial * aAiMaterial, 
                                        aiTextureType aTextureType,
                                        TexturePaths & aTexturePaths,
+                                       std::size_t aTextureOffset,
                                        DdsTracking & aTracking)
     {
         // For the moment, we handle a single texture in the pack (or none)
@@ -545,7 +546,7 @@ namespace {
             std::cout << "  " << aiTextureTypeToString(aTextureType) << " texture: path '" << texPath.C_Str() << "'";
 
             result = {
-                .mTextureIndex = (TextureInput::Index)aTexturePaths.size(),
+                .mTextureIndex = (TextureInput::Index)(aTexturePaths.size() + aTextureOffset),
                 .mUVAttributeIndex = 0, // a default,
                                         // see: https://assimp-docs.readthedocs.io/en/latest/usage/use_the_lib.html#how-to-map-uv-channels-to-textures-matkey-uvwsrc
             };
@@ -597,6 +598,8 @@ namespace {
         auto & materialNames = aContext.mStorage.mMaterialNames;
         DdsTracking tracking;
 
+        const std::size_t textureOffset = aContext.mStorage.mTextures.size();
+
         for (std::size_t materialIdx = 0;
              materialIdx != aScene->mNumMaterials;
              ++materialIdx)
@@ -623,14 +626,14 @@ namespace {
 
             genericMaterial.mDiffuseMap = 
                 readTextureParameters(material, aiTextureType_DIFFUSE,
-                                      aTexturePaths, tracking);
+                                      aTexturePaths, textureOffset, tracking);
             genericMaterial.mNormalMap = 
                 readTextureParameters(material, aiTextureType_NORMALS,
-                                      aTexturePaths, tracking);
+                                      aTexturePaths, textureOffset, tracking);
             // Empirically, it seems the MRAO map corresponds to Assimp's Metalness
             genericMaterial.mMetallicRoughnessAoMap = 
                 readTextureParameters(material, aiTextureType_METALNESS,
-                                      aTexturePaths, tracking);
+                                      aTexturePaths, textureOffset, tracking);
 
             if (material->Get(AI_MATKEY_METALLIC_FACTOR, genericMaterial.mMetallicFactor) == AI_SUCCESS)
             {
