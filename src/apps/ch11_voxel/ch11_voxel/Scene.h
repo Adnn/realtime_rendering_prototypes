@@ -143,7 +143,7 @@ struct Scene
     unsigned int mObjectsCount = 0;
 
     renderer::LightsDataCommon mLights{
-        .mDirectionalCount = 0,
+        .mDirectionalCount = 1,
         .mPointCount = 1,
         // We decode a sRGB 50% white (which is also perceptually ~50%)
         // to linear space for computation.

@@ -52,10 +52,15 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/Sponza-gltf/glTF/Sponza.gltf"}};
 //constexpr float gModelScale = 1.f;
 
-const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/pica-pica-mini-diorama-01/sketchfab_gltf/scene.gltf"}};
-constexpr float gModelScale = 10.f;
+//const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/pica-pica-mini-diorama-01/sketchfab_gltf/scene.gltf"}};
+//constexpr float gModelScale = 10.f;
 
+const renderer::ReferencePath gModelPaths[] = {
+    renderer::ReferencePath{"models/Intel_Sponza/pkg_a_curtains/NewSponza_Curtains_glTF.gltf"},
+    renderer::ReferencePath{"models/Intel_Sponza/NewSponza_Main_glTF_003-No_Decals.gltf"},
+};
 
+constexpr float gModelScale = 1.f;
 
 //const renderer::ReferencePath gModelPaths[] = {
 //    renderer::ReferencePath{"models/Glavenus/6286129a92b31_glavenus-rpg-scale-fan-art/tail-2.stl"},
@@ -64,6 +69,7 @@ constexpr float gModelScale = 10.f;
 
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/4x4_cube/4x4_cube.gltf"}};
 //constexpr float gModelScale = 1.f;
+
 
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
