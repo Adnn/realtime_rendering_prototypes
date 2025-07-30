@@ -402,7 +402,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
 
             for (const scenic::MeshPart_Naive & part : mCube.mParts)
             {
-                graphics::VertexArrayObject vao = prepareVAO(program, part);
+                graphics::VertexArrayObject vao = prepareVAO(program.mProgram, part);
                 glBindVertexArray(vao);
 
                 if (scenic::useElementIndices(part))

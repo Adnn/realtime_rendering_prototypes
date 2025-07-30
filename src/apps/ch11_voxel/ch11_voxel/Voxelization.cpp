@@ -115,7 +115,7 @@ void Voxelizer::recordSceneAabb(const scenic::SceneTree & aScene, GLuint aGridDi
 
 void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
                                      GLuint aGridDimension,
-                                     const FrameGraph & aGraph)
+                                     FrameGraph & aGraph)
 {
     // Requirement because on the shader side, we have to treat the SSBO 
     // as an array of uint (which are 4 bytes), and we store voxel per byte.
@@ -163,7 +163,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
 
     glViewport(0, 0, aGridDimension, aGridDimension);
 
-    const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisProgram;
+    auto & program = aGraph.mPrograms.mVoxelizationDominantAxisProgram;
 
     graphics::setUniform(program, "u_CameraOffset", camOffset);
     graphics::setUniform(program, "u_CameraScale", camScale);
@@ -207,7 +207,7 @@ void Voxelizer::voxelizeDominantAxis(const scenic::SceneTree & aScene,
 
 
 void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                                         const FrameGraph & aGraph)
+                                         FrameGraph & aGraph)
 {
     const float maxSide = *mSceneAabb.mDimension.getMaxMagnitudeElement();
 
@@ -231,7 +231,7 @@ void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuin
     // Done by calling context
     //glViewport();
 
-    const auto & program = aGraph.mPrograms.mVoxelizationDominantAxisViewProgram;
+    auto & program = aGraph.mPrograms.mVoxelizationDominantAxisViewProgram;
     graphics::setUniform(program, "u_CameraOffset", camOffset);
     graphics::setUniform(program, "u_CameraScale", camScale);
 
@@ -244,7 +244,7 @@ void Voxelizer::voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuin
 
 
 void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                         const FrameGraph & aGraph)
+                         FrameGraph & aGraph)
 {
     // Requirement because on the shader side, we have to treat the SSBO 
     // as an array of uint (which are 4 bytes), and we store voxel per byte.
@@ -289,7 +289,7 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
 
     glViewport(0, 0, aGridDimension, aGridDimension);
 
-    const auto & program = aGraph.mPrograms.mVoxelizationProgram;
+    auto & program = aGraph.mPrograms.mVoxelizationProgram;
 
     GLuint query;
     glGenQueries(1, &query);
@@ -318,7 +318,7 @@ void Voxelizer::voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension
 }
 
 void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                             const FrameGraph & aGraph)
+                             FrameGraph & aGraph)
 {
     // Requirement because on the shader side, we have to treat the SSBO 
     // as an array of uint (which are 4 bytes), and we store voxel per byte.
@@ -338,7 +338,7 @@ void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimen
     // Done by calling context
     //glViewport(0, 0, aGridDimension, aGridDimension);
 
-    const auto & program = aGraph.mPrograms.mVoxelizationViewProgram;
+    auto & program = aGraph.mPrograms.mVoxelizationViewProgram;
 
     GLuint query;
     glGenQueries(1, &query);
@@ -380,9 +380,9 @@ void Voxelizer::prepareMipmap(GLuint aGridDimension, const FrameGraph & aGraph)
 }
 
 
-void Voxelizer::mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGraph)
+void Voxelizer::mipmapIrradiance(GLuint aGridDimension, FrameGraph & aGraph)
 {
-    const auto & program = aGraph.mPrograms.mFilterIrradianceProgram;
+    auto & program = aGraph.mPrograms.mFilterIrradianceProgram;
     glUseProgram(program);
 
     graphics::setUniform(program, "u_IrradianceSourceImage", gIrradianceImageUnit);
@@ -420,7 +420,7 @@ void Voxelizer::mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGrap
 
 
 void Voxelizer::mipmapAnisotropicIrradiance(GLuint aGridDimension,
-                                            const FrameGraph & aGraph)
+                                            FrameGraph & aGraph)
 {
 
     // Destination dimension for level 0 of dedicated mipmap textures is half the initial grid dimension
@@ -541,9 +541,9 @@ void Voxelizer::prepareIrradianceTexture(GLuint aGridDimension)
 }
 
 
-void Voxelizer::injectIrradianceComputePass(GLuint aGridDimension, const FrameGraph & aGraph)
+void Voxelizer::injectIrradianceComputePass(GLuint aGridDimension, FrameGraph & aGraph)
 {
-    const auto & program = aGraph.mPrograms.mInjectIrradianceProgram;
+    auto & program = aGraph.mPrograms.mInjectIrradianceProgram;
     glUseProgram(program);
 
     glBindTextureUnit(0, mAlbedo);
@@ -566,9 +566,9 @@ void Voxelizer::injectIrradianceComputePass(GLuint aGridDimension, const FrameGr
 }
 
 
-void Voxelizer::fixupIrradianceAlphaComputePass(GLuint aGridDimension, const FrameGraph & aGraph)
+void Voxelizer::fixupIrradianceAlphaComputePass(GLuint aGridDimension, FrameGraph & aGraph)
 {
-    const auto & program = aGraph.mPrograms.mFixupIrradianceAlphaProgram;
+    auto & program = aGraph.mPrograms.mFixupIrradianceAlphaProgram;
     glUseProgram(program);
 
     glBindImageTexture(gIrradianceImageUnit, mIrradiance, 0,

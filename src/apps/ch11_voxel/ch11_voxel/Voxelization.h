@@ -61,28 +61,29 @@ struct Voxelizer
 
     void voxelizeDominantAxis(const scenic::SceneTree & aScene,
                               GLuint aGridDimension,
-                              const FrameGraph & aGraph);
+                              FrameGraph & aGraph);
 
     void voxelizeDominantAxisView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                                  const FrameGraph & aGraph);
+                                  FrameGraph & aGraph);
 
     void voxelize(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                  const FrameGraph & aGraph);
+                  FrameGraph & aGraph);
 
     void voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
-                      const FrameGraph & aGraph);
+                      FrameGraph & aGraph);
 
-    void prepareMipmap(GLuint aGridDimension, const FrameGraph & aGraph);
 
-    void mipmapIrradiance(GLuint aGridDimension, const FrameGraph & aGraph);
+    void prepareMipmap(GLuint aGridDimension, FrameGraph & aGraph);
 
-    void mipmapAnisotropicIrradiance(GLuint aGridDimension, const FrameGraph & aGraph);
+    void mipmapIrradiance(GLuint aGridDimension, FrameGraph & aGraph);
+
+    void mipmapAnisotropicIrradiance(GLuint aGridDimension, FrameGraph & aGraph);
 
     void prepareIrradianceTexture(GLuint aGridDimension);
 
-    void injectIrradianceComputePass(GLuint aGridDimension, const FrameGraph & aGraph);
+    void injectIrradianceComputePass(GLuint aGridDimension, FrameGraph & aGraph);
 
-    void fixupIrradianceAlphaComputePass(GLuint aGridDimension, const FrameGraph & aGraph);
+    void fixupIrradianceAlphaComputePass(GLuint aGridDimension, FrameGraph & aGraph);
 
     Guard guardConservativeRasterization();
 

@@ -15,10 +15,6 @@
 
 namespace ad {
 
-void drawPass(const renderer::IntrospectProgram & aProgram,
-              const scenic::SceneTree & aSceneTree,
-              const Engine & aEngine);
-
 
 struct Voxelizer;
 
@@ -77,6 +73,29 @@ struct FrameGraph
         math::Vec<2, GLfloat> mShadowScaleBias{1.f, 10.f};
     };
 
+
+    // Naive cache associating the MeshPart VAOs to programs
+    struct ProgramCache
+    {
+        ProgramCache(renderer::IntrospectProgram aProgram) :
+            mProgram{std::move(aProgram)}
+        {}
+
+        /*implicit*/ operator graphics::Program & ()
+        { return mProgram; }
+        /*implicit*/ operator const graphics::Program & () const
+        { return mProgram; }
+
+        /*implicit*/ operator GLuint() const
+        { return mProgram; }
+
+        const graphics::VertexArrayObject & getVao(const scenic::MeshPart_Naive & aPart);
+
+        renderer::IntrospectProgram mProgram;
+        std::unordered_map<const scenic::MeshPart_Naive *, graphics::VertexArrayObject> mPartToVao;
+    };
+
+
     FrameGraph(math::Size<2, int> aFrameSize);
 
     void resizeFrame(math::Size<2, int> aRenderResolution);
@@ -103,7 +122,7 @@ struct FrameGraph
     void renderCubemap(const scenic::SceneTree & aSceneTree);
 
     void passForward(const scenic::SceneTree & aSceneTree,
-                     const renderer::IntrospectProgram & aProgram);
+                     ProgramCache & aProgram);
 
     void loadPrograms();
 
@@ -113,24 +132,24 @@ struct FrameGraph
     {
         ProgramStore(Engine & aEngine);
 
-        renderer::IntrospectProgram mPbr;
-        renderer::IntrospectProgram mConeTrace;
-        renderer::IntrospectProgram mRayTraceVoxels;
-        renderer::IntrospectProgram mDebugCubemap;
-        renderer::IntrospectProgram mDepthMapping;
-        renderer::IntrospectProgram mCubeDepthMapping;
+        ProgramCache mPbr;
+        ProgramCache mConeTrace;
+        ProgramCache mRayTraceVoxels;
+        ProgramCache mDebugCubemap;
+        ProgramCache mDepthMapping;
+        ProgramCache mCubeDepthMapping;
 
-        renderer::IntrospectProgram mVoxelizationProgram;
-        renderer::IntrospectProgram mVoxelizationDominantAxisProgram;
-        renderer::IntrospectProgram mVoxelizationViewProgram;
-        renderer::IntrospectProgram mVoxelizationDominantAxisViewProgram;
+        ProgramCache mVoxelizationProgram;
+        ProgramCache mVoxelizationDominantAxisProgram;
+        ProgramCache mVoxelizationViewProgram;
+        ProgramCache mVoxelizationDominantAxisViewProgram;
 
-        renderer::IntrospectProgram mInjectIrradianceProgram;
-        renderer::IntrospectProgram mFilterIrradianceProgram;
-        renderer::IntrospectProgram mFilterIrradianceAnisoBaseProgram;
-        renderer::IntrospectProgram mFilterIrradianceAnisoFromAnisoProgram;
+        ProgramCache mInjectIrradianceProgram;
+        ProgramCache mFilterIrradianceProgram;
+        ProgramCache mFilterIrradianceAnisoBaseProgram;
+        ProgramCache mFilterIrradianceAnisoFromAnisoProgram;
 
-        renderer::IntrospectProgram mFixupIrradianceAlphaProgram;
+        ProgramCache mFixupIrradianceAlphaProgram;
     };
 
 
@@ -148,5 +167,11 @@ struct FrameGraph
     FrameControl mFrameControl;
 
 };
+
+
+void drawPass(FrameGraph::ProgramCache & aProgram,
+              const scenic::SceneTree & aSceneTree,
+              const Engine & aEngine);
+
 
 } // namespace ad

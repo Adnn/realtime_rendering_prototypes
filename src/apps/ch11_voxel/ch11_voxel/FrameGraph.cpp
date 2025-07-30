@@ -56,8 +56,20 @@ namespace ad {
     } // unnamed namespace
 
 
+const graphics::VertexArrayObject & FrameGraph::ProgramCache::getVao(const scenic::MeshPart_Naive & aPart)
+{
+    if (auto found = mPartToVao.find(&aPart); found == mPartToVao.end())
+    {
+        return mPartToVao.emplace(&aPart, prepareVAO(mProgram, aPart)).first->second;
+    }
+    else
+    {
+        return found->second;
+    }
+}
 
-void drawPass(const renderer::IntrospectProgram & aProgram, 
+
+void drawPass(FrameGraph::ProgramCache & aProgram,
               const scenic::SceneTree & aSceneTree,
               const Engine & aEngine)
 {
@@ -78,7 +90,7 @@ void drawPass(const renderer::IntrospectProgram & aProgram,
     {
         for (const scenic::MeshPart_Naive & part : object.mParts)
         {
-            graphics::VertexArrayObject vao = prepareVAO(aProgram, part);
+            const graphics::VertexArrayObject & vao = aProgram.getVao(part);
             glBindVertexArray(vao);
 
             scenic::GenericMaterial_glsl material =
@@ -266,7 +278,7 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
     ZoneScoped;
     TracyGpuZone("render_final_scene");
 
-    const auto & program = mPrograms.mPbr;
+    auto & program = mPrograms.mPbr;
 
     setupShadowUniforms(program);
 
@@ -308,7 +320,7 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
 void FrameGraph::renderConeTrace(const scenic::SceneTree & aSceneTree,
                                  Voxelizer & aVoxelizer, GLuint aMode)
 {
-    const auto & program = mPrograms.mConeTrace;
+    auto & program = mPrograms.mConeTrace;
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
@@ -342,7 +354,7 @@ void FrameGraph::renderDepth(const scenic::SceneTree & aSceneTree, DepthMapType 
     glPolygonOffset(mFrameControl.mShadowScaleBias.x(),
                     mFrameControl.mShadowScaleBias.y());
 
-    const auto & program = (aType == DepthMapType::CubeMap) ? 
+    auto & program = (aType == DepthMapType::CubeMap) ? 
         mPrograms.mCubeDepthMapping : mPrograms.mDepthMapping;
 
     if (aType == DepthMapType::CubeMap)
@@ -357,7 +369,7 @@ void FrameGraph::renderDepth(const scenic::SceneTree & aSceneTree, DepthMapType 
 
 void FrameGraph::renderCubemap(const scenic::SceneTree & aSceneTree)
 {
-    const auto & program = mPrograms.mDebugCubemap;
+    auto & program = mPrograms.mDebugCubemap;
 
     glTextureParameteri(mOmniShadowMap, GL_TEXTURE_COMPARE_MODE, GL_NONE);
 
@@ -373,7 +385,7 @@ void FrameGraph::renderCubemap(const scenic::SceneTree & aSceneTree)
 
 
 void FrameGraph::passForward(const scenic::SceneTree & aSceneTree,
-                             const renderer::IntrospectProgram & aProgram)
+                             ProgramCache & aProgram)
 {
     glPolygonMode(GL_FRONT_AND_BACK, *mFrameControl.mPolygonMode);
     glEnable(GL_CULL_FACE);
