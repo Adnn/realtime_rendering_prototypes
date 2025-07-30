@@ -35,11 +35,6 @@ void main()
 		}
     }
     
-    if(accum.a < 0.1)
-    {
-        return;
-    }
     vec4 result = vec4(accum.rgb / accum.a, accum.a / 8);
-    //vec4 result = vec4(0, 1, 0, 1);
     imageStore(u_IrradianceDestinationImage, voxelCoord, result);
 }
