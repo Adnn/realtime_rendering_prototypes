@@ -54,17 +54,28 @@ vec4[8] loadSubtexels(
     return result;
 }
 
+//#define EMULATE_ISOTROPIC
+#if !defined(EMULATE_ISOTROPIC)
+	vec3 integrateAlbedo(vec4[8] v, uint aNear, uint aFar)
+	{
+		return v[aNear].a * v[aNear].rgb + (1 - v[aNear].a) * v[aFar].a * v[aFar].rgb;
+	}
 
-vec3 integrateAlbedo(vec4[8] v, uint aNear, uint aFar)
-{
-	return v[aNear].a * v[aNear].rgb + (1 - v[aNear].a) * v[aFar].a * v[aFar].rgb;
-}
+	float integrateOpacity(vec4[8] v, uint aNear, uint aFar)
+	{
+		return v[aNear].a + (1 - v[aNear].a) * v[aFar].a;
+	}
+#else
+	vec3 integrateAlbedo(vec4[8] v, uint aNear, uint aFar)
+	{
+		return (v[aNear].a * v[aNear].rgb + v[aFar].a * v[aFar].rgb) / 2;
+	}
 
-
-float integrateOpacity(vec4[8] v, uint aNear, uint aFar)
-{
-	return v[aNear].a + (1 - v[aNear].a) * v[aFar].a;
-}
+	float integrateOpacity(vec4[8] v, uint aNear, uint aFar)
+	{
+		return (v[aNear].a + v[aFar].a) / 2;
+	}
+#endif //EMULATE_ISOTROPIC
 
 
 vec4 average(vec4 aValues[4])
