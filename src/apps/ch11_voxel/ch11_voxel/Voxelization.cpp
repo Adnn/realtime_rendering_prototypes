@@ -357,7 +357,15 @@ void Voxelizer::voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimen
 }
 
 
-void Voxelizer::prepareMipmap(GLuint aGridDimension, const FrameGraph & aGraph)
+void Voxelizer::bindAnisoTextures()
+{
+    const std::vector<GLuint> anisos{mIrradianceAnisoMipmaps.begin(),
+                                     mIrradianceAnisoMipmaps.end()};
+    glBindTextures(gAnisoIrradianceTextureUnit, 6, anisos.data());
+}
+
+
+void Voxelizer::prepareMipmap(GLuint aGridDimension, FrameGraph & aGraph)
 {
     if (mControl.mComputeIrradianceMipmapping)
     {

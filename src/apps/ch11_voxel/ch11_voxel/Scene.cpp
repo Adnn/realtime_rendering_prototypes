@@ -458,10 +458,7 @@ void Scene::renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, i
             graphics::setUniform(program, "u_VoxelsNormalsTexture", 1);
             glBindTextureUnit(11, mVoxelizer.mIrradiance);
             graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
-            glBindTextureUnit(Voxelizer::gAnisoIrradianceTextureUnit,
-                              mVoxelizer.mIrradianceAnisoMipmaps[0]);
-            graphics::setUniform(program, "u_VoxelsIrradianceAnisoMipmap",
-                                 Voxelizer::gAnisoIrradianceTextureUnit);
+            mVoxelizer.bindAnisoTextures();
 
             graphics::setUniform(program, "u_VoxelMode",
                                  static_cast<GLuint>(mSceneControl.mMode));

@@ -72,6 +72,7 @@ struct Voxelizer
     void voxelizeView(const scenic::SceneTree & aScene, GLuint aGridDimension,
                       FrameGraph & aGraph);
 
+    void bindAnisoTextures();
 
     void prepareMipmap(GLuint aGridDimension, FrameGraph & aGraph);
 

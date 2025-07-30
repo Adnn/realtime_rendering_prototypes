@@ -285,12 +285,10 @@ void FrameGraph::renderFinalScene(const scenic::SceneTree & aSceneTree,
     glBindTextureUnit(11, aVoxelizer.mIrradiance);
     graphics::setUniform(program, "u_VoxelsIrradianceTexture", 11);
 
-    const std::vector<GLuint> anisos{aVoxelizer.mIrradianceAnisoMipmaps.begin(),
-                                     aVoxelizer.mIrradianceAnisoMipmaps.end()};
-    glBindTextures(Voxelizer::gAnisoIrradianceTextureUnit, 6, anisos.data());
-
     glBindTextureUnit(15, mIntegratedGgxBrdf);
     graphics::setUniform(program, "u_IntegratedEnvironmentBrdf", 15);
+
+    aVoxelizer.bindAnisoTextures();
 
     graphics::setUniform(program, "u_VoxelSize", aVoxelizer.mVoxelSize);
     graphics::setUniform(program, "u_AabbMin", aVoxelizer.mSceneAabb.leftBottomZMin());

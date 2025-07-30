@@ -25,7 +25,6 @@ SceneTree & mergeScenes(SceneTree & aBaseTree,
                         SceneTree & aMerged,
                         Node::Index aParent)
 {
-    
     Node::Index appliedOffset = aBaseTree.mTree.insert(aMerged.mTree, aParent);
     mergeMap(aBaseTree.mObjectsMap, aMerged.mObjectsMap, appliedOffset);
 
