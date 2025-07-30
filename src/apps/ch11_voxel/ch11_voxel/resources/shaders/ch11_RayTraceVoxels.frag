@@ -22,7 +22,6 @@ uniform ivec2 u_FramebufferSize;
 uniform vec2 u_ImagePlane_view;
 uniform uint u_VoxelMode;
 uniform int u_VoxelMipmapLevel;
-uniform bool u_AnisotropicIrradianceMipmaps;
 
 const uniform vec4 u_MissColor = vec4(0.3, 0, 0, 1);
 
@@ -104,16 +103,22 @@ vec4 fetchColor(ivec3 currentVoxel, bvec3 mask)
             if(u_AnisotropicIrradianceMipmaps && (u_VoxelMipmapLevel > 0))
             {
 				// Hardcodes fetching from first aniso direction (+X)
-				value = texelFetch(u_VoxelsIrradianceAnisoMipmap[0], currentVoxel, u_VoxelMipmapLevel - 1);
+				value = texelFetch(u_VoxelsIrradianceAnisoMipmap[u_HardcodedAnisoDirection], currentVoxel, u_VoxelMipmapLevel - 1);
             }
             else
             {
 				value = texelFetch(u_VoxelsIrradianceTexture, currentVoxel, u_VoxelMipmapLevel);
             }
 
-			vec4 color = vec4(vec3(value.rgb) * factorHitFace(mask),
-				              1);
-			return correctGamma(color);
+            //#define SHOW_LINERAR_ALPHA
+            #if defined(SHOW_LINERAR_ALPHA)
+				vec4 color = vec4(vec3(value.a) * vec3(mask), 1);
+				return color;
+            #else
+				vec4 color = vec4(vec3(value.rgb) * factorHitFace(mask) * value.a
+								  ,1);
+				return correctGamma(color);
+            #endif
 		}
 	}
 }

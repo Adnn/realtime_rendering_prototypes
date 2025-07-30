@@ -19,7 +19,6 @@ uniform float u_TanHalfAperture = M_PI / 6;
 uniform float u_TanHalfShadow = 0.0174533f;
 uniform float u_SpecularConeRoughnessFactor = 1;
 uniform bool u_GridAlign;
-uniform bool u_AnisotropicIrradianceMipmaps;
 
 
 // Partition the hemisphere with 7 cones is convenient:
@@ -63,11 +62,12 @@ const float gDiffuseConeWeights[] =
 vec4 sampleAnisotropic(vec3 coord, float lod, vec3 weight, uvec3 face)
 {
     // anisotropic volumes level
-    float anisoLevel = max(lod - 1.0f, 0.0f);
+    float anisoLevel = lod - 1.0f;
     // directional sample
     vec4 anisoSample = weight.x * textureLod(u_VoxelsIrradianceAnisoMipmap[face.x], coord, anisoLevel)
                      + weight.y * textureLod(u_VoxelsIrradianceAnisoMipmap[face.y], coord, anisoLevel)
                      + weight.z * textureLod(u_VoxelsIrradianceAnisoMipmap[face.z], coord, anisoLevel);
+
     // linearly interpolate on base level
     if(lod < 1.0f)
     {
