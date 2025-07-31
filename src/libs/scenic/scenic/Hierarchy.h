@@ -321,6 +321,7 @@ Node::Index NodeTree<T_pose>::insert(const NodeTree & aSubtree,
         utils::appendSiblings(mHierarchy[aInsertionParent].mFirstChild,
                               shiftedSubtreeRoot,
                               *this);
+        mHierarchy[shiftedSubtreeRoot].mParent = aInsertionParent;
     }
     else // Insert the subtree as a root node
     {

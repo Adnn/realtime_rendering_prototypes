@@ -1,0 +1,5 @@
+{
+    "vertex": "shaders/FullTransform.vert",
+    "fragment": "shaders/PlainColor.frag",
+    "defines":  ["VERTEX_COLOR"]
+}

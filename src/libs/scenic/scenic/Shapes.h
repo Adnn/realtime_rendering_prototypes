@@ -25,7 +25,6 @@ namespace quad {
     };
 
     constexpr Normal gNormals[4]{
-        // Full-screen quad coordinates
         { 0.0f, 0.0f, 1.0f },
         { 0.0f, 0.0f, 1.0f },
         { 0.0f, 0.0f, 1.0f },
@@ -39,6 +38,66 @@ namespace quad {
     //};
 
 } // namespace quad
+
+
+namespace cube {
+
+    constexpr Position gVertices[8]{
+        // [-1, 1]^3, corresonding to default OpenGL NDC
+        {-1.f, -1.f, -1.f},
+        {-1.f, -1.f,  1.f},
+        {-1.f,  1.f, -1.f},
+        {-1.f,  1.f,  1.f},
+
+        { 1.f, -1.f, -1.f},
+        { 1.f, -1.f,  1.f},
+        { 1.f,  1.f, -1.f},
+        { 1.f,  1.f,  1.f}
+    };
+
+    constexpr Normal gNormals[6] {
+        // Left
+        {-1.0f,  0.0f,  0.0f },
+        // Front
+        { 0.0f,  0.0f,  1.0f },
+        // Right,
+        { 1.0f,  0.0f,  0.0f },
+        // Back
+        { 0.0f,  0.0f, -1.0f },
+        // Top
+        { 0.0f,  1.0f,  0.0f },
+        // Bottom
+        { 0.0f, -1.0f,  0.0f }
+    };
+
+    constexpr Index gIndices[36] {
+        // Left
+        0, 1, 2,
+        2, 1, 3,
+        // Front
+        1, 5, 3,
+        3, 5, 7,
+        // Right,
+        5, 4, 7,
+        7, 4, 6,
+        // Back
+        4, 0, 6,
+        6, 0, 2,
+        // Top
+        6, 2, 7,
+        7, 2, 3,
+        // Bottom
+        0, 4, 1,
+        1, 4, 5
+    };
+
+    // see: https://stackoverflow.com/a/38855946
+    constexpr Index gIndices_triangleStrip[14] {
+        2, 6, 0, 4, 5, 6, 7, 2, 3, 0, 1, 5, 3, 7
+    };
+
+} // namespace cube
+
 
 namespace icosahedron {
 

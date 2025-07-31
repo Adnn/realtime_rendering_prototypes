@@ -59,13 +59,16 @@ int main(int argc, const char* argv[])
 
         while(application.nextFrame())
         {
-            scene.step(timer, application.getAppInterface()->getWindowSize());
-            scene.render(application.getAppInterface()->getFramebufferSize());
-            timer.mark(glfwGetTime());
+            if (application.getAppInterface()->isWindowOnDisplay())
+            {
+                scene.step(timer, application.getAppInterface()->getWindowSize());
+                scene.render(application.getAppInterface()->getFramebufferSize());
 
-            ad::imguiui::newFrame();
-            ui.present("Root", scene);
-            ad::imguiui::renderFrame();
+                ad::imguiui::newFrame();
+                ui.present("Root", scene);
+                ad::imguiui::renderFrame();
+            }
+            timer.mark(glfwGetTime());
 
             // If an error occurs, such as infinite loop in a shader causing the driver to timeout
             // it seems to only be catched at this point, not immediately after the triggering drawcall.

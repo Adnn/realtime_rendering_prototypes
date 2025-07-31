@@ -25,6 +25,8 @@
 in vec4 ex_Color;
 in vec3 ex_Normal_view;
 in vec3 ex_Position_view;
+in vec3 ex_Tangent;
+in vec3 ex_Bitangent;
 
 out vec4 out_Color;
 

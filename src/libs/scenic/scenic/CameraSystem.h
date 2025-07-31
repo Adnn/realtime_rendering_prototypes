@@ -9,7 +9,7 @@ namespace ad::scenic {
 
 struct OrbitalCamera
 {
-    void update(int aWindowHeight);
+    void update(float aDeltaTime, int aWindowHeight);
 
     void reset(float aAspectRatio);
 

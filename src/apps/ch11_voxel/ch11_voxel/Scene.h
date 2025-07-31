@@ -1,0 +1,188 @@
+#pragma once
+
+
+#include "Engine.h"
+#include "FrameGraph.h"
+#include "Shadow.h"
+#include "Voxelization.h"
+
+#include "debug/DebugRenderer.h"
+
+#include <engine/Entities.h>
+#include <engine/IntrospectProgram.h>
+#include <engine/Lights.h>
+
+#include <graphics/AppInterface.h>
+#include <graphics/Timer.h>
+
+#include <math/Color.h>
+#include <math/Vector.h>
+
+#include <renderer/UniformBuffer.h>
+#include <renderer/VertexSpecification.h>
+#include <renderer/Drawing.h>
+
+#include <scenic/CameraSystem.h>
+#include <scenic/ColorPalettes.h>
+#include <scenic/ShapesAsModel.h>
+
+#include <scenic/environment/Environment.h>
+
+#include <scenic/gui/HierarchyGui.h>
+
+
+namespace ad {
+
+
+
+namespace imguiui {
+    class ImguiUi;
+} // namespace imguiui
+
+
+struct Scene
+{
+    struct SceneControl
+    {
+        enum class Mode 
+        {
+            FullScene,
+            ConeTrace_AO,
+            ConeTrace_Diffuse,
+            ConeTrace_Specular,
+            VoxelsOccupancy,
+            VoxelsAlbedo,
+            VoxelsNormals,
+            VoxelsIrradiance,
+            _End/* keep last */
+        };
+
+        bool showOccupancy() const
+        {
+            return mMode == Mode::VoxelsOccupancy;
+        };
+
+        bool showIrradiance() const
+        {
+            return mMode == Mode::VoxelsIrradiance;
+        };
+
+        bool showVoxels() const
+        {
+            return 
+                mMode == Mode::VoxelsOccupancy
+                || mMode == Mode::VoxelsAlbedo
+                || mMode == Mode::VoxelsNormals
+                || mMode == Mode::VoxelsIrradiance
+                ;
+        };
+
+        bool showConeTrace() const
+        {
+            return 
+                mMode == Mode::ConeTrace_AO
+                || mMode == Mode::ConeTrace_Diffuse
+                || mMode == Mode::ConeTrace_Specular
+                ;
+        };
+
+        Mode mMode{ Mode::FullScene };
+        GLint mMipmapLevel = 0;
+        bool mCubeInstances = false;
+
+        bool mShowPunctualLights = true;
+        bool mDrawBoundingBoxes = false;
+        bool mVoxelPov = false;
+    };
+
+    Scene(graphics::AppInterface & aAppInterface, const imguiui::ImguiUi & aImgui);
+
+    void onFramebufferResize(math::Size<2, int> aNewSize);
+
+    void loadPrograms();
+
+    void voxelize();
+
+    void step(
+        const graphics::Timer & aTimer,
+        math::Size<2, int> aWindowResolution);
+
+    void render(math::Size<2, int> aBackbufferResolution);
+    void renderTo(const graphics::FrameBuffer & aFramebuffer, math::Size<2, int> aBackbufferResolution);
+
+    void presentUi(bool * aOpen = nullptr);
+
+    // Must be initialized early, to populate Engine prefixes
+    FrameGraph mGraph;
+
+    scenic::SceneTree mSceneTree;
+    scenic::GenericMaterialsBlock_glsl & mMaterials;
+    scenic::OrbitalCamera mOrbitalCamera;
+    //scenic::Environment mEnvironment;
+    scenic::Object mSphere{ scenic::makeSphere(4) };
+    scenic::Object mCube{ scenic::makeCube() };
+    SceneControl mSceneControl;
+    scenic::TreeInteractionState mSceneTreeGuiState;
+    debug::DebugRenderer mDebugRenderer{mGraph.mEngine};
+    bool mVoxelizationRequest = true;
+    Voxelizer mVoxelizer;
+    Shadow mShadow;
+
+    std::shared_ptr<graphics::AppInterface::SizeListener> mSizeListener;
+
+    // TODO: should mostly move to framegraph
+    graphics::UniformBufferObject mEntitiesBlockBuffer;
+    graphics::UniformBufferObject mLightsBlockBuffer;
+    graphics::UniformBufferObject mMaterialsBlockBuffer;
+    graphics::UniformBufferObject mViewProjectionBuffer;
+    renderer::IntrospectProgram mLightProgram;
+
+    renderer::EntitiesBlock_glsl mEntities;
+    // The count of entities to be rendered that are not lights
+    // (i.e.: this is the index of the first light in the entities buffer)
+    unsigned int mObjectsCount = 0;
+
+    renderer::LightsDataCommon mLights{
+        .mDirectionalCount = 1,
+        .mPointCount = 0,
+        // We decode a sRGB 50% white (which is also perceptually ~50%)
+        // to linear space for computation.
+        .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.25f),
+        //.mAmbientColor = math::hdr::Rgb_f{0.f, 0.f, 0.f},
+        .mDirectionalLights = {
+            renderer::DirectionalLight_glsl{
+                // Sponza: strong lighting of the first level
+                //.mDirection = math::UnitVec<3, float>{ {0.1f, -0.85f, 0.51f} },
+                // Sponza: lighting down to the lower drapes
+                .mDirection = math::UnitVec<3, float>{ {0.1f, -0.94f, 0.325f} },
+                // TODO: decode the srgb value to have it show correctly in Imgui
+                // (and have it perceptually proportional to the factor)
+                .mColors = renderer::LightColors_glsl{} * 8,
+            },
+         },
+        .mPointLights = {
+            renderer::PointLight_glsl{
+                .mPosition = {0.0f, 3.5f, 0.0f},
+                .mRadius{
+                    .mMin = 1.0f,
+                    .mMax = 7.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 10.f,
+            },
+            renderer::PointLight_glsl{
+                .mPosition = {+2.f, 3.f, 0.f},
+                .mRadius{
+                    .mMin = 0.2f,
+                    .mMax = 5.f,
+                },
+                .mColors = renderer::LightColors_glsl{} * 10.f,
+            },
+         },
+    };
+};
+
+
+std::string to_string(Scene::SceneControl::Mode aValue);
+
+
+} // namespace ad

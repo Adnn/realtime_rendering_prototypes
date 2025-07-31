@@ -123,10 +123,12 @@ void Orbital::incrementOrbit(math::Radian<float> aAzimuthal, math::Radian<float>
 }
 
 
-void Orbital::pan(math::Vec<2, float> aPanning)
+void Orbital::translate(math::Vec<3, float> aTranslation)
 {
     math::OrthonormalBase<3, float> tangent = mSpherical.computeTangentFrame().base;
-    mSphericalOrigin -= aPanning.x() * tangent.u() - aPanning.y() * tangent.v();
+    mSphericalOrigin -= aTranslation.x() * tangent.u() 
+                        - aTranslation.y() * tangent.v()
+                        + aTranslation.z() * tangent.w();
 }
 
 
@@ -199,10 +201,19 @@ void OrbitalControl::callbackCursorPosition(double xpos, double ypos)
 }
 
 
-void OrbitalControl::update(float aViewHeightInWorld, int aWindowHeight)
+void OrbitalControl::update(float aDeltaTime, float aViewHeightInWorld, int aWindowHeight)
 {
-    mOrbital.pan(mDragVector_cursor * aViewHeightInWorld / aWindowHeight);
+    assert(aWindowHeight != 0);
+    math::Vec<3, float> translation{
+        mDragVector_cursor * aViewHeightInWorld / aWindowHeight,
+        0.f};
     mDragVector_cursor = {0.f, 0.f};
+
+    // Handle translations
+    float movement = aDeltaTime * gTranslationSpeed;
+    translation += mMovementVector * movement;
+
+    mOrbital.translate(translation);
 }
 
 
@@ -232,6 +243,32 @@ void OrbitalControl::callbackScroll(double xoffset, double yoffset)
 {
     float factor = (1 - (float)yoffset * gScrollFactor);
     mOrbital.radius() *= factor;
+}
+
+
+void OrbitalControl::callbackKeyboard(int key, int scancode, int action, int mods)
+{
+    if(action != GLFW_PRESS && action != GLFW_RELEASE)
+    {
+        return;
+    }
+
+    const float v = (action == GLFW_PRESS) ? 1.f : 0.f;
+    switch(key)
+    {
+        case GLFW_KEY_I:
+            mMovementVector.z() = v;
+            break;
+        case GLFW_KEY_K:
+            mMovementVector.z() = -v;
+            break;
+        case GLFW_KEY_J:
+            mMovementVector.x() = v;
+            break;
+        case GLFW_KEY_L:
+            mMovementVector.x() = -v;
+            break;
+    }
 }
 
 

@@ -2,6 +2,7 @@
 set(TARGET_NAME engine)
 
 set(${TARGET_NAME}_HEADERS
+	ColorSpace.h
 	Entities.h
     IntrospectProgram.h
     Lights.h

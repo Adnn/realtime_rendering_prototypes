@@ -5,11 +5,19 @@
 
 #include <engine/files/Loader.h>
 
+#include <math/Homogeneous.h>
+
 #include <renderer/Texture.h>
 
 
 namespace ad::scenic {
 
+
+/// @brief The orientation matrices for a cubemap, in the OpenGL order 
+///
+/// The matrices will rotate +X, -X, +Y, -Y, +Z, -Z onto -Z (camera forward)
+/// as well as negating the Y axis (cubemap are top-left origin, see .cpp)
+extern const std::array<math::AffineMatrix<4, float>, 6> gCubeCaptureViewsNegateY;
 
 graphics::Texture loadCubemapFromDds(std::filesystem::path aDds);
 

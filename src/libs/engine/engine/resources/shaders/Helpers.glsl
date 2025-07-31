@@ -25,17 +25,47 @@ float maxCw(vec4 v)
 }
 
 
+float minCw(vec3 v)
+{
+    return min(min(v.x, v.y), v.z);
+}
+
+
+float minCw(vec4 v)
+{
+    //see: https://stackoverflow.com/a/77071476
+    vec2 pairs = min(v.xy, v.zw);
+    return min(pairs.x, pairs.y);
+}
+
+
 // Remaps a vector from symmetric domain [-amplitude, amplitude]^3 to [0, 1]^3.
 // Notably useful to display unit direction vectors as colors.
-vec3 mapToRgb(vec3 aInput, float aAmplitude)
+vec3 mapToUnit(vec3 aInput, float aAmplitude)
 {
     return (aInput + vec3(aAmplitude)) / (2 * aAmplitude);
 }
 
 // Remaps a unit vector from [-1, 1]^3 to [0, 1]^3.
-vec3 mapToRgb(vec3 aInput)
+vec3 mapToUnit(vec3 aInput)
 {
-    return mapToRgb(aInput, 1);
+    return mapToUnit(aInput, 1);
+}
+
+
+float mapRangeToUnit(float aValue, float aMin, float aMax)
+{
+    return (aValue - aMin) / (aMax - aMin);
+}
+
+
+float linearizeDepth(float aDepthBufferValue, float aNearDistance, float aFarDistance)
+{
+	// Remap depth value [0, 1] to NDC [-1, 1]
+	float d = 2 * aDepthBufferValue - 1.0;
+	return
+		(2 * aNearDistance) 
+		/ (aFarDistance + aNearDistance - d * (aFarDistance - aNearDistance));
 }
 
 
@@ -90,6 +120,26 @@ vec2 worldToEquirectangular(vec3 aWorldRay)
     float v = 1 - acos(sampleDir.y) / M_PI;
 
     return vec2(u, v);
+}
+
+
+// see: Building an Orthonormal Basis, Revisited (Pixar)
+void revisedONB(vec3 n, out vec3 b1, out vec3 b2)
+{
+	if (n.z<0.0f)
+	{
+		const float a = 1.0f / (1.0f - n.z);
+		const float b = n.x * n.y * a;
+		b1 = vec3(1.0f - n.x * n.x * a, -b, n.x);
+		b2 = vec3(b, n.y * n.y*a - 1.0f, -n.y);
+	}
+	else
+	{
+		const float a = 1.0f / (1.0f + n.z);
+		const float b = -n.x * n.y * a;
+		b1 = vec3(1.0f - n.x * n.x * a, b, -n.x);
+		b2 = vec3(b, 1.0f - n.y * n.y * a, -n.y);
+	}
 }
 
 

@@ -51,6 +51,8 @@ struct IntrospectProgram
     std::string_view name() const
     { return mName; }
 
+    // TODO: methods to query the attribute for a semantic (return an optional)
+
     struct Resource
     {
         GLint mLocation; // keep it signed, so it can hold -1 for uniforms from uniform blocks.

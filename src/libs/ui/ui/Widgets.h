@@ -13,7 +13,7 @@ namespace imguiui {
 
 
 template <class T_iterator, class F_stringify>
-void addCombo(const char *aLabel,
+bool addCombo(const char *aLabel,
               T_iterator & aValue,
               T_iterator aFirst, T_iterator aLast,
               F_stringify aToString);
@@ -51,6 +51,14 @@ void addCombo(const char * aLabel,
 template <auto E_end, class T_enumeration>
 void addComboContinuousEnum(const char* aLabel,
                             T_enumeration& aValue);
+
+
+/// @brief Implement a combo over a numeric (builtins) values
+template <class T_numeric, std::size_t N_extent>
+    requires std::is_arithmetic_v<T_numeric>
+bool addComboNumeric(const char * aLabel,
+                     T_numeric & aValue,
+                     std::span<const T_numeric, N_extent> aCandidates);
 
 
 } // namespace imguiui

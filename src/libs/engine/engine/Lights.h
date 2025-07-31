@@ -17,9 +17,10 @@ namespace ad::renderer {
 
 
 constexpr unsigned int gMaxLights = 16;
-//constexpr unsigned int gMaxShadowLights = 4;
-//constexpr unsigned int gCascadesPerShadow = 4;
-//constexpr unsigned int gMaxShadowMaps = gMaxShadowLights * gCascadesPerShadow;
+// Note: might be used as limit per shadow map type (e.g. directional and omni)
+constexpr unsigned int gMaxShadowLights = 2;
+constexpr unsigned int gCascadesPerShadow = 1;
+constexpr unsigned int gMaxShadowMaps = gMaxShadowLights * gCascadesPerShadow;
 
 
 // TODO there are obvious ways to pack the values much more tightly
@@ -129,9 +130,14 @@ struct LightsDataCommon
     /*alignas(16)*/ GLuint mPointCount{0};
 
     alignas(16) math::hdr::Rgb<GLfloat> mAmbientColor;
+    // WARNING: up to ch11_ssao, this was used to upload the view-space information to an uniform block
+    // starting with ch11_voxels, it is used to uploath the world-space info (and dedicated view members were added at the end)
     std::array<DirectionalLight_glsl, gMaxLights> mDirectionalLights;
     std::array<PointLight_glsl, gMaxLights> mPointLights;
 
+    // This is transient data, not described to witnesses
+    std::array<math::Vec<4, GLfloat>, gMaxLights> mDirections_view;
+    std::array<math::Position<4, GLfloat>, gMaxLights> mPoints_view;
     //
     // Helpers
     //
@@ -267,23 +273,23 @@ void r(T_visitor & aV, LightsDataUi & aLights)
     give(aV, aLights.spanPointLights(), "point lights");
 }
 
+#endif // disable shadow part
+
 
 /// @brief Layout compatible with shader's `LightViewProjectionBlock`
 struct LightViewProjection
 {
     GLuint mLightViewProjectionCount{0};
-    // Note: this is a workaround for the fact that InstantiatedViewpoint GS hardcodes 4 invocations
-    // (chosen to match the number of cascades for a single light).
-    // This implies that for any light except the 1st, we will need to offset each invocation so they use the correct
-    // view-projection matrix, and write the result to the correct layer.
-    // TODO Ad 2024/10/10: #parameterize_shaders Somehow allowing to compile a program with the required number of invocations 
-    // would allow to get rid of this member (and make a single call to draw all lights shadow maps at once)
-    GLuint mLightViewProjectionOffset{0};
+    //// Note: this is a workaround for the fact that InstantiatedViewpoint GS hardcodes 4 invocations
+    //// (chosen to match the number of cascades for a single light).
+    //// This implies that for any light except the 1st, we will need to offset each invocation so they use the correct
+    //// view-projection matrix, and write the result to the correct layer.
+    //// TODO Ad 2024/10/10: #parameterize_shaders Somehow allowing to compile a program with the required number of invocations 
+    //// would allow to get rid of this member (and make a single call to draw all lights shadow maps at once)
+    //GLuint mLightViewProjectionOffset{0};
     // TODO can we use the define system to forward this upper limit to shaders?
     alignas(16) math::Matrix<4, 4, GLfloat> mLightViewProjections[gMaxShadowMaps];
 };
-
-#endif // disable shadow part
 
 
 } // namespace ad::renderer

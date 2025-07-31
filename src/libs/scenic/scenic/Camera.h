@@ -148,7 +148,12 @@ struct Orbital
     void incrementOrbitRadians(math::Vec<2, float> aIncrements)
     { incrementOrbit(math::Radian<float>{aIncrements.x()}, math::Radian<float>{aIncrements.y()}); }
 
-    void pan(math::Vec<2, float> aPanning);
+    void translate(math::Vec<3, float> aTranslation);
+
+    inline void pan(math::Vec<2, float> aPanning)
+    {
+        translate({aPanning.x(), aPanning.y(), 0.f});
+    }
 
     float & radius();
     float radius() const;
@@ -196,15 +201,14 @@ struct OrbitalControl
     void callbackMouseButton(int button, int action, int mods, double xpos, double ypos);
     void callbackCursorPosition(double xpos, double ypos);
     void callbackScroll(double xoffset, double yoffset);
-    void callbackKeyboard(int key, int scancode, int action, int mods)
-    {}
+    void callbackKeyboard(int key, int scancode, int action, int mods);
 
     // Note: Initially, this class was storing a copy of the VFOV,
     // and thus could do panning directly in the cursor position callback.
     // Yet this copy violated DRY, and was only behaving well with perspective projection.
     // Note: As an alternative to taking the window size, the class could store a pointer to the appinterface
     // and query when needed.
-    void update(float aViewHeightInWorld, int aWindowHeight);
+    void update(float aDeltaTime, float aViewHeightInWorld, int aWindowHeight);
 
     Orbital mOrbital;
 
@@ -218,10 +222,12 @@ private:
 
     static constexpr math::Vec<2, float> gMouseControlFactor{1/700.f, 1/700.f};
     static constexpr float gScrollFactor = 0.05f;
+    static constexpr float gTranslationSpeed = 4.f; // worldunit/s
 
     // The drag quantity in cursor unit (usually pixels)
     // This allow deferring the actual panning until update(), which can convert this quantity to world unit.
     math::Vec<2, float> mDragVector_cursor;
+    math::Vec<3, float> mMovementVector;
     ControlMode mControlMode{ControlMode::None};
     math::Position<2, float> mPreviousDragPosition{0.f, 0.f};
 };

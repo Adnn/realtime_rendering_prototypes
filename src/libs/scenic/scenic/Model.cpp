@@ -25,7 +25,6 @@ SceneTree & mergeScenes(SceneTree & aBaseTree,
                         SceneTree & aMerged,
                         Node::Index aParent)
 {
-    
     Node::Index appliedOffset = aBaseTree.mTree.insert(aMerged.mTree, aParent);
     mergeMap(aBaseTree.mObjectsMap, aMerged.mObjectsMap, appliedOffset);
 
@@ -33,6 +32,28 @@ SceneTree & mergeScenes(SceneTree & aBaseTree,
     aMerged.mObjectsMap.clear();
 
     return aBaseTree;
+}
+
+
+math::Box<float> getAabb(const SceneTree & aSceneTree)
+{
+    if (aSceneTree.mObjectsMap.empty())
+    {
+        return {};
+    }
+    else
+    {
+        auto it = aSceneTree.mObjectsMap.begin();
+        math::Box<float> result = it->second.mAabb
+            * math::AffineMatrix<4, float>{aSceneTree.mTree.mGlobalPose[it->first]};
+        for (; it != aSceneTree.mObjectsMap.end(); ++it)
+        {
+            result.uniteAssign(
+                it->second.mAabb
+                * math::AffineMatrix<4, float>{aSceneTree.mTree.mGlobalPose[it->first]});
+        }
+        return result;
+    }
 }
 
 

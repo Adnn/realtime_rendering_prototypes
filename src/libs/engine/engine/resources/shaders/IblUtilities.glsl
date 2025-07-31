@@ -465,6 +465,19 @@ vec3 getSpecularDominantDir (vec3 N , vec3 R , float roughness)
  }
 
 
+ // The second term (second sum) of the split-sum approximation
+ // It applies a precomputed scale and bias to F0.
+vec3 specularBrdfLut(vec3 aF0,
+                     float NoV,
+                     float aRoughness,
+					 sampler2D aIntegratedBrdf)
+ {
+    vec2 brdf = texture(aIntegratedBrdf, vec2(NoV, aRoughness)).rg;
+    // The F90 term was found in mftpbr eq. (58) p64
+    return (aF0 * brdf.r + /*F90 * */brdf.g);
+ }
+
+
 /// @brief Split-sum approximation of the specular contribution from IBL
 /// Acts as an approximate and much faster specularIbl()
 vec3 approximateSpecularIbl(vec3 aSpecularColor,
@@ -485,12 +498,10 @@ vec3 approximateSpecularIbl(vec3 aSpecularColor,
 #else
         worldToCubemap(aReflection);
 #endif
+    // The first term of the split-sum approximation
     vec3 filteredRadiance = textureLod(aFilteredRadiance, cubemapSampleDir, lod).rgb;
 
-    vec2 brdf = texture(aIntegratedBrdf, vec2(NoV, aRoughness)).rg;
-    
-    // The F90 term was found in mftpbr eq. (58) p64
-    return filteredRadiance * (aSpecularColor * brdf.r + /*F90 * */brdf.g);
+    return filteredRadiance * specularBrdfLut(aSpecularColor, NoV, aRoughness, aIntegratedBrdf);
 }
 
 

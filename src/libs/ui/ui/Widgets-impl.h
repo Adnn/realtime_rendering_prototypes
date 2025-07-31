@@ -13,12 +13,13 @@ namespace imguiui {
 
 
 template <class T_iterator, class F_stringify>
-void addCombo(const char *aLabel,
+bool addCombo(const char *aLabel,
               T_iterator & aValue,
               T_iterator aFirst, T_iterator aLast,
               F_stringify aToString)
 {
     static const ImGuiComboFlags flags = 0;
+    bool selectionChanged = false;
     // Pass in the preview value visible before opening the combo (it could be anything)
     const std::string combo_preview_value = aToString(aValue);
     if (ImGui::BeginCombo(aLabel, combo_preview_value.c_str(), flags))
@@ -33,6 +34,7 @@ void addCombo(const char *aLabel,
             const bool isSelected = (aValue == aFirst);
             if (ImGui::Selectable(aToString(aFirst).c_str(), isSelected))
             {
+                selectionChanged = (aValue != aFirst);
                 aValue = aFirst;
             }
 
@@ -43,6 +45,7 @@ void addCombo(const char *aLabel,
             }
         }
     }
+    return selectionChanged;
 }
 
 
@@ -120,6 +123,43 @@ void addComboContinuousEnum(const char * aLabel,
     }
 }
 
+
+
+template <class T_numeric, std::size_t N_extent>
+    requires std::is_arithmetic_v<T_numeric>
+bool addComboNumeric(const char *aLabel,
+                     T_numeric & aValue,
+                     std::span<const T_numeric, N_extent> aCandidates)
+{
+    static const ImGuiComboFlags flags = 0;
+    bool selectionChanged = false;
+    // Pass in the preview value visible before opening the combo (it could be anything)
+    const std::string combo_preview_value = std::to_string(aValue);
+    if (ImGui::BeginCombo(aLabel, combo_preview_value.c_str(), flags))
+    {
+        Guard scopeCombo([]()
+        {
+            ImGui::EndCombo();
+        });
+
+        for (const T_numeric candidate : aCandidates)
+        {
+            const bool isSelected = (aValue == candidate);
+            if (ImGui::Selectable(std::to_string(candidate).c_str(), isSelected))
+            {
+                selectionChanged = (aValue != candidate);
+                aValue = candidate;
+            }
+
+            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+    }
+    return selectionChanged;
+}
 
 } // namespace imguiui
 } // namespace ad

@@ -1,0 +1,40 @@
+#version 460
+
+// TODO: profile different workgroup geometries
+// Maybe something more x oriented might be better for cache coherency
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+uniform layout(rgba8) readonly restrict image3D u_IrradianceSourceImage;
+uniform writeonly restrict image3D u_IrradianceDestinationImage;
+uniform uvec3 u_DestinationDimension;
+
+void main()
+{
+    // Does not seem to work
+    //ivec3 destinationSize = imageSize(u_IrradianceDestinationImage);
+    if(any(greaterThanEqual(gl_GlobalInvocationID, u_DestinationDimension)))
+    {
+        return;
+    }
+
+    ivec3 voxelCoord = ivec3(gl_GlobalInvocationID);
+    ivec3 sourceCorner = 2 * voxelCoord;
+
+    vec4 accum = vec4(0);
+    for(int z = 0; z !=2; ++z)
+    {
+		for(int y = 0; y !=2; ++y)
+		{
+			for(int x = 0; x !=2; ++x)
+			{
+                vec4 value = vec4(imageLoad(u_IrradianceSourceImage,
+                                           sourceCorner + ivec3(x, y, z)));
+                // Weight the irradiance by the occupancy
+                accum += vec4(value.rgb * value.a, value.a);
+			}
+		}
+    }
+    
+    vec4 result = vec4(accum.rgb / accum.a, accum.a / 8);
+    imageStore(u_IrradianceDestinationImage, voxelCoord, result);
+}

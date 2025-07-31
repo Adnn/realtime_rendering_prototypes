@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include "../ColorSpace.h"
 #include "../IntrospectProgram.h"
 
 #include <renderer/Texture.h>
@@ -28,6 +29,9 @@ struct ReferencePath
 
 // TODO: Move to a lower-level library (e.g. renderer/DdsGL.h)
 graphics::Texture loadDds(const std::filesystem::path & aDds);
+
+graphics::Texture loadTexture(const std::filesystem::path & aImagePath,
+                              ColorSpace aSourceColorSpace);
 
 
 struct Loader

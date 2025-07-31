@@ -1,11 +1,16 @@
 #include "LoadScene.h"
 
 #include "AssimpUtils.h"
+#include "Material.h"
 #include "VertexStreamUtilities.h"
 
 #include "log/Logging.h"
 
 #include <engine/SemanticValues.h>
+
+#include <engine/files/Loader.h>
+
+#include <handy/StringUtilities.h>
 
 #include <math/Box.h>
 
@@ -14,6 +19,7 @@
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
 
+#include <fmt/ranges.h>
 #include <fmt/std.h>
 
 #include <set>
@@ -29,6 +35,26 @@ namespace {
     using IndexType = std::remove_pointer_t<decltype(std::declval<aiFace>().mIndices)>;
     static_assert(std::is_same_v<IndexType, unsigned int>);
 
+
+    void set(const aiColor4D & aSource, math::hdr::Rgba_f & aDestination)
+    {
+        aDestination.r() = aSource.r;
+        aDestination.g() = aSource.g;
+        aDestination.b() = aSource.b;
+        aDestination.a() = aSource.a;
+    }
+
+
+    template <class... VT_args>
+    void setColor(math::hdr::Rgba_f & aDestination, aiMaterial * aMaterial, VT_args &&... aArgs)
+    {
+        aiColor4D aiColor;
+        if(aMaterial->Get(aArgs..., aiColor) == AI_SUCCESS)
+        {
+            set(aiColor, aDestination);
+            std::cout << "  color '" << std::get<0>(std::forward_as_tuple(aArgs...)) << "': " << aDestination << "\n";
+        }
+    }
 
     /// @brief Return type on "visiting" a node (i.e. recurseNode())
     struct NodeResult
@@ -56,7 +82,7 @@ namespace {
     //};
 
 
-    MeshPart_Naive handleMesh(aiMesh * aMesh)
+    MeshPart_Naive handleMesh(aiMesh * aMesh, std::size_t aMaterialOffset)
     {
 #if ! defined(NDEBUG) // For the moment, those variable are only used for assertions
         {
@@ -110,6 +136,74 @@ namespace {
                                          std::span{ aMesh->mNormals, aMesh->mNumVertices },
                                          GL_STATIC_DRAW));
         }
+
+        // Tangents and Bitangents
+        if (aMesh->mTangents)
+        {
+            // We also need bitangents when tangents are present
+            assert(aMesh->mBitangents);
+            {
+                AttributeDescription attribute{
+                    .mSemantic = renderer::semantic::gTangent,
+                    .mDimension = 3,
+                    .mComponentType = GL_FLOAT,
+                };
+
+                mesh.mSemanticToAttribute.insert(
+                    makeLoadedAccessor_Naive(attribute,
+                                             std::span{aMesh->mTangents, aMesh->mNumVertices},
+                                             GL_STATIC_DRAW));
+            }
+            {
+                AttributeDescription attribute{
+                    .mSemantic = renderer::semantic::gBitangent,
+                    .mDimension = 3,
+                    .mComponentType = GL_FLOAT,
+                };
+
+                mesh.mSemanticToAttribute.insert(
+                    makeLoadedAccessor_Naive(attribute,
+                                             std::span{aMesh->mBitangents, aMesh->mNumVertices},
+                                             GL_STATIC_DRAW));
+            }
+        }
+
+        // UV channels
+        // TODO: handle multiple UV channels when they show-up
+        // packing 2 channels per 4 component attributes
+        //assert(aMesh->GetNumUVChannels() <= 1);
+
+        unsigned int uvChannels = aMesh->GetNumUVChannels();
+        // Note: for the moment, even if several uv channels are available, we only read the first one 
+        // see note #pica01
+        uvChannels = std::min(1u, uvChannels);
+
+        for (unsigned int uvIdx = 0; uvIdx != uvChannels; ++uvIdx)
+        {
+            AttributeDescription attribute{
+                .mSemantic = renderer::semantic::gUv01,
+                .mDimension = 2,
+                .mComponentType = GL_FLOAT,
+            };
+            // Only support bidimensionnal texture sampling atm.
+            // Sadly, some models have a 3 here, even if they actually use only 2 (e.g. teapot.obj)
+            assert(aMesh->mNumUVComponents[uvIdx] == 2);
+
+            // Explicit processing is required to transform from 3D coordinates to 2D.
+            std::vector<math::Vec<2, GLfloat>> uvData;
+            uvData.reserve(aMesh->mNumVertices);
+            for(unsigned int vertexIdx = 0; vertexIdx != aMesh->mNumVertices; ++vertexIdx)
+            {
+                const aiVector3D & coordinates = aMesh->mTextureCoords[uvIdx][vertexIdx];
+                uvData.push_back({coordinates.x, coordinates.y});
+                // Even the assertion below does not hold true for teapot.obj
+                //assert(aMesh->mTextureCoords[uvIdx][vertexIdx].z == 0);
+            }
+
+            mesh.mSemanticToAttribute.insert(
+                makeLoadedAccessor_Naive(attribute, std::span{uvData}, GL_STATIC_DRAW));
+        }
+
         // Indices
         mesh.mIndexBuffer = makeBuffer(sizeof(IndexType),
                                        mesh.mIndicesCount,
@@ -122,6 +216,8 @@ namespace {
             std::memcpy(indexBuffer.get() + (faceIdx * 3), face.mIndices, sizeof(IndexType) * 3);
         }
         graphics::replaceSubset(mesh.mIndexBuffer, 0, std::span{ indexBuffer.get(), mesh.mIndicesCount });
+
+        mesh.mMaterial.mSurfaceParameters = aMesh->mMaterialIndex + aMaterialOffset;
 
 #if 0
         // Vertices
@@ -220,6 +316,7 @@ namespace {
         SceneTree& aOutScene,
         MeshMap& aMeshMap,
         Node::Index aParent,
+        std::size_t aMaterialOffset,
         unsigned int aLevel = 0)
     {
         std::cout << std::string(2 * aLevel, ' ') << "'" << aNode->mName.C_Str() << "'"
@@ -259,7 +356,8 @@ namespace {
                 assert(mesh->HasPositions() && mesh->HasFaces());
                 assert(hasTrianglesOnly(mesh));
 
-                const MeshPart_Naive& meshPart = object.mParts.emplace_back(handleMesh(mesh));
+                const MeshPart_Naive& meshPart = 
+                    object.mParts.emplace_back(handleMesh(mesh, aMaterialOffset));
                 if (meshIdx == 0)
                 {
                     object.mAabb = meshPart.mAabb;
@@ -360,7 +458,7 @@ namespace {
         for(std::size_t childIdx = 0; childIdx != aNode->mNumChildren; ++childIdx)
         {
             NodeResult childResult = 
-                recurseNodes(aNode->mChildren[childIdx], aScene, aOutScene, aMeshMap, thisIndex, aLevel + 1);
+                recurseNodes(aNode->mChildren[childIdx], aScene, aOutScene, aMeshMap, thisIndex, aMaterialOffset, aLevel + 1);
 
             //if(childIdx == 0 && aNode->mNumMeshes == 0) // The box was not primed yet
             //{
@@ -391,9 +489,193 @@ namespace {
         return result;
     }
 
+
+    struct DdsTracking
+    {
+        void append(std::string aPath, aiTextureType aTextureType)
+        {
+            switch (aTextureType)
+            {
+            case aiTextureType_DIFFUSE:
+                mDiffuse.push_back(std::move(aPath));
+                break;
+            case aiTextureType_NORMALS:
+                mNormal.push_back(std::move(aPath));
+                break;
+            case aiTextureType_METALNESS:
+                mMrao.push_back(std::move(aPath));
+                break;
+            default:
+                throw std::invalid_argument{"Extend the handled texture mappings"};
+            }
+        }
+
+        void dump(std::ostream && aOut)
+        {
+            aOut << "{\"diffuse\":\n[\"";
+            join(aOut, mDiffuse.begin(), mDiffuse.end(), "\",\n\"");
+            aOut << "\"],\n\n\"normal\":\n[\"";
+            join(aOut, mNormal.begin(), mNormal.end(), "\",\n\"");
+            aOut << "\"],\n\n\"mrao\":\n[\"";
+            join(aOut, mMrao.begin(), mMrao.end(), "\",\n\"");
+            aOut << "\"]}";
+        }
+
+        std::vector<std::string> mDiffuse;
+        std::vector<std::string> mNormal;
+        std::vector<std::string> mMrao;
+    };
+
+
+    TextureInput readTextureParameters(const aiMaterial * aAiMaterial, 
+                                       aiTextureType aTextureType,
+                                       TexturePaths & aTexturePaths,
+                                       std::size_t aTextureOffset,
+                                       DdsTracking & aTracking)
+    {
+        // For the moment, we handle a single texture in the pack (or none)
+        assert(aAiMaterial->GetTextureCount(aTextureType) <= 1);
+
+        TextureInput result;
+
+        // Consistent with max 1 texture in the stack
+        constexpr unsigned int indexInStack = 0;
+        aiString texPath;
+        if(aAiMaterial->Get(_AI_MATKEY_TEXTURE_BASE, aTextureType, indexInStack, texPath) == AI_SUCCESS)
+        {
+            std::cout << "  " << aiTextureTypeToString(aTextureType) << " texture: path '" << texPath.C_Str() << "'";
+
+            result = {
+                .mTextureIndex = (TextureInput::Index)(aTexturePaths.size() + aTextureOffset),
+                .mUVAttributeIndex = 0, // a default,
+                                        // see: https://assimp-docs.readthedocs.io/en/latest/usage/use_the_lib.html#how-to-map-uv-channels-to-textures-matkey-uvwsrc
+            };
+
+            renderer::ColorSpace colorSpace = [&]()
+                {
+                    switch (aTextureType)
+                    {
+                    case aiTextureType_DIFFUSE:
+                        return renderer::ColorSpace::sRGB;
+                    case aiTextureType_NORMALS:
+                    case aiTextureType_METALNESS:
+                        return renderer::ColorSpace::Linear;
+                    default:
+                        throw std::invalid_argument{"Extend the handled texture mappings"};
+                    }
+                }();
+            aTexturePaths.emplace_back(texPath.C_Str(), colorSpace);
+            aTracking.append(texPath.C_Str(), aTextureType);
+
+            unsigned int aiIndex;
+            if(aAiMaterial->Get(_AI_MATKEY_UVWSRC_BASE, aTextureType, indexInStack, aiIndex) == AI_SUCCESS)
+            {
+                // Note #pica01: With pica pica diorama, some meshes have 2 UV channels, 
+                // but textures only ever use the first one
+                // For the moment, we only actually read the first channel,
+                // and assert here that no other channel is used
+                // TODO: when that trips, we will have to actually implement multiple UV channels
+                assert(aiIndex == 0);
+                result.mUVAttributeIndex = aiIndex;
+                std::cout << ", explicit UV channel " << aiIndex;
+            }
+            else
+            {
+                std::cout << ", implicit UV channel " << result.mUVAttributeIndex;
+            }
+
+            std::cout << "\n"; // Terminate the output which started entering this scope
+        }
+        return result;
+    }
+
+
+    DdsTracking loadMaterials(const aiScene * aScene, 
+                              Context & aContext,
+                              TexturePaths & aTexturePaths)
+    {
+        auto & materials = aContext.mStorage.mMaterials;
+        auto & materialNames = aContext.mStorage.mMaterialNames;
+        DdsTracking tracking;
+
+        const std::size_t textureOffset = aContext.mStorage.mTextures.size();
+
+        for (std::size_t materialIdx = 0;
+             materialIdx != aScene->mNumMaterials;
+             ++materialIdx)
+        {
+            aiMaterial * material = aScene->mMaterials[materialIdx];
+            std::cout << "Material '" << material->GetName().C_Str()
+                << "' Diffuse tex:" << material->GetTextureCount(aiTextureType_DIFFUSE)
+                << " Specular tex:" << material->GetTextureCount(aiTextureType_SPECULAR)
+                << " Ambient tex:" << material->GetTextureCount(aiTextureType_AMBIENT)
+                << " Normal map:" << material->GetTextureCount(aiTextureType_NORMALS)
+                << " Metalness map:" << material->GetTextureCount(aiTextureType_METALNESS)
+                << std::endl;
+
+            // TODO: rename "destinationMaterial"
+            auto & genericMaterial = materials.mMaterials[materials.mCount++];
+            materialNames.push_back(material->GetName().C_Str());
+
+            setColor(genericMaterial.mDiffuseColor,  material, AI_MATKEY_COLOR_DIFFUSE);
+            // Default other colors to the diffuse colors (in case they are not directly defined)
+            genericMaterial.mAmbientColor = genericMaterial.mDiffuseColor;
+            genericMaterial.mSpecularColor = genericMaterial.mDiffuseColor;
+            setColor(genericMaterial.mAmbientColor,  material, AI_MATKEY_COLOR_AMBIENT);
+            setColor(genericMaterial.mSpecularColor, material, AI_MATKEY_COLOR_SPECULAR);
+
+            genericMaterial.mDiffuseMap = 
+                readTextureParameters(material, aiTextureType_DIFFUSE,
+                                      aTexturePaths, textureOffset, tracking);
+            genericMaterial.mNormalMap = 
+                readTextureParameters(material, aiTextureType_NORMALS,
+                                      aTexturePaths, textureOffset, tracking);
+            // Empirically, it seems the MRAO map corresponds to Assimp's Metalness
+            genericMaterial.mMetallicRoughnessAoMap = 
+                readTextureParameters(material, aiTextureType_METALNESS,
+                                      aTexturePaths, textureOffset, tracking);
+
+            if (material->Get(AI_MATKEY_METALLIC_FACTOR, genericMaterial.mMetallicFactor) == AI_SUCCESS)
+            {
+                assert(material->Get(AI_MATKEY_ROUGHNESS_FACTOR, genericMaterial.mRoughnessFactor) == AI_SUCCESS);
+                std::cout << "  metallic factor: " << genericMaterial.mMetallicFactor 
+                          << ", roughness factor: " << genericMaterial.mRoughnessFactor 
+                          << "\n";
+            }
+            if(material->Get(AI_MATKEY_SHININESS, genericMaterial.mSpecularExponent) == AI_SUCCESS)
+            {
+                // Correct the specular exponent if needed
+                if(genericMaterial.mSpecularExponent <= 1)
+                {
+                    const float gSpecularExponent = 30; 
+                    ADLOG(warn)("Specular exponent value '{}' is too low, setting it to '{}'.",
+                                genericMaterial.mSpecularExponent,
+                                gSpecularExponent);
+                    genericMaterial.mSpecularExponent = gSpecularExponent;
+                }
+                std::cout << "  specular exponent: " << genericMaterial.mSpecularExponent << "\n";
+            }
+
+            if(material->Get(AI_MATKEY_OPACITY, genericMaterial.mDiffuseColor.a()) == AI_SUCCESS)
+            {
+                std::cout << "  opacity factor: " << genericMaterial.mDiffuseColor.a() << "\n";
+            }
+            else if(material->Get(AI_MATKEY_TRANSPARENCYFACTOR, genericMaterial.mDiffuseColor.a()) == AI_SUCCESS)
+            {
+                std::cout << "  transparency factor: " << genericMaterial.mDiffuseColor.a() << "\n";
+                genericMaterial.mDiffuseColor.a() = 1 - genericMaterial.mDiffuseColor.a();
+            }
+
+            //normalizeColorFactors(genericMaterial);
+        }
+        return tracking;
+    }
+
+
 } // anonymous namespace
 
-void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelFile, Context& aContext, float aGlobalScale)
+
+void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelFile, Context & aContext, float aGlobalScale)
 {
 #if defined(VERBOSE_ASSIMP)
     // Comment out to get verbose output from the importer, to stdout.
@@ -486,7 +768,41 @@ void loadModel(SceneTree & aAppendedScene, const std::filesystem::path & aModelF
     assert(nodeResult == countVerticesDirect(scene->mRootNode, scene));
 
     MeshMap meshMap;
-    recurseNodes(scene->mRootNode, scene, aAppendedScene, meshMap, Node::gInvalidIndex);
+    recurseNodes(scene->mRootNode,
+                 scene,
+                 aAppendedScene,
+                 meshMap,
+                 Node::gInvalidIndex,
+                 aContext.mStorage.mMaterials.mCount);
+
+    TexturePaths pathsInModel;
+    // TODO: texture offset when writing indices
+    DdsTracking tracking = loadMaterials(scene, aContext, pathsInModel);
+    tracking.dump(std::ofstream{aModelFile.parent_path() / "sorted_textures.json"});
+    appendTextures(aModelFile.parent_path(), pathsInModel, aContext.mStorage);
+}
+
+
+void appendTextures(const std::filesystem::path & aPrefix, 
+                     TexturePaths & aTextureSources,
+                     ModelStorage & aStorage)
+{
+    for (const auto & tex : aTextureSources)
+    {
+        std::filesystem::path imagePath = aPrefix / tex.first;
+        auto ddsCandidate{imagePath};
+        ddsCandidate.replace_extension(".dds");
+
+        aStorage.mTextures.push_back(
+            (is_regular_file(ddsCandidate) ?
+             renderer::loadDds(ddsCandidate)
+             : renderer::loadTexture(imagePath, tex.second)));
+
+        glTextureParameteri(aStorage.mTextures.back(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(aStorage.mTextures.back(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    std::move(aTextureSources.begin(), aTextureSources.end(),
+              std::back_inserter(aStorage.mTexturePaths));
 }
 
 

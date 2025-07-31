@@ -1,0 +1,214 @@
+#version 460
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+#include "ch11_VoxelsTextures.glsl"
+
+#if defined(ANISO_SOURCE)
+    uniform int u_SourceLod;
+    // Source directly taken from the texture array in VoxelsTextures.glsl
+#else
+	uniform layout(rgba8) readonly restrict image3D u_IrradianceSourceImage;
+#endif // ANISO_SOURCE
+
+// Each image3D in the array will take a consecutive binding index
+uniform layout(binding = 0) writeonly restrict image3D u_IrradianceDestinationImage[ANISO_DIRECTIONS];
+
+uniform uvec3 u_DestinationDimension;
+
+
+const ivec3[8] gOffsets = ivec3[8](
+    ivec3(0, 0, 0), // x-  y-  z-
+    ivec3(1, 0, 0), // x+
+    ivec3(0, 1, 0), //     y+
+    ivec3(1, 1, 0), //
+    ivec3(0, 0, 1), //         z+
+    ivec3(1, 0, 1),
+    ivec3(0, 1, 1),
+    ivec3(1, 1, 1)
+);
+
+
+vec4[8] loadSubtexels(
+    ivec3 aDestinationTexel_grid
+	#if defined(ANISO_SOURCE)
+		, uint aDirectionIdx 
+    #endif // ANISO_SOURCE
+    )
+{
+    vec4[8] result;
+    ivec3 sourceCorner_grid = 2 * aDestinationTexel_grid;
+    for(uint i = 0; i != 8; ++i)
+    {
+		#if defined(ANISO_SOURCE)
+            // Texel fetch in unnormalized texturee coordinates
+			result[i] = texelFetch(u_VoxelsIrradianceAnisoMipmap[aDirectionIdx],
+                                   sourceCorner_grid + gOffsets[i],
+                                   u_SourceLod);
+        #else
+            // Image coordinates are signed integers in texel space
+			result[i] = imageLoad(u_IrradianceSourceImage,
+                                  sourceCorner_grid + gOffsets[i]);
+        #endif // ANISO_SOURCE
+    }
+    return result;
+}
+
+//#define EMULATE_ISOTROPIC
+#if !defined(EMULATE_ISOTROPIC)
+	vec3 integrateAlbedo(vec4[8] v, uint aNear, uint aFar)
+	{
+		return v[aNear].a * v[aNear].rgb + (1 - v[aNear].a) * v[aFar].a * v[aFar].rgb;
+	}
+
+	float integrateOpacity(vec4[8] v, uint aNear, uint aFar)
+	{
+		return v[aNear].a + (1 - v[aNear].a) * v[aFar].a;
+	}
+#else
+	vec3 integrateAlbedo(vec4[8] v, uint aNear, uint aFar)
+	{
+		return (v[aNear].a * v[aNear].rgb + v[aFar].a * v[aFar].rgb) / 2;
+	}
+
+	float integrateOpacity(vec4[8] v, uint aNear, uint aFar)
+	{
+		return (v[aNear].a + v[aFar].a) / 2;
+	}
+#endif //EMULATE_ISOTROPIC
+
+
+vec4 average(vec4 aValues[4])
+{
+    vec4 accum = vec4(0);
+	for(int i = 0; i != 4; ++i)
+	{
+		accum += vec4(aValues[i].rgb * aValues[i].a, aValues[i].a);
+	}
+	return vec4(accum.rgb / accum.a, accum.a / 4);
+}
+
+void main()
+{
+    // Does not seem to work
+    //ivec3 destinationSize = imageSize(u_IrradianceDestinationImage);
+    if(any(greaterThanEqual(gl_GlobalInvocationID, u_DestinationDimension)))
+    {
+        return;
+    }
+
+    ivec3 voxelCoord = ivec3(gl_GlobalInvocationID);
+    vec4 integrated[4];
+	uint aDirIndex;
+
+	#if defined(ANISO_SOURCE)
+		vec4[8] v;
+	#else
+		vec4[8] v = loadSubtexels(voxelCoord);
+	#endif
+
+    // X
+    {
+		// X+
+        aDirIndex = 0;
+		#if defined(ANISO_SOURCE)
+			v = loadSubtexels(voxelCoord, aDirIndex);
+		#endif
+
+        integrated[0].a = integrateOpacity(v, 0, 1);
+        integrated[1].a = integrateOpacity(v, 2, 3);
+        integrated[2].a = integrateOpacity(v, 4, 5);
+        integrated[3].a = integrateOpacity(v, 6, 7);
+
+        integrated[0].rgb = integrateAlbedo(v, 0, 1) / integrated[0].a;
+        integrated[1].rgb = integrateAlbedo(v, 2, 3) / integrated[1].a;
+        integrated[2].rgb = integrateAlbedo(v, 4, 5) / integrated[2].a;
+        integrated[3].rgb = integrateAlbedo(v, 6, 7) / integrated[3].a;
+		imageStore(u_IrradianceDestinationImage[aDirIndex], voxelCoord, average(integrated));
+
+		// X-
+        ++aDirIndex;
+		#if defined(ANISO_SOURCE)
+			v = loadSubtexels(voxelCoord, aDirIndex);
+            
+            // Note: even though we are sampling a different input texture,
+            // we do not need to recompute opacity:
+            // The opacity calculated at the first level is the same for both directions
+            // which results on indentical opacity at each level.
+			//integrated[0].a = integrateOpacity(v, 0, 1);
+			//integrated[1].a = integrateOpacity(v, 2, 3);
+			//integrated[2].a = integrateOpacity(v, 4, 5);
+			//integrated[3].a = integrateOpacity(v, 6, 7);
+		#endif
+
+        integrated[0].rgb = integrateAlbedo(v, 1, 0) / integrated[0].a;
+        integrated[1].rgb = integrateAlbedo(v, 3, 2) / integrated[1].a;
+        integrated[2].rgb = integrateAlbedo(v, 5, 4) / integrated[2].a;
+        integrated[3].rgb = integrateAlbedo(v, 7, 6) / integrated[3].a;
+		imageStore(u_IrradianceDestinationImage[aDirIndex], voxelCoord, average(integrated));
+	}
+
+    // Y
+    {
+		// Y+
+        ++aDirIndex;
+		#if defined(ANISO_SOURCE)
+			v = loadSubtexels(voxelCoord, aDirIndex);
+		#endif
+
+        integrated[0].a = integrateOpacity(v, 0, 2);
+        integrated[1].a = integrateOpacity(v, 1, 3);
+        integrated[2].a = integrateOpacity(v, 4, 6);
+        integrated[3].a = integrateOpacity(v, 5, 7);
+
+        integrated[0].rgb = integrateAlbedo(v, 0, 2) / integrated[0].a;
+        integrated[1].rgb = integrateAlbedo(v, 1, 3) / integrated[1].a;
+        integrated[2].rgb = integrateAlbedo(v, 4, 6) / integrated[2].a;
+        integrated[3].rgb = integrateAlbedo(v, 5, 7) / integrated[3].a;
+		imageStore(u_IrradianceDestinationImage[aDirIndex], voxelCoord, average(integrated));
+
+		// Y-
+        ++aDirIndex;
+		#if defined(ANISO_SOURCE)
+			v = loadSubtexels(voxelCoord, aDirIndex);
+		#endif
+
+        integrated[0].rgb = integrateAlbedo(v, 2, 0) / integrated[0].a;
+        integrated[1].rgb = integrateAlbedo(v, 3, 1) / integrated[1].a;
+        integrated[2].rgb = integrateAlbedo(v, 6, 4) / integrated[2].a;
+        integrated[3].rgb = integrateAlbedo(v, 7, 5) / integrated[3].a;
+		imageStore(u_IrradianceDestinationImage[aDirIndex], voxelCoord, average(integrated));
+	}
+
+    // Z
+    {
+		// Z+
+        ++aDirIndex;
+		#if defined(ANISO_SOURCE)
+			v = loadSubtexels(voxelCoord, aDirIndex);
+		#endif
+
+        integrated[0].a = integrateOpacity(v, 0, 4);
+        integrated[1].a = integrateOpacity(v, 1, 5);
+        integrated[2].a = integrateOpacity(v, 2, 6);
+        integrated[3].a = integrateOpacity(v, 3, 7);
+
+        integrated[0].rgb = integrateAlbedo(v, 0, 4) / integrated[0].a;
+        integrated[1].rgb = integrateAlbedo(v, 1, 5) / integrated[1].a;
+        integrated[2].rgb = integrateAlbedo(v, 2, 6) / integrated[2].a;
+        integrated[3].rgb = integrateAlbedo(v, 3, 7) / integrated[3].a;
+		imageStore(u_IrradianceDestinationImage[aDirIndex], voxelCoord, average(integrated));
+
+		// Z-
+        ++aDirIndex;
+		#if defined(ANISO_SOURCE)
+			v = loadSubtexels(voxelCoord, aDirIndex);
+		#endif
+
+        integrated[0].rgb = integrateAlbedo(v, 4, 0) / integrated[0].a;
+        integrated[1].rgb = integrateAlbedo(v, 5, 1) / integrated[1].a;
+        integrated[2].rgb = integrateAlbedo(v, 6, 2) / integrated[2].a;
+        integrated[3].rgb = integrateAlbedo(v, 7, 3) / integrated[3].a;
+		imageStore(u_IrradianceDestinationImage[aDirIndex], voxelCoord, average(integrated));
+	}
+}

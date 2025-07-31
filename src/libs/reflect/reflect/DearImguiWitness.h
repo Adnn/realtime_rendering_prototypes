@@ -43,6 +43,26 @@ void give(DearImguiWitness & aV, const std::span<T, Extent> & aSpan, const char 
     ImGui::Unindent();
 }
 
+
+template <class T, std::size_t Extent>
+void give(DearImguiWitness & aV,
+          const std::span<T, Extent> & aSpan,
+          const std::span<std::string, Extent> & aNames)
+{
+    ImGui::Indent();
+    for(std::size_t idx = 0; idx != aSpan.size(); ++idx)
+    {
+        std::string label = aNames[idx] + (" (#" + std::to_string(idx) + ")");
+        ImGui::SeparatorText(label.c_str());
+        // We have to push an explicit ID on the stack, to distinguish below widgets.
+        ImGui::PushID(label.c_str());
+        describe(aV, aSpan[idx]);
+        ImGui::PopID();
+    }
+    ImGui::Unindent();
+}
+
+
 // Note: To get each element of the tuple, we need compile-time indices
 // so a runtime loop cannot work.
 // We rely on an index sequence to get the parameter pack VN_indices.

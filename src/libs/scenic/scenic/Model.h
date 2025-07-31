@@ -2,13 +2,16 @@
 
 
 #include "Hierarchy.h"
+#include "Material.h"
 #include "Pose.h"
 
+#include <engine/ColorSpace.h>
 #include <engine/Semantic.h>
 
 #include <math/Box.h>
 
 #include <renderer/BufferBase.h>
+#include <renderer/Texture.h>
 #include <renderer/VertexSpecification.h>
 
 #include <unordered_map>
@@ -20,7 +23,12 @@ namespace ad::scenic {
 template <class T>
 class Handle
 {
-    std::vector<std::remove_cv_t<T>>::size_type mIndex;
+    using Index_t = std::vector<std::remove_cv_t<T>>::size_type;
+public:
+    void operator=(Index_t aValue)
+    { mIndex = aValue; }
+
+    Index_t mIndex;
 };
 
 
@@ -104,6 +112,11 @@ struct MeshPart
 };
 
 
+struct Material
+{
+    Handle<const GenericMaterial_glsl> mSurfaceParameters;
+};
+
 // Note: A representation of a mesh that owns an individual buffer for each vertex attribute
 //       This is simpler to implement (and manage lifetimes) than a shared buffer approach
 //       At the cost of leading to a distinct VAO per mesh (so state change, plus distinct draw calls).
@@ -131,6 +144,8 @@ struct MeshPart_Naive
     GLuint mIndicesCount = 0;   
 
     math::Box<float> mAabb;
+
+    Material mMaterial;
 };
 
 
@@ -163,15 +178,34 @@ struct SceneTree
 };
 
 
+math::Box<float> getAabb(const SceneTree & aSceneTree);
+
+
 SceneTree & mergeScenes(SceneTree & aBaseTree,
                         SceneTree & aMerged,
                         Node::Index aParent = Node::gInvalidIndex);
 
 
+using TexturePaths = std::vector<std::pair<std::string, renderer::ColorSpace>>;
+// TODO: rename, this is more general than models
 struct ModelStorage
 {
-    std::vector<VertexStream> mVertexStreams;
+    //std::vector<VertexStream> mVertexStreams;
+    GenericMaterialsBlock_glsl mMaterials;
+    // Note: vector implies that each material is given a name when stored
+    // if we want to relax that constraint, use some map instead.
+    std::vector<std::string> mMaterialNames;
+
+    std::vector<graphics::Texture> mTextures;
+    TexturePaths mTexturePaths;
 };
+
+
+inline const GenericMaterial_glsl & get(const ModelStorage & aStorage, Handle<const GenericMaterial_glsl> aHandle)
+{
+    assert(aHandle.mIndex < aStorage.mMaterials.mCount);
+    return aStorage.mMaterials.mMaterials[aHandle.mIndex];
+}
 
 
 } // namespce ad::scenic

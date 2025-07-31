@@ -14,6 +14,16 @@ git clone git@github.com:Adnn/realtime_rendering_assets.git assets
 
 The repository contains several standalone applications demonstrating real-time rendering techniques.
 
+
+### ch11_voxel
+
+Implements a GPU-accelerated voxelization pipeline, accumulations in voxel space,
+compute-based mipmap filtering, and cone tracing to achieve different GI effects
+(radiance accumulation, AO, visibility).
+
+[![intel_sponza-directional_vxgi](https://adnn.github.io/assets/rtr_prototypes/ch11_voxel/rtr_11-intel_sponza-864.jpg)](https://adnn.github.io/assets/rtr_prototypes/ch11_voxel/rtr_11-intel_sponza-1920.jpg)
+
+
 ### ch11_ssao
 
 Implement Screen-Space Ambient Occlusion (SSAO) in a viewer supporting PBR shading and image-based lighting (IBL).

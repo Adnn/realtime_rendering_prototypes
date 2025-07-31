@@ -1,0 +1,67 @@
+X voxelize an actual model
+- X use dominant axis
+- X implement the projection in geometry shader
+X the problem of raytracing voxels not showing until after instanced voxel view
+X the spurious crash/hang in raytracing voxels
+X do not voxelize each frame
+X offer conservative rasterization
+X the blinking voxels on raytracing
+X the problem of things disappearing after minimization
+strange behavior of conservative rasterization with fixed-axis voxelization
+cannot get all walls to the same AO factor
+
+X Load Sponza model, show textures and stuff
+x Make a mipmap chain in a 3D texture, at first with occupancy (better than auto generated), option to display mipmap levels
+X Voxelize normal and albedo
+X Inject light into a mipmapped voxel grid
+X Implement compute shaders for correct mipmapping of injected light
+X - compare it to a reference impl
+X Determine ambient occlusion from the irradiance instead of separate occupancy
+X Implement tone-mapping alternatives
+X Depth write to ray tracing of voxels
+X Allow translations (dir keys) with orbital camera
+X Cone trace the diffuse component (handle visibility)
+X - Debug the issue of ultra-bright inner-angles (e.g. walls)
+X Add shadow from multiple lights / point lights
+X Use the split-sum texture
+CANNOT: the TBN is in view, cone tracing need it in world. Use bump-mapping TBN when available, instead of re-computing into accumulateXxx
+WILL_NOT as I implement the simpler injection during voxelization: Light the scene by "photon mapping" (i.e. rasterizing from the light POV)
+X Add cone trace maxdistance user control
+X Store lights in world coordinates too, there are ub_cameraToWorld everywhere
+X Cone trace specular component (how to tailor the cone direction and angle to match the BRDF?)
+X- the specular indirect contribution seems week
+X Option to inject irradiance during the voxelization step (instead of storing albedo and normal, compute irradiance and average it. It is also compatible with shadow maps, but not shadow cone tracing)
+X- compute pass to set correct alpha
+X- implement visibility via shadowing
+X Use shadowing in forward rendering
+X- shadow maps
+X- shadow cone
+X Add visibility (shadowing) for voxel irradiance injection
+X Add tracy instrumentation to measure performances
+Divide by 4 instead of 8 in the mipmapping shader (but at which level should we start to not overflow?)
+X Anisotropic might be required for descent cone traced shadows
+X- how to use the level 0 with the 6 mipmap chains
+X- Ensure linear between mipmap levels on irradiance (in particular 6 aniso textures)
+Apply d vs d' correction factor to alpha
+Offer options for voxel shadowing on light injection:
+- voxel ray tracing (fix the hardcoded offset / consolidate with visibility ray tracing)
+- shadow cone tracing
+- shadow maps
+Find a real "axis collapsing" method (maybe need to read the current value to determine "co-axiality")
+X Increase the grid dimension 512^3
+Try to bake more bounces into injected light
+Try on other environments
+ X- Pica Pica
+  X- specular exponent to roughness
+ X- Intel Sponza
+  - Fix the LHS tangent basis problem
+
+
+Defects:
+- Light leaking at inner corners (also visible in "Voxel Cone Tracing Evaluation for Real-Time Applications" fig. 26 p36
+- Normal averaging on thin objects (< 1 voxel) cancels out (e.g. Sponza drapes) / direct light injection leaks on the other side
+  - Note: this problem does not exist if we directly inject light during voxelization, instead of a separate pass
+- (cannot be addressed) lack of specular highlights in the voxelization (since we only inject diffuse lighting, because specular hightlight depends on traced cone direction)
+- The anisotropic irradiance tends to be much higher energy than the isotropic version (should pathtrace a reference image to conclude which is more accurate)
+  - With anisotropic, light leaks in some pathological case: e.g. thin wall with a very bright and a very dark side.
+    The leak will occur on the axis bright->dark, and will catch up to both the tangential diffuse cone, and the normal aligned cone (not "escaping" fast enough)

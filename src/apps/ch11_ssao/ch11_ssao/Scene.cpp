@@ -107,7 +107,9 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 const std::filesystem::path gSurfaceProgramPath = "programs/ch11_global_illumination_Pbr.prog";
 const std::filesystem::path gLightProgramPath = "programs/RenderModel_PlainColor.prog";
 
-//const std::filesystem::path gModelPaths[] = { "models/Mat/meetmat_2.glb" };
+//const renderer::ReferencePath gModelPaths[] = { 
+//    renderer::ReferencePath{"models/Mat/meetmat_2.glb"},
+//};
 //constexpr float gModelScale = 0.1f;
 
 const renderer::ReferencePath gModelPaths[] = {
@@ -223,10 +225,10 @@ void Scene::loadPrograms()
 }
 
 
-void Scene::step(const graphics::Timer & /*aTimer*/,
+void Scene::step(const graphics::Timer & aTimer,
                  math::Size<2, int> aWindowResolution)
 {
-    mOrbitalCamera.update(aWindowResolution.height());
+    mOrbitalCamera.update(aTimer.delta(), aWindowResolution.height());
 }
 
 

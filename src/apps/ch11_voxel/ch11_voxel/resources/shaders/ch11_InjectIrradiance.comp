@@ -1,0 +1,184 @@
+#version 460
+
+// TODO: profile different workgroup geometries
+// Maybe something more x oriented might be better for cache coherency
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+
+#include "ch11_VoxelsRayTracing.glsl"
+#include "ch11_VoxelsSsbo.glsl"
+#include "ch11_VoxelsUtilities.glsl"
+
+#include "shaders/Helpers.glsl"
+#include "shaders/LightsBlock.glsl"
+#include "shaders/LightUtilities.glsl"
+#include "shaders/ViewProjectionBlock.glsl"
+
+
+uniform vec3 u_AabbMin;
+uniform float u_VoxelSize;
+uniform bool u_AverageNormalByAxis;
+
+uniform sampler3D u_AlbedoTexture;
+uniform sampler3D u_NormalsTexture;
+
+uniform writeonly restrict image3D u_IrradianceImage;
+
+
+/// @return Fractional **grid** coordinates of the entry point for voxel grid ray tracing.
+vec3 offsetEntryFromDir(ivec3 aVoxel_grid, vec3 aLightDir_grid)
+{
+
+	ivec3 step = ivec3(sign(aLightDir_grid));
+
+    // We start traversal from a neighboring voxel, offset on 3 axes in the cone direction
+    // Drastically reduces false occlusions (e.g. voxels in a plane, with light shining sideway)
+    aVoxel_grid += step;
+
+    // Set the traversal entry point at the center of the voxel
+    vec3 entry = vec3(aVoxel_grid) + 0.5;
+    return entry;
+}
+
+
+/// @return Fractional **grid** coordinates of the entry point for voxel grid ray tracing.
+vec3 offsetEntryFromPos(ivec3 aVoxel_grid, ivec3 aLightPos_grid)
+{
+    return offsetEntryFromDir(aVoxel_grid, (aLightPos_grid - aVoxel_grid));
+}
+
+
+float getVisibility(vec3 aEntry_aabb, vec3 aLightDir_aabb, GridBounds aBounds)
+{
+    // Dummy variable to satisfy traversal API
+	VoxelHit unusedHit;
+
+	//// Note: we traverse the voxel grid as an AABB with voxel of unit dimension
+	//// This allows to use the voxel grid coord as entry point in the AABB directly
+    vec3 occludingVoxel =
+		traverseVoxels(aEntry_aabb, aLightDir_aabb, 
+					   1, ub_GridDimension,
+					   unusedHit,
+                       // Use the default occupancy mode, reading from the SSBO
+                       makeOccupancy(),
+                       aBounds,
+                       // We do test self, since we already offset to a neighboring voxel in the light direction
+					   false);
+	return (occludingVoxel == ivec3(-1)) ? 1.f : 0.0f;
+}
+
+
+vec3 injectDirectLight(vec3 aShadingNormal, vec3 aLightDir, LightColors aColors)
+{
+    //#define MITIGATE_NORMALS
+	#if defined(MITIGATE_NORMALS)
+        vec3 weight = aShadingNormal * aShadingNormal;
+        // calculate directional shading attenuation
+        float rDotL = dot(vec3(1.0, 0.0, 0.0), aLightDir);
+        float uDotL = dot(vec3(0.0, 1.0, 0.0), aLightDir);
+        float fDotL = dot(vec3(0.0, 0.0, 1.0), aLightDir);
+
+        rDotL = aShadingNormal.x > 0.0 ? max(rDotL, 0.0) : max(-rDotL, 0.0);
+        uDotL = aShadingNormal.y > 0.0 ? max(uDotL, 0.0) : max(-uDotL, 0.0);
+        fDotL = aShadingNormal.z > 0.0 ? max(fDotL, 0.0) : max(-fDotL, 0.0);
+        // voxel shading average from all front sides
+        float nDotL = rDotL * weight.x + uDotL * weight.y + fDotL * weight.z;
+	#else
+		if (u_AverageNormalByAxis)
+        {
+            aLightDir = abs(aLightDir);
+        }
+		float nDotL = dotPlus(aShadingNormal, aLightDir);
+	#endif
+
+    vec3 diffuse = nDotL * aColors.diffuse.rgb;
+    return diffuse;
+}
+
+
+void main()
+{
+    if(any(greaterThanEqual(gl_GlobalInvocationID, uvec3(ub_GridDimension))))
+    {
+        return;
+    }
+
+    ivec3 voxelCoord = ivec3(gl_GlobalInvocationID);
+
+    vec4 albedo = texelFetch(u_AlbedoTexture, voxelCoord, 0);
+
+    if (albedo.a == 0)
+    {
+        // Debug write
+		//imageStore(u_IrradianceImage, voxelCoord, vec4(0, 1, 1, 1));
+        return; // non-occupied
+    }
+
+    vec4 voxelNormal = texelFetch(u_NormalsTexture, voxelCoord, 0);
+    // Remap from [0, 1]^3 to [-1, 1]^3
+    vec3 normal_world = (vec3(voxelNormal.xyz) * 2) - 1;
+    normal_world = normalize(normal_world);
+    // Accumulator for irradiance
+    vec3 irradiance = vec3(0);
+
+    //
+    // Directional
+    //
+    for(uint directionalIdx = 0;
+        directionalIdx != ub_DirectionalCount.x;
+        ++directionalIdx)
+    {
+        DirectionalLight directional = ub_DirectionalLights[directionalIdx];
+        vec3 lightDir_world = -directional.direction.xyz;
+        
+        vec3 entry_grid = offsetEntryFromDir(voxelCoord, lightDir_world);
+
+        irradiance += 
+			getVisibility(entry_grid, lightDir_world, getFullAabbBounds()) * 
+            injectDirectLight(normal_world, lightDir_world, directional.colors)
+            ;
+    }
+
+    //
+    // Point
+    //
+	for(uint pointIdx = 0; pointIdx != ub_PointCount.x; ++pointIdx)
+    {
+        PointLight point = ub_PointLights[pointIdx];
+
+        vec3 lightPos_world = point.position.xyz;
+
+		ivec3 lightPos_grid = worldToVoxel(lightPos_world, u_VoxelSize, u_AabbMin);
+        // Set the light position to its voxel center
+        //lightPos_world = voxelToWorld(lightPos_grid, u_VoxelSize, u_AabbMin);
+
+        vec3 entry_grid = offsetEntryFromPos(voxelCoord, lightPos_grid);
+		vec3 entry_world = voxelToWorld(entry_grid, u_VoxelSize, u_AabbMin);
+
+        // Note: the light ray is starting at the offset entry, not the current voxel
+        vec3 lightRay_world = lightPos_world - entry_world;
+        float r = sqrt(dot(lightRay_world, lightRay_world));
+        vec3 lightDir_world = lightRay_world / r;
+
+        float falloff = attenuatePoint(point, r);
+
+        GridBounds bounds = GridBounds(
+            min(ivec3(entry_grid), lightPos_grid),
+            max(ivec3(entry_grid), lightPos_grid));
+
+        irradiance += 
+            falloff *
+			getVisibility(entry_grid, lightDir_world, bounds) *
+            injectDirectLight(normal_world, lightDir_world, point.colors)
+            ;
+    }
+
+    // Add ambient contribution
+    irradiance += ub_AmbientColor.rgb;
+    // Apply the voxel albedo to accumulated irradiance from all light sources
+    irradiance *= albedo.rgb;
+
+    // Note: At the level 0 (i.e. this level of the irradiance 3D texture)
+    // the occupancy (in alpha) is set to 1: the voxel is considered entirely occupied.
+    imageStore(u_IrradianceImage, voxelCoord, vec4(irradiance, 1));
+}

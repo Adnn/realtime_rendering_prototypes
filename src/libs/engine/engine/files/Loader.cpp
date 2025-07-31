@@ -9,6 +9,7 @@
 #include <arte/detail/Json.h>
 
 #include <renderer/DdsGL.h>
+#include <renderer/TextureUtilities.h>
 
 #include <fmt/ranges.h>
 
@@ -420,6 +421,45 @@ graphics::Texture loadDds(const std::filesystem::path & aDds)
 }
 
 
+graphics::Texture loadTexture(const std::filesystem::path & aImagePath,
+                              ColorSpace aSourceColorSpace)
+{
+    ADLOG(debug)("Loading the image : {}", aImagePath.string());
+    
+    assert(aImagePath.extension() == ".jpg"
+           || aImagePath.extension() == ".png");
+
+    auto load = [&]<typename T_pixel>()
+    {
+        arte::Image<T_pixel> image{
+            aImagePath,
+            arte::ImageOrientation::InvertVerticalAxis};
+        if (aSourceColorSpace == ColorSpace::sRGB)
+        {
+            decodeSRGBToLinear(image);
+        }
+
+        graphics::Texture texture{GL_TEXTURE_2D};
+        graphics::loadImage(texture,
+                            image,
+                            graphics::countCompleteMipmaps(image.dimensions()));
+
+        glGenerateTextureMipmap(texture);
+
+        return texture;
+    };
+
+    if (arte::readImageInfo(aImagePath).mChannelCount == 3)
+    {
+        return load.template operator()<math::sdr::Rgb>();
+    }
+    else
+    {
+        return load.template operator()<math::sdr::Rgba>();
+    }
+}
+
+
 graphics::Texture Loader::loadDds(const ReferencePath& aDdsFile)
 {
     return renderer::loadDds(mFinder.pathFor(aDdsFile.mPath));
@@ -487,6 +527,10 @@ IntrospectProgram Loader::loadProgram(const ReferencePath & aProgFile,
         else if(shaderStage == "tes")
         {
             stageEnumerator = GL_TESS_EVALUATION_SHADER;
+        }
+        else if(shaderStage == "compute")
+        {
+            stageEnumerator = GL_COMPUTE_SHADER;
         }
         else
         {

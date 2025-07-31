@@ -9,9 +9,22 @@ Waiting for a better solution, here are our hardcoded bindings
 * 4: Lights
 * 5: LightViewProjection
 * 6: ShadowCascade
-* 7: GlyphMetrics
 * 8: LineSegment
+* 9: GlyphMetrics
+*
+* 10: Voxels storage
 
 ## Textures
 
+* 0: Albedo / Diffuse
+* 1: Normal
+* 2: Metallic-Roughness Ambient-Occlusion
 * 5: Skybox
+* 6: Shadow map
+* 7: OnmiShadowMap (cubemaps)
+* 10: Voxels albedo / occupancy
+* 11 : Isotropic voxels irradiance
+* 13: Filtered environment radiance
+* 14: Filtered environment irradiance
+* 15: Integrated environment BRDF 
+* [16..21]: Anisotropic voxels irradiance

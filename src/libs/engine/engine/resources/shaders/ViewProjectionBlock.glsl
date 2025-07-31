@@ -12,4 +12,10 @@ layout(std140, binding=0) uniform ViewProjectionBlock
 };
 
 
+vec3 getCameraPosition_world()
+{
+	return ub_cameraToWorld[3].xyz;
+}
+
+
 #endif //VIEWPROJECTIONBLOCK_GLSL_INCLUDE_GUARD
