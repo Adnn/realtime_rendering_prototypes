@@ -55,6 +55,9 @@ void loadToBuffer(const renderer::EntitiesBlock_glsl & aData,
 //const renderer::ReferencePath gModelPaths[] = {renderer::ReferencePath{"models/pica-pica-mini-diorama-01/sketchfab_gltf/scene.gltf"}};
 //constexpr float gModelScale = 10.f;
 
+// ATTENTION: seems thath the tangent space is in the wrong handedness (LHS) after loading with Assimp
+// Note: Assimpl GLTF2 importer is supposed to apply the handedness factor stored in tangent.w.
+//       We should read the actual tangent data from the file to be certain, but it might be the file is created wrong.
 const renderer::ReferencePath gModelPaths[] = {
     renderer::ReferencePath{"models/Intel_Sponza/pkg_a_curtains/NewSponza_Curtains_glTF.gltf"},
     renderer::ReferencePath{"models/Intel_Sponza/NewSponza_Main_glTF_003-No_Decals.gltf"},

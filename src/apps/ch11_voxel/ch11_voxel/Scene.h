@@ -144,7 +144,7 @@ struct Scene
 
     renderer::LightsDataCommon mLights{
         .mDirectionalCount = 1,
-        .mPointCount = 1,
+        .mPointCount = 0,
         // We decode a sRGB 50% white (which is also perceptually ~50%)
         // to linear space for computation.
         .mAmbientColor = math::decode_sRGB(math::hdr::gWhite<float> * 0.25f),
@@ -157,7 +157,7 @@ struct Scene
                 .mDirection = math::UnitVec<3, float>{ {0.1f, -0.94f, 0.325f} },
                 // TODO: decode the srgb value to have it show correctly in Imgui
                 // (and have it perceptually proportional to the factor)
-                .mColors = renderer::LightColors_glsl{} * 5,
+                .mColors = renderer::LightColors_glsl{} * 8,
             },
          },
         .mPointLights = {
