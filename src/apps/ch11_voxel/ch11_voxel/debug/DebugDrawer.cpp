@@ -1,5 +1,3 @@
-#pragma once
-
 #include "DebugDrawer.h"
 
 #include "../log/Logging.h"

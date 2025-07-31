@@ -40,7 +40,7 @@ Object makeCube()
         // Indices are stored by face (6 per face), 
         // 1 normal is stored for each face, in the same order
         normals.push_back(cube::gNormals[indexIdx / 6]);
-        uniqueIndices.push_back(indexIdx);
+        uniqueIndices.push_back((Index)indexIdx);
     }
 
     mesh.mSemanticToAttribute.insert(

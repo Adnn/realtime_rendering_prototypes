@@ -253,7 +253,7 @@ void OrbitalControl::callbackKeyboard(int key, int scancode, int action, int mod
         return;
     }
 
-    const float v = (action == GLFW_PRESS) ? 1 : 0;
+    const float v = (action == GLFW_PRESS) ? 1.f : 0.f;
     switch(key)
     {
         case GLFW_KEY_I:

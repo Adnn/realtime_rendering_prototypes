@@ -1,4 +1,4 @@
-#include "rgba8ui.h"
+#include "Rgba8ui.h"
 
 #include <graphics/ApplicationGlfw.h>
 #include <graphics/AppInterface.h>
